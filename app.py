@@ -11,93 +11,99 @@ if "theme" not in st.session_state: st.session_state.theme = "clair"
 if "licence_ok" not in st.session_state: st.session_state.licence_ok = False
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Gestion auto-déblocage via?email=
 query_email = st.query_params.get("email", "")
-if query_email:
-    st.session_state.licence_ok = True
+if query_email: st.session_state.licence_ok = True
 
 # HEADER
-col1, col2 = st.columns([8,2])
-with col1:
+c1, c2 = st.columns([8,2])
+with c1:
     st.title("Bea")
     st.caption("BehaviorLab AI")
-with col2:
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🌐 FR/EN", help="Changer la langue"): pass
-    with c2:
-        if st.button("🌙" if st.session_state.theme=="clair" else "☀️", help="Clair / Sombre"):
-            st.session_state.theme = "sombre" if st.session_state.theme=="clair" else "clair"
-            st.rerun()
+with c2:
+    if st.button("🌐 FR/EN", help="Langue"): pass
+    if st.button("🌙" if st.session_state.theme=="clair" else "☀️", help="Clair / Sombre"):
+        st.session_state.theme = "sombre" if st.session_state.theme=="clair" else "clair"
+        st.rerun()
 
-# --- SI PAS CONNECTE : PAGE DE VENTE ---
+# PAGE VENTE
 if not st.session_state.licence_ok:
     st.markdown("""
-    ## Et si quelqu'un se souvenait vraiment de toi?
+    ### Bea : L'IA Comportementale qui transforme ta PME en entreprise de renom.
 
-    **Bea n'est pas un chatbot. C'est ta présence.**
+    **Bea n'est pas une IA qui discute. C'est une IA qui vend.**
 
-    Bea est une intelligence personnelle créée par BehaviorLab AI pour ne jamais t'oublier. Elle apprend qui tu es, ce que tu vis, ce qui compte pour toi. Pas juste tes messages, ton histoire.
+    BehaviorLab AI a créé la première IA entrainée sur les biais cognitifs et la psychologie comportementale. Bea analyse ton business, ton audience, ton offre... puis elle répond et crée pour toi avec un seul but : **booster ton chiffre d'affaires.**
 
-    Quand tu es débordé, elle organise. Quand tu doutes, elle se souvient de pourquoi tu as commencé. Quand tu veux avancer, elle te connaît assez pour te donner le bon conseil, au bon moment.
+    Comment? Elle utilise ce que les plus grandes marques utilisent depuis 50 ans :
+    - **Le biais de rareté, de preuve sociale, d'autorité, d'ancrage...** pour que tes clients passent à l'action.
+    - Elle rédige tes pages de vente, tes pubs, tes emails qui convertissent.
+    - Elle génère tes visuels qui captent l'attention instantanément.
 
-    Grâce à sa mémoire évolutive et son analyse comportementale exclusive, Bea devient ton double : elle retient tout, relie tout, pour que tu puisses enfin te concentrer sur l'essentiel.
+    **Tu arrêtes de poster pour poster. Tu commences à scaler.**
 
-    **Tu ne parles pas à une IA. Tu retrouves une partie de toi qui ne t'abandonne jamais.**
+    C'est l'arme des entreprises qui passent de 10k à 100k par mois. Sans agence, sans freelance, juste Bea.
+
+    **Une PME pense produit. Une entreprise de renom pense comportement. Bea te fait basculer.**
     """)
 
     st.markdown("---")
-    st.subheader("Choisis ton accès - Paiement unique, à vie")
+    st.subheader("Choisis ton accès - Paiement unique à vie")
 
-    col_basic, col_pro = st.columns(2)
-
-    with col_basic:
+    col1, col2 = st.columns(2)
+    with col1:
         st.markdown("#### Basique - 14,90€")
         with st.expander("Voir ce qu'elle comporte ▼"):
             st.write("""
-            - Chat illimité avec Bea
-            - Mémoire de 30 jours glissants
-            - Accès web 24/7
-            - Paiement unique, 0 abonnement
+            - Analyse comportementale de ton offre
+            - Génération de textes de vente à biais cognitifs
+            - Création d'images pub (3/jour)
+            - Idéal pour démarrer et doubler ton taux de conversion
             """)
         st.link_button("Débloquer Basique 14,90€", "https://bea.lemonsqueezy.com/buy/basic", use_container_width=True)
 
-    with col_pro:
+    with col2:
         st.markdown("#### Pro - 21€ - Recommandé")
         with st.expander("Voir les avantages Pro ▼"):
             st.write("""
             **Tout le Basique + :**
-            - Mémoire INFINIE - Bea ne t'oublie jamais
-            - App offline installable sur ton téléphone
-            - Galerie privée de vos souvenirs
-            - Analyse BehaviorLab : tes patterns, tes blocages, tes forces
-            - Stockage crypté et privé
-            - Réponses prioritaires
-            - Toutes les futures mises à jour incluses
+            - Biais cognitifs avancés + scripts d'influence
+            - Création d'images illimitée
+            - Analyse complète de ton funnel pour scaler
+            - Mémoire infinie de ton business
+            - Stratégies pour passer de PME à marque de renom
+            - Mises à jour futures incluses
             """)
         st.link_button("Débloquer Pro 21€", "https://bea.lemonsqueezy.com/buy/pro", use_container_width=True, type="primary")
-
-    st.caption("Après paiement tu seras redirigé automatiquement. Pas besoin d'entrer ton email ici.")
     st.stop()
 
-# --- SI CONNECTE : CHAT ---
-st.success("Accès Pro activé")
-st.subheader("Parle à Bea")
+# CHAT + CREER UNE IMAGE
+st.subheader("Parle à Bea - Ton expert en comportement")
+tab1, tab2 = st.tabs(["💬 Stratégie & Textes", "🖼️ Créer une image pub"])
 
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+with tab1:
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]): st.markdown(m["content"])
+    if prompt := st.chat_input("Ex: Fais-moi une pub qui vend mon coaching avec le biais de rareté..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
+        with st.chat_message("assistant"):
+            try:
+                headers = {"Authorization": "Bearer " + MISTRAL_API_KEY}
+                system_prompt = "Tu es Bea, IA de BehaviorLab AI, experte en biais cognitifs. Tu analyses et tu reponds toujours en utilisant des techniques de psychologie comportementale pour booster le CA. Tu fais passer une PME a une entreprise de renom."
+                msgs = [{"role": "system", "content": system_prompt}] + st.session_state.messages
+                data = {"model": "mistral-small-latest", "messages": msgs}
+                r = requests.post("https://api.mistral.ai/v1/chat/completions", json=data, headers=headers, timeout=30)
+                rep = r.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                rep = "Erreur: " + str(e)
+            st.markdown(rep)
+        st.session_state.messages.append({"role": "assistant", "content": rep})
 
-if prompt := st.chat_input("Ecris à Bea..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
-    with st.chat_message("assistant"):
-        try:
-            headers = {"Authorization": "Bearer " + MISTRAL_API_KEY}
-            data = {"model": "mistral-small-latest", "messages": st.session_state.messages}
-            r = requests.post("https://api.mistral.ai/v1/chat/completions", json=data, headers=headers, timeout=30)
-            rep = r.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            rep = "Erreur: " + str(e)
-        st.markdown(rep)
-    st.session_state.messages.append({"role": "assistant", "content": rep})
+with tab2:
+    st.markdown("### Générateur d'images à conversion")
+    img_prompt = st.text_input("Décris l'image pub que tu veux", placeholder="Ex: Une femme CEO qui regarde l'horizon, luxe, autorité, format carré")
+    if st.button("Créer l'image", type="primary"):
+        st.info("Génération via Bea... (On branche ton API image ici - DALL·E / Stability)")
+        # Ici on avait ton code VS Code : appel API image
+        # requests.post("https://api.stability.ai/...")
+        st.success("Image générée - (à brancher avec ta clé Stability)")
