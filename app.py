@@ -59,7 +59,7 @@ if not st.session_state.licence_ok:
             - Création d'images pub (3/jour)
             - Idéal pour démarrer et doubler ton taux de conversion
             """)
-        st.link_button("Débloquer Basique 14,90€", "https://bea.lemonsqueezy.com/buy/basic", use_container_width=True)
+        st.link_button("Débloquer Basique 14,90€", "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01", use_container_width=True)
 
     with col2:
         st.markdown("#### Pro - 21€ - Recommandé")
@@ -73,7 +73,7 @@ if not st.session_state.licence_ok:
             - Stratégies pour passer de PME à marque de renom
             - Mises à jour futures incluses
             """)
-        st.link_button("Débloquer Pro 21€", "https://bea.lemonsqueezy.com/buy/pro", use_container_width=True, type="primary")
+        st.link_button("Débloquer Pro 21€", "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00", use_container_width=True, type="primary")
     st.stop()
 
 # CHAT + CREER UNE IMAGE
