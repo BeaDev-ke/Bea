@@ -3,3 +3,4 @@ groq
 supabase==2.9.0
 httpx==0.27.2
 stripe
+pillow
