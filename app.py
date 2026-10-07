@@ -22,18 +22,11 @@ if "lang" not in st.session_state: st.session_state.lang = "FR"
 query_email = st.query_params.get("email", "")
 if query_email: st.session_state.licence_ok = True
 
-CLAIR_BG = "#FFFBFE"
-CLAIR_CARD = "#FFFFFF"
-SOMBRE_BG = "#0F0A1E"
-SOMBRE_CARD = "#1C1333"
 BEA_GRADIENT = "linear-gradient(135deg, #7C3AED 0%, #A855F7 50%, #EC4899 100%)"
-BEA_PRIMARY = "#7C3AED"
-
-theme = st.session_state.theme
-bg = CLAIR_BG if theme=="clair" else SOMBRE_BG
-card = CLAIR_CARD if theme=="clair" else SOMBRE_CARD
-text_color = "#1A1A1A" if theme=="clair" else "#F5F3FF"
-sub_text = "#6B7280" if theme=="clair" else "#A78BFA"
+bg = "#FFFBFE" if st.session_state.theme=="clair" else "#0F0A1E"
+card = "#FFFFFF" if st.session_state.theme=="clair" else "#1C1333"
+text_color = "#1A1A1A" if st.session_state.theme=="clair" else "#F5F3FF"
+sub_text = "#6B7280" if st.session_state.theme=="clair" else "#A78BFA"
 
 st.markdown(f"""
 <style>
@@ -41,44 +34,55 @@ st.markdown(f"""
 html, body, [class*="css"] {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
 .stApp {{ background: {bg}; color: {text_color}; }}
 header, #MainMenu, footer {{ visibility: hidden; }}
-h1, h2, h3 {{ font-weight: 800!important; letter-spacing: -0.02em; }}
 .bea-header {{
     background: {BEA_GRADIENT};
-    padding: 18px 26px; border-radius: 18px; margin-bottom: 24px;
-    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 26px; border-radius: 18px;
     box-shadow: 0 12px 24px rgba(124,58,237,0.25);
 }}
-.bea-header h1 {{ color: white!important; margin:0; font-size: 28px; }}
-.bea-header span {{ color: rgba(255,255,255,0.9); font-weight: 500; }}
+.bea-header h1 {{ color: white!important; margin:0; font-size: 28px; font-weight:800; }}
+.bea-header span {{ color: rgba(255,255,255,0.9); }}
 .canva-card {{
     background: {card}; border-radius: 20px; padding: 28px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid rgba(124,58,237,0.08);
     margin-bottom: 20px;
 }}
-div[data-testid="stExpander"] {{ background: {card}; border-radius: 16px; }}
-/* Petits boutons icones */
+/* TOUS LES BOUTONS EN COULEUR BEA */
+div[data-testid="stLinkButton"] > a, div[data-testid="stLinkButton"] a,.stButton > button {{
+    background: {BEA_GRADIENT}!important;
+    color: white!important;
+    border: none!important;
+    border-radius: 14px!important;
+    font-weight: 800!important;
+    box-shadow: 0 6px 16px rgba(124,58,237,0.3)!important;
+}}
+div[data-testid="stLinkButton"] > a:hover,.stButton > button:hover {{
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(124,58,237,0.4)!important;
+}}
+/* Petits boutons langue / theme - même couleur mais plus petits et collés */
+div[data-testid="column"]:has(.icon-btn) {{
+    min-width: 0!important;
+}}
 .icon-btn button {{
-    width: 42px!important; height: 42px!important; border-radius: 12px!important;
-    padding: 0!important; background: rgba(255,255,255,0.18)!important;
-    border: 1px solid rgba(255,255,255,0.25)!important; color: white!important;
-    backdrop-filter: blur(6px);
+    width: 44px!important; height: 44px!important;
+    border-radius: 12px!important; padding:0!important;
+    background: {BEA_GRADIENT}!important;
 }}
 </style>
 """, unsafe_allow_html=True)
 
-# HEADER AVEC PETITS BOUTONS
-col_title, col_btn1, col_btn2 = st.columns([7.5, 0.75, 0.75])
-with col_title:
+# HEADER + 2 PETITS BOUTONS COLLES
+col_main, col_lang, col_theme = st.columns([0.84, 0.08, 0.08], gap="small")
+with col_main:
     st.markdown(f'<div class="bea-header"><div><h1>Bea</h1><span>BehaviorLab AI • L\'IA qui fait vendre</span></div></div>', unsafe_allow_html=True)
-with col_btn1:
+with col_lang:
     st.markdown('<div class="icon-btn">', unsafe_allow_html=True)
-    if st.button("🌐", key="lang_btn"):
-        st.session_state.lang = "EN" if st.session_state.lang=="FR" else "FR"
+    if st.button("🌐", key="lang_btn"): st.session_state.lang = "EN" if st.session_state.lang=="FR" else "FR"
     st.markdown('</div>', unsafe_allow_html=True)
-with col_btn2:
+with col_theme:
     st.markdown('<div class="icon-btn">', unsafe_allow_html=True)
-    if st.button("🌙" if theme=="clair" else "☀️", key="theme_btn"):
-        st.session_state.theme = "sombre" if theme=="clair" else "clair"
+    if st.button("🌙" if st.session_state.theme=="clair" else "☀️", key="theme_btn"):
+        st.session_state.theme = "sombre" if st.session_state.theme=="clair" else "clair"
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -86,17 +90,17 @@ if not st.session_state.licence_ok:
     st.markdown(f'<div class="canva-card"><h2 style="font-size:32px;line-height:1.1;">L\'IA qui transforme ton activité<br>en <span style="background:{BEA_GRADIENT};-webkit-background-clip:text;-webkit-text-fill-color:transparent;">marque qui compte.</span></h2><p style="color:{sub_text};font-size:17px;margin-top:16px;"><b>Bea n\'est pas une IA qui discute. C\'est une IA qui vend.</b><br><br>BehaviorLab AI a créé la première IA entraînée sur les biais cognitifs et la psychologie comportementale. Bea analyse ton activité, ton audience, ton offre... puis elle répond et crée pour toi avec un seul but : <b>augmenter ton chiffre d\'affaires.</b><br><br>Elle utilise ce que les plus grandes marques utilisent depuis 50 ans : le biais de rareté, de preuve sociale, d\'autorité, d\'ancrage... pour que tes clients passent à l\'action. Elle rédige tes pages de vente, tes publicités, tes emails qui convertissent et génère tes visuels qui captent l\'attention instantanément.<br><br><b>Une petite entreprise pense produit. Une grande marque pense comportement. Bea te fait basculer.</b></p></div>', unsafe_allow_html=True)
 
     st.markdown("### Choisis ton accès - Paiement unique, à vie")
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, gap="medium")
     with col1:
-        st.markdown(f'<div class="canva-card" style="border:2px solid #E5E7EB;"><h3>Basique - 14,90€</h3><p style="color:{sub_text};">Parfait pour démarrer et améliorer ta conversion</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="canva-card" style="border:2px solid #E9D5FF;"><h3>Basique - 14,90€</h3><p style="color:{sub_text};">Parfait pour démarrer et améliorer ta conversion</p></div>', unsafe_allow_html=True)
         with st.expander("Voir ce qu'elle comporte ▼"):
             st.write("- Analyse comportementale de ton offre\n- Textes de vente basés sur la psychologie\n- Aperçus de ton app (3/jour)")
         st.link_button("Débloquer Basique 14,90€", "https://buy.stripe.com/test_00w6oH2c0g0S0HN0kB1kE00", use_container_width=True)
     with col2:
-        st.markdown(f'<div class="canva-card" style="border:2px solid {BEA_PRIMARY};"><h3>Pro - 21€ • Recommandé</h3><p style="color:{sub_text};">Pour celles qui veulent devenir une référence</p><div style="background:{BEA_GRADIENT};color:white;padding:4px 10px;border-radius:999px;display:inline-block;font-size:12px;font-weight:800;margin-top:8px;">LE PLUS CHOISI</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="canva-card" style="border:2px solid #7C3AED;"><h3>Pro - 21€ • Recommandé</h3><p style="color:{sub_text};">Pour celles qui veulent devenir une référence</p><div style="background:{BEA_GRADIENT};color:white;padding:4px 10px;border-radius:999px;display:inline-block;font-size:12px;font-weight:800;margin-top:8px;">LE PLUS CHOISI</div></div>', unsafe_allow_html=True)
         with st.expander("Voir les avantages Pro ▼"):
             st.write("**Tout le Basique + :**\n- Biais cognitifs avancés\n- Aperçus illimités\n- Analyse complète de ton parcours client\n- Mémoire infinie\n- Stratégies pour passer de petite entreprise à marque reconnue")
-        st.link_button("Débloquer Pro 21€ →", "https://buy.stripe.com/test_5kQ8wP8AkaSg0HN1oF1kE01", use_container_width=True, type="primary")
+        st.link_button("Débloquer Pro 21€ →", "https://buy.stripe.com/test_5kQ8wP8AkaSg0HN1oF1kE01", use_container_width=True)
     st.stop()
 
 st.markdown(f'<div class="canva-card"><h3>Parle à Bea</h3><p style="color:{sub_text};margin:0;">Ton experte en comportement. Elle répond comme une vendeuse qui convertit.</p></div>', unsafe_allow_html=True)
@@ -104,8 +108,7 @@ st.markdown(f'<div class="canva-card"><h3>Parle à Bea</h3><p style="color:{sub_
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
-        if m.get("image"):
-            st.image(m["image"], caption="Aperçu généré par Bea", use_container_width=True)
+        if m.get("image"): st.image(m["image"], caption="Aperçu généré par Bea", use_container_width=True)
 
 st.checkbox("🖼️ Illustrer ce que dit Bea avec un aperçu paysage", key="with_image")
 
@@ -114,7 +117,7 @@ if prompt := st.chat_input("Demande à Bea : une page de vente, une pub, un emai
     with st.chat_message("user"): st.markdown(prompt)
     with st.chat_message("assistant"):
         try:
-            system_prompt = "Tu es Bea, IA de BehaviorLab AI, experte en biais cognitifs. Tu ne dois jamais utiliser les mots scale, scaler, scaling. Utilise developper, faire grandir, passer a l'etape superieure. Tu tutoies, directe et business."
+            system_prompt = "Tu es Bea, IA de BehaviorLab AI, experte en biais cognitifs. Tu ne dois jamais utiliser les mots scale, scaler, scaling."
             msgs = [{"role": "system", "content": system_prompt}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
             chat_completion = client_groq.chat.completions.create(model="openai/gpt-oss-20b", messages=msgs, temperature=0.7)
             rep = chat_completion.choices[0].message.content
