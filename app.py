@@ -78,7 +78,7 @@ with tab1:
                 system_prompt = "Tu es Bea, IA de BehaviorLab AI, experte en biais cognitifs. Tu reponds toujours en utilisant des techniques de psychologie comportementale pour booster le CA. Tu fais passer une PME a une entreprise de renom. Tu tutoies, tu es directe et business."
                 msgs = [{"role": "system", "content": system_prompt}] + st.session_state.messages
                 chat_completion = client_groq.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="openai/gpt-oss-20b",
                     messages=msgs,
                     temperature=0.7
                 )
