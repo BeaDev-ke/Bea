@@ -17,11 +17,11 @@ if "theme" not in st.session_state: st.session_state.theme = "clair"
 if "licence_ok" not in st.session_state: st.session_state.licence_ok = False
 if "messages" not in st.session_state: st.session_state.messages = []
 if "with_image" not in st.session_state: st.session_state.with_image = False
+if "lang" not in st.session_state: st.session_state.lang = "FR"
 
 query_email = st.query_params.get("email", "")
 if query_email: st.session_state.licence_ok = True
 
-# --- DESIGN SYSTEM BEA x CANVA ---
 CLAIR_BG = "#FFFBFE"
 CLAIR_CARD = "#FFFFFF"
 SOMBRE_BG = "#0F0A1E"
@@ -42,7 +42,6 @@ html, body, [class*="css"] {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
 .stApp {{ background: {bg}; color: {text_color}; }}
 header, #MainMenu, footer {{ visibility: hidden; }}
 h1, h2, h3 {{ font-weight: 800!important; letter-spacing: -0.02em; }}
-/* HEADER BEA */
 .bea-header {{
     background: {BEA_GRADIENT};
     padding: 18px 26px; border-radius: 18px; margin-bottom: 24px;
@@ -51,39 +50,40 @@ h1, h2, h3 {{ font-weight: 800!important; letter-spacing: -0.02em; }}
 }}
 .bea-header h1 {{ color: white!important; margin:0; font-size: 28px; }}
 .bea-header span {{ color: rgba(255,255,255,0.9); font-weight: 500; }}
-/* CARDS */
 .canva-card {{
     background: {card}; border-radius: 20px; padding: 28px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid rgba(124,58,237,0.08);
     margin-bottom: 20px;
 }}
-.stButton > button {{
-    border-radius: 12px!important; font-weight: 700!important;
-    border: none!important; transition: 0.2s;
+div[data-testid="stExpander"] {{ background: {card}; border-radius: 16px; }}
+/* Petits boutons icones */
+.icon-btn button {{
+    width: 42px!important; height: 42px!important; border-radius: 12px!important;
+    padding: 0!important; background: rgba(255,255,255,0.18)!important;
+    border: 1px solid rgba(255,255,255,0.25)!important; color: white!important;
+    backdrop-filter: blur(6px);
 }}
-div[data-testid="stExpander"] {{
-    background: {card}; border-radius: 16px; border: 1px solid rgba(124,58,237,0.1);
-}}
-/* Bouton principal achat */
-a[href*="stripe"] {{
-    background: {BEA_GRADIENT}!important;
-}}
-/* Checkbox style */
-div[data-testid="stCheckbox"] label {{ font-weight: 600; color: {BEA_PRIMARY}; }}
 </style>
 """, unsafe_allow_html=True)
 
-# HEADER
-c1, c2 = st.columns([8,2])
-with c1:
-    st.markdown(f'<div class="bea-header"><div><h1>Bea</h1><span>BehaviorLab AI • L\'IA qui fait vendre</span></div><div style="background:white;color:#7C3AED;padding:8px 14px;border-radius:999px;font-weight:800;font-size:12px;">BETA</div></div>', unsafe_allow_html=True)
-with c2:
-    if st.button("🌙 Sombre" if theme=="clair" else "☀️ Clair", use_container_width=True):
+# HEADER AVEC PETITS BOUTONS
+col_title, col_btn1, col_btn2 = st.columns([7.5, 0.75, 0.75])
+with col_title:
+    st.markdown(f'<div class="bea-header"><div><h1>Bea</h1><span>BehaviorLab AI • L\'IA qui fait vendre</span></div></div>', unsafe_allow_html=True)
+with col_btn1:
+    st.markdown('<div class="icon-btn">', unsafe_allow_html=True)
+    if st.button("🌐", key="lang_btn"):
+        st.session_state.lang = "EN" if st.session_state.lang=="FR" else "FR"
+    st.markdown('</div>', unsafe_allow_html=True)
+with col_btn2:
+    st.markdown('<div class="icon-btn">', unsafe_allow_html=True)
+    if st.button("🌙" if theme=="clair" else "☀️", key="theme_btn"):
         st.session_state.theme = "sombre" if theme=="clair" else "clair"
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.licence_ok:
-    st.markdown(f'<div class="canva-card"><h2 style="font-size:32px;line-height:1.1;">L\'IA qui transforme ton activité<br>en <span style="background:{BEA_GRADIENT};-webkit-background-clip:text;-webkit-text-fill-color:transparent;">marque qui compte.</span></h2><p style="color:{sub_text};font-size:17px;margin-top:12px;"><b>Bea n\'est pas une IA qui discute. C\'est une IA qui vend.</b><br><br>BehaviorLab AI a créé la première IA entraînée sur les biais cognitifs. Elle analyse ton activité et crée pour toi : pages de vente, pubs, emails qui convertissent et visuels qui captent l\'attention.<br><br><b>Tu arrêtes de poster au hasard. Tu commences à vendre plus et mieux.</b></p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="canva-card"><h2 style="font-size:32px;line-height:1.1;">L\'IA qui transforme ton activité<br>en <span style="background:{BEA_GRADIENT};-webkit-background-clip:text;-webkit-text-fill-color:transparent;">marque qui compte.</span></h2><p style="color:{sub_text};font-size:17px;margin-top:16px;"><b>Bea n\'est pas une IA qui discute. C\'est une IA qui vend.</b><br><br>BehaviorLab AI a créé la première IA entraînée sur les biais cognitifs et la psychologie comportementale. Bea analyse ton activité, ton audience, ton offre... puis elle répond et crée pour toi avec un seul but : <b>augmenter ton chiffre d\'affaires.</b><br><br>Elle utilise ce que les plus grandes marques utilisent depuis 50 ans : le biais de rareté, de preuve sociale, d\'autorité, d\'ancrage... pour que tes clients passent à l\'action. Elle rédige tes pages de vente, tes publicités, tes emails qui convertissent et génère tes visuels qui captent l\'attention instantanément.<br><br><b>Une petite entreprise pense produit. Une grande marque pense comportement. Bea te fait basculer.</b></p></div>', unsafe_allow_html=True)
 
     st.markdown("### Choisis ton accès - Paiement unique, à vie")
     col1, col2 = st.columns(2)
@@ -99,7 +99,6 @@ if not st.session_state.licence_ok:
         st.link_button("Débloquer Pro 21€ →", "https://buy.stripe.com/test_5kQ8wP8AkaSg0HN1oF1kE01", use_container_width=True, type="primary")
     st.stop()
 
-# CHAT
 st.markdown(f'<div class="canva-card"><h3>Parle à Bea</h3><p style="color:{sub_text};margin:0;">Ton experte en comportement. Elle répond comme une vendeuse qui convertit.</p></div>', unsafe_allow_html=True)
 
 for m in st.session_state.messages:
@@ -129,7 +128,7 @@ if prompt := st.chat_input("Demande à Bea : une page de vente, une pub, un emai
             draw = ImageDraw.Draw(img)
             draw.rectangle([0, 0, W, 50], fill="#0F0A1E")
             draw.text((20, 15), "● ● ● bea-preview.app", fill="white")
-            draw.rectangle([W-300, 12, W-20, 38], fill="#7C3AED")
+            draw.rounded_rectangle([W-300, 12, W-20, 38], radius=999, fill="#7C3AED")
             draw.text((W-280, 15), "APERCU BEA", fill="white")
             draw.rounded_rectangle([80, 90, W-80, H-40], radius=20, fill="#FFFBFE", outline="#E9D5FF", width=2)
             draw.text((120, 120), f"SUJET : {prompt[:70].upper()}", fill="#7C3AED")
