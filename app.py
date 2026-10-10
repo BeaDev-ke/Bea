@@ -41,40 +41,44 @@ def generer_apercu_paysage(texte):
     draw.text((60,150), f"Illustration: {texte[:110]}", font=fs, fill="#4338ca" if not is_dark else "white")
     return img
 
-# COULEURS QUI SWITCHENT VRAIMENT
 BG = "#1a1033" if is_dark else "#ffffff"
 SIDEBAR_BG = "#231445" if is_dark else "#f8f7ff"
 TEXT = "#f5f3ff" if is_dark else "#0f172a"
 DESC = "#c4b5fd" if is_dark else "#475569"
 CARD_BG = "#2e205a" if is_dark else "white"
 CARD_BORDER = "#4c1d95" if is_dark else "#ede9fe"
-CHAT_BG = "#2e205a" if is_dark else "#f5f3ff"
 
 st.markdown(f"""
 <style>
-.stApp {{ background:{BG}!important; color:{TEXT}!important; }}
-[data-testid="stSidebar"] {{ background:{SIDEBAR_BG}!important; border-right:2px solid {CARD_BORDER}!important; }}
-[data-testid="stSidebar"] * {{ color:{TEXT}!important; }}
+.stApp {{ background:{BG}!important; }}
+.block-container {{ padding-top:2.5rem!important; max-width:1180px!important; }}
+[data-testid="stSidebar"] {{ background:{SIDEBAR_BG}!important; }}
 header[data-testid="stHeader"] {{ background:{BG}!important; }}
+/* Cache le bandeau Manage app et le footer streamlit */
+div[data-testid="stBottom"] {{ background:{BG}!important; border-top:1px solid {CARD_BORDER}!important; padding-top:15px!important; }}
+a[href*="streamlit.io"], div[data-testid="stDecoration"] {{ display:none!important; }}
 
+/* Tous les boutons violet degradé */
 div[data-testid="stButton"] > button {{
-    background:{GRADIENT}!important;
-    color:white!important;
-    border:none!important;
-    border-radius:14px!important;
-    font-weight:700!important;
+    background:{GRADIENT}!important; color:white!important; border:none!important;
+    border-radius:14px!important; font-weight:700!important; margin:8px 0!important;
 }}
 div[data-testid="stButton"] > button * {{ color:white!important; }}
 div[data-testid="stLinkButton"] > a {{ background:{GRADIENT}!important; color:white!important; border-radius:14px!important; }}
-div[data-testid="stCheckbox"] {{
-    background:{CARD_BG}!important;
-    border:2px solid #7c3aed!important;
-    border-radius:12px!important;
-    padding:8px 14px!important;
-}}
-div[data-testid="stChatInput"] {{ border:2px solid #7c3aed!important; border-radius:18px!important; background:{CARD_BG}!important; }}
-.header-card {{ background:{GRADIENT}; border-radius:20px; padding:18px 28px; }}
+
+/* Aération */
+.header-card {{ background:{GRADIENT}; border-radius:20px; padding:22px 30px; margin-bottom:25px; }}
 .header-card h2,.header-card p {{ color:white!important; margin:0; }}
+.licence-card {{ background:{GRADIENT}; color:white; padding:16px 20px; border-radius:16px; font-weight:700; margin:20px 0 25px 0; }}
+.gap {{ margin:20px 0; }}
+div[data-testid="stCheckbox"] {{
+    background:{CARD_BG}!important; border:2px solid #7c3aed!important; border-radius:14px!important;
+    padding:12px 18px!important; margin:30px 0 15px 0!important;
+}}
+div[data-testid="stChatInput"] {{
+    border:2px solid #7c3aed!important; border-radius:20px!important;
+    background:{CARD_BG}!important; margin-top:20px!important;
+}}
 .pricing-card {{ background:{CARD_BG}; border:2px solid {CARD_BORDER}; border-radius:24px; padding:28px; color:{TEXT}; }}
 </style>
 """, unsafe_allow_html=True)
@@ -88,6 +92,7 @@ with c3:
     if st.button("☀️ Mode clair" if is_dark else "🌙 Mode sombre", key="theme_btn"):
         st.session_state.theme = "light" if is_dark else "dark"
         st.rerun()
+    st.markdown("<div class='gap'></div>", unsafe_allow_html=True)
     if st.button(f"🌐 {st.session_state.lang}", key="lang_btn"):
         st.session_state.lang = "EN" if st.session_state.lang == "FR" else "FR"
         st.rerun()
@@ -101,12 +106,12 @@ if licence_key:
         plan, used, limit = lic["plan"], lic["used"], lic["limit"]
 
         if plan == "PRO":
-            st.markdown(f"<div style='background:{GRADIENT}; color:white; padding:12px 18px; border-radius:14px; font-weight:700;'>✅ Licence active : {plan} — Illimité</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='licence-card'>✅ Licence active : {plan} — Illimité</div>", unsafe_allow_html=True)
         else:
             if used >= limit:
                 st.error(f"Limite {used}/{limit} atteinte")
                 st.stop()
-            st.markdown(f"<div style='background:{GRADIENT}; color:white; padding:12px 18px; border-radius:14px; font-weight:700;'>✅ Licence active : {plan} — {used}/{limit}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='licence-card'>✅ Licence active : {plan} — {used}/{limit}</div>", unsafe_allow_html=True)
 
         with st.sidebar:
             if os.path.exists("logo.png"): st.image("logo.png", width=55)
@@ -118,9 +123,19 @@ if licence_key:
             for m in reversed(st.session_state.messages[-15:]):
                 if m["role"] == "user":
                     st.markdown(f"💬 {m['content'][:35]}...")
+            st.divider()
             if st.button("🗑️ Nouvelle discussion"):
                 st.session_state.messages = []
                 st.rerun()
+
+        if plan == "PRO":
+            if st.button("🖼️ Glisse une image (galerie) - Pro"):
+                st.session_state.show_uploader = not st.session_state.show_uploader
+                st.rerun()
+            if st.session_state.show_uploader:
+                st.markdown("<div class='gap'></div>", unsafe_allow_html=True)
+                up = st.file_uploader("Glisse une image", type=["png","jpg","jpeg"])
+                if up: st.image(up, width=500)
 
         for m in st.session_state.messages:
             with st.chat_message(m["role"]):
@@ -128,15 +143,7 @@ if licence_key:
                 if "image" in m and m["image"] is not None:
                     st.image(m["image"], use_container_width=True)
 
-        if plan == "PRO":
-            if st.session_state.show_uploader:
-                up = st.file_uploader("Glisse une image", type=["png","jpg","jpeg"])
-                if up: st.image(up, width=500)
-            if st.button("🖼️ Glisse une image (galerie) - Pro"):
-                st.session_state.show_uploader = not st.session_state.show_uploader
-                st.rerun()
-
-        st.divider()
+        st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
         st.checkbox("🖼️ Générer une image d'illustration", key="gen_image")
         prompt = st.chat_input("Décris une situation de ton entreprise et ton état d'esprit actuel...")
 
@@ -160,10 +167,11 @@ if licence_key:
 l,r = st.columns([1.3,0.7], gap="large")
 with l:
     st.markdown(f"<div style='font-size:52px;font-weight:850;line-height:1.05;color:{TEXT};'>Bea, ton IA<br>comportementaliste<br>pour ton entreprise.</div>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:{DESC};font-size:18px;line-height:1.7;margin-top:20px;'><b style='color:{TEXT};'>BehaviorLab a créé la première IA du comportement dédiée aux indépendants et TPE/PME.</b> Fini les pages de vente qui ne convertissent pas : Bea transforme chaque hésitation en vente et chaque tension d'équipe en performance.<br><br>C'est une IA qui comprend <b style='color:{TEXT};'>pourquoi les gens n'achètent pas, pourquoi tes équipes ne performent pas, et quoi changer pour débloquer</b>.<br><br>Elle analyse avec : biais cognitifs, économie comportementale, neurosciences de la décision.</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:{DESC};font-size:18px;line-height:1.7;margin-top:25px;'><b style='color:{TEXT};'>BehaviorLab a créé la première IA du comportement dédiée aux indépendants et TPE/PME.</b> Fini les pages de vente qui ne convertissent pas : Bea transforme chaque hésitation en vente et chaque tension d'équipe en performance.<br><br>C'est une IA qui comprend <b style='color:{TEXT};'>pourquoi les gens n'achètent pas, pourquoi tes équipes ne performent pas, et quoi changer pour débloquer</b>.<br><br>Elle analyse avec : biais cognitifs, économie comportementale, neurosciences de la décision.</p>", unsafe_allow_html=True)
 with r:
-    st.markdown(f"<div style='background:{CHAT_BG};border-radius:24px;padding:22px;border:2px solid {CARD_BORDER};'><div style='background:{CARD_BG};border-radius:16px;padding:18px;color:{TEXT};'>Exemple: \"doit réfléchir\" → Blocage statu quo → Script preuve sociale</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background:{CARD_BG};border-radius:24px;padding:24px;border:2px solid {CARD_BORDER};'><div style='background:{BG};border-radius:16px;padding:18px;color:{TEXT};'>Exemple: \"doit réfléchir\" → Blocage statu quo → Script preuve sociale</div></div>", unsafe_allow_html=True)
 
+st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
 cA,cB = st.columns(2, gap="large")
 with cA:
     st.markdown(f"<div class='pricing-card'><h3>Basique</h3><h1>14,90€</h1>12 requêtes / mois</div>", unsafe_allow_html=True)
