@@ -48,40 +48,34 @@ DESC = "#c4b5fd" if is_dark else "#475569"
 CARD_BG = "#2e205a" if is_dark else "white"
 CARD_BORDER = "#4c1d95" if is_dark else "#ede9fe"
 
+# FIX HAUT COUPE
 st.markdown(f"""
 <style>
 .stApp {{ background:{BG}!important; }}
-.block-container {{ padding-top:2rem!important; max-width:1180px!important; }}
-[data-testid="stSidebar"] {{ background:{SIDEBAR_BG}!important; border-right:2px solid {CARD_BORDER}!important; }}
+.block-container {{ padding-top:4.8rem!important; padding-bottom:2rem!important; max-width:1180px!important; }}
+[data-testid="stSidebar"] {{ background:{SIDEBAR_BG}!important; border-right:2px solid {CARD_BORDER}!important; padding-top:2.5rem!important; }}
 [data-testid="stSidebar"] * {{ color:{TEXT}!important; }}
-header[data-testid="stHeader"] {{ background:{BG}!important; }}
+header[data-testid="stHeader"] {{ background:{BG}!important; height:65px!important; }}
 div[data-testid="stBottom"] {{ background:{BG}!important; border-top:1px solid {CARD_BORDER}!important; padding-top:12px!important; }}
 a[href*="streamlit.io"], div[data-testid="stDecoration"] {{ display:none!important; }}
-
-/* Boutons violet degradé resserrés */
 div[data-testid="stButton"] > button {{
     background:{GRADIENT}!important; color:white!important; border:none!important;
-    border-radius:14px!important; font-weight:700!important;
-    margin:2px 0!important; padding:6px 14px!important;
+    border-radius:14px!important; font-weight:700!important; margin:2px 0!important; padding:6px 14px!important;
 }}
 div[data-testid="stButton"] > button * {{ color:white!important; }}
 div[data-testid="stLinkButton"] > a {{ background:{GRADIENT}!important; color:white!important; border-radius:14px!important; }}
-
-.header-card {{ background:{GRADIENT}; border-radius:20px; padding:20px 28px; margin-bottom:20px; }}
+.header-card {{ background:{GRADIENT}; border-radius:20px; padding:20px 28px; margin-top:20px; margin-bottom:22px; }}
 .header-card h2,.header-card p {{ color:white!important; margin:0; }}
 .licence-card {{ background:{GRADIENT}; color:white; padding:14px 20px; border-radius:16px; font-weight:700; margin:15px 0 20px 0; }}
 div[data-testid="stCheckbox"] {{
     background:{CARD_BG}!important; border:2px solid #7c3aed!important; border-radius:14px!important;
     padding:10px 16px!important; margin:25px 0 10px 0!important;
 }}
-div[data-testid="stChatInput"] {{
-    border:2px solid #7c3aed!important; border-radius:20px!important; background:{CARD_BG}!important;
-}}
+div[data-testid="stChatInput"] {{ border:2px solid #7c3aed!important; border-radius:20px!important; background:{CARD_BG}!important; }}
 .pricing-card {{ background:{CARD_BG}; border:2px solid {CARD_BORDER}; border-radius:24px; padding:28px; color:{TEXT}; }}
 </style>
 """, unsafe_allow_html=True)
 
-# HEADER
 c1,c2,c3 = st.columns([0.9,5,2.2])
 with c1:
     if os.path.exists("logo.png"): st.image("logo.png", width=68)
@@ -107,7 +101,7 @@ if licence_key:
             st.markdown(f"<div class='licence-card'>✅ Licence active : {plan} — Requêtes illimitées</div>", unsafe_allow_html=True)
         else:
             if used >= limit:
-                st.error(f"Limite {used}/{limit} atteinte - Passe en Pro")
+                st.error(f"Limite {used}/{limit} atteinte")
                 st.stop()
             st.markdown(f"<div class='licence-card'>✅ Licence active : {plan} — {used}/{limit}</div>", unsafe_allow_html=True)
 
@@ -153,8 +147,10 @@ if licence_key:
                 supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
                 st.rerun()
             else:
+                # MODELE LE PLUS RAPIDE AU MONDE CHEZ GROQ
                 comp = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
+                    # Pour encore plus rapide, mets: "llama-3.1-8b-instant"
                     messages=[{"role":"system","content":f"Tu es Bea, IA comportementaliste par BehaviorLab. Langue:{st.session_state.lang}. Structure: 1.Blocage 2.Levier 3.Script exact"}] +
                              [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages if "image" not in m][-30:]
                 )
@@ -167,15 +163,14 @@ if licence_key:
 l,r = st.columns([1.3,0.7], gap="large")
 with l:
     st.markdown(f"<div style='font-size:52px;font-weight:850;line-height:1.05;color:{TEXT};'>Bea, ton IA<br>comportementaliste<br>pour ton entreprise.</div>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:{DESC};font-size:18px;line-height:1.7;margin-top:20px;'><b style='color:{TEXT};'>BehaviorLab a créé la première IA du comportement dédiée aux indépendants et TPE/PME.</b> Fini les pages de vente qui ne convertissent pas : Bea transforme chaque hésitation en vente et chaque tension d'équipe en performance.<br><br>C'est une IA qui comprend <b style='color:{TEXT};'>pourquoi les gens n'achètent pas, pourquoi tes équipes ne performent pas, et quoi changer pour débloquer</b>.<br><br>Elle analyse avec : biais cognitifs, économie comportementale, neurosciences de la décision.</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:{DESC};font-size:18px;line-height:1.7;margin-top:20px;'><b style='color:{TEXT};'>BehaviorLab a créé la première IA du comportement dédiée aux indépendants et TPE/PME.</b></p>", unsafe_allow_html=True)
 with r:
-    st.markdown(f"<div style='background:{CARD_BG};border-radius:24px;padding:22px;border:2px solid {CARD_BORDER};'><div style='background:{BG};border-radius:16px;padding:18px;color:{TEXT};line-height:1.6'><b>Exemple :</b><br><i>\"Une personne est intéressée mais me dit qu'elle doit réfléchir\"</i><br><br><b style='color:#7c3aed;'>Réponse de Bea :</b><br><b>Blocage :</b> Biais du statu quo + aversion à la perte.<br><b>Levier :</b> Preuve sociale + projection mentale.<br><b>À dire :</b> \"Je comprends. Une cliente comme toi me disait pareil, elle a pris [produit] et m'a dit : j'aurais dû le prendre plus tôt.\"</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background:{CARD_BG};border-radius:24px;padding:22px;border:2px solid {CARD_BORDER};'><div style='background:{BG};border-radius:16px;padding:18px;color:{TEXT};'>Exemple: \"doit réfléchir\" → Blocage statu quo → Script preuve sociale</div></div>", unsafe_allow_html=True)
 
-st.markdown("<h2 style='text-align:center;color:"+TEXT+";margin-top:35px;'>Choisis le format</h2><p style='text-align:center;color:"+DESC+";'>Paiement Stripe et retour automatique sur l'application utilisable</p>", unsafe_allow_html=True)
 cA,cB = st.columns(2, gap="large")
 with cA:
-    st.markdown(f"<div class='pricing-card'><h3 style='color:{TEXT};'>Version Basique</h3><h1 style='color:{TEXT};'>14,90€ <span style='font-size:16px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:15px;'>✓ <b>12 requêtes par mois</b><br>✓ Analyses comportementales complètes<br>✓ Scripts de vente / management<br>✓ Historique de tes échanges</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='pricing-card'><h3>Version Basique</h3><h1>14,90€</h1>12 requêtes / mois</div>", unsafe_allow_html=True)
     st.link_button("Choisir Version Basique →", STRIPE_BASIQUE, use_container_width=True)
 with cB:
-    st.markdown(f"<div class='pricing-card' style='border:2px solid #7c3aed;'><span style='background:{GRADIENT};color:white;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:800;'>RECOMMANDÉ</span><h3 style='margin-top:12px;color:{TEXT};'>Version Pro</h3><h1 style='color:{TEXT};'>21€ <span style='font-size:16px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:15px;'>✓ <b>Requêtes illimitées avec Bea</b><br>✓ Analyse d'images depuis la galerie<br>✓ Générateur d'images publicitaires<br>✓ Scripts avancés + nouveautés<br>✓ Sans limite</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='pricing-card' style='border:2px solid #7c3aed;'><span style='background:{GRADIENT};color:white;padding:5px 12px;border-radius:20px;font-size:11px;'>RECOMMANDÉ</span><h3>Version Pro</h3><h1>21€</h1>Requêtes illimitées + galerie + illustration</div>", unsafe_allow_html=True)
     st.link_button("Choisir Version Pro →", STRIPE_PRO, use_container_width=True)
