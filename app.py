@@ -11,13 +11,11 @@ STRIPE_PRO = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
 # ===== CONNEXION SECURE AVEC NOUVELLES CLES SUPABASE =====
 try:
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
-    SUPA_URL = st.secrets["SUPABASE_URL"]
-    # Gère ancien et nouveau format (ta capture)
-    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_PUBLISHABLE_KEY") or st.secrets.get("SUPABASE_SECRET_KEY")
-    if not SUPA_KEY:
-        raise KeyError("SUPABASE_ANON_KEY / PUBLISHABLE_KEY")
-    client = Groq(api_key=GROQ_KEY)
-    supabase = create_client(SUPA_URL, SUPA_KEY)
+SUPA_URL = st.secrets["SUPABASE_URL"]
+SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_SECRET_KEY")
+
+client = Groq(api_key=GROQ_KEY)
+supabase = create_client(SUPA_URL, SUPA_KEY)
 except Exception as e:
     st.error(f"⚠️ Secret manquant dans Streamlit Cloud > Settings > Secrets : {e}")
     st.info("Tu dois mettre: GROQ_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY (sb_publishable_...)")
