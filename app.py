@@ -23,7 +23,6 @@ supabase = create_client(SUPA_URL, SUPA_KEY)
 if "theme" not in st.session_state: st.session_state.theme = "light"
 if "lang" not in st.session_state: st.session_state.lang = "FR"
 if "messages" not in st.session_state: st.session_state.messages = []
-if "gen_image" not in st.session_state: st.session_state.gen_image = False
 if "show_uploader" not in st.session_state: st.session_state.show_uploader = False
 if "rate_limit" not in st.session_state: st.session_state.rate_limit = deque()
 if "violations" not in st.session_state: st.session_state.violations = 0
@@ -111,9 +110,13 @@ def generer_apercu_paysage(texte):
     draw.text((60,150), f"Illustration: {texte[:110]}", font=fs, fill="#4338ca" if not is_dark else "white")
     return img
 
+def demande_image(prompt: str) -> bool:
+    p = prompt.lower()
+    keywords = ["image","visuel","illustration","génère","genere","crée une image","cree une image","fais une image","affiche","poster","miniature","affiche pub"]
+    return any(k in p for k in keywords)
+
 is_dark = st.session_state.theme == "dark"
 GRADIENT = "linear-gradient(135deg, #4338ca 0%, #7c3aed 50%, #db2777 100%)"
-GRADIENT_TEXT = "linear-gradient(135deg, #4338ca 0%, #7c3aed 50%, #db2777 100%)"
 BG = "#1a1033" if is_dark else "#ffffff"
 SIDEBAR_BG = "#231445" if is_dark else "#f8f7ff"
 TEXT = "#f5f3ff" if is_dark else "#0f172a"
@@ -129,8 +132,8 @@ st.markdown(f"""
 [data-testid="stSidebar"] * {{ color:{TEXT}!important; }}
 header[data-testid="stHeader"] {{ background:{BG}!important; height:65px!important; }}
 div[data-testid="stBottom"] {{ background:{BG}!important; border-top:1px solid {CARD_BORDER}!important; padding-top:12px!important; }}
-#MainMenu, footer, a[href*="streamlit.io"], div[data-testid="stDecoration"], div[data-testid="stToolbar"] {{ display:none!important; visibility:hidden!important; }}
-div[data-testid="stButton"] > button {{ background:{GRADIENT}!important; color:white!important; border:none!important; border-radius:14px!important; font-weight:700!important; margin:2px 0!important; padding:6px 14px!important; }}
+#MainMenu, footer, div[data-testid="stDecoration"], div[data-testid="stToolbar"], div[data-testid="stStatusWidget"], div[data-testid="manage-app-button"], a[href*="streamlit.io"] {{ display:none!important; visibility:hidden!important; height:0!important; }}
+div[data-testid="stButton"] > button {{ background:{GRADIENT}!important; color:white!important; border:none!important; border-radius:14px!important; font-weight:700!important; margin:2px 0!important; padding:8px 14px!important; }}
 div[data-testid="stButton"] > button * {{ color:white!important; }}
 div[data-testid="stLinkButton"] > a {{ background:{GRADIENT}!important; color:white!important; border-radius:14px!important; font-weight:700!important; }}
 div[data-testid="stTextInput"] > div > div {{
@@ -142,11 +145,10 @@ div[data-testid="stTextInput"] input {{ background: transparent!important; color
 .header-card {{ background:{GRADIENT}; border-radius:20px; padding:20px 28px; margin-top:20px; margin-bottom:22px; }}
 .header-card h2,.header-card p {{ color:white!important; margin:0; }}
 .licence-card {{ background:{GRADIENT}; color:white; padding:14px 20px; border-radius:16px; font-weight:700; margin:15px 0 20px 0; }}
-div[data-testid="stCheckbox"] {{ background:{CARD_BG}!important; border:2px solid #7c3aed!important; border-radius:14px!important; padding:10px 16px!important; margin:25px 0 10px 0!important; }}
 div[data-testid="stChatInput"] {{ border:2px solid #7c3aed!important; border-radius:20px!important; background:{CARD_BG}!important; }}
 .pricing-card {{ background:{CARD_BG}; border:2px solid transparent; background-image: linear-gradient({CARD_BG}, {CARD_BG}), {GRADIENT}; background-origin: border-box; background-clip: padding-box, border-box; border-radius:24px; padding:28px; color:{TEXT}; }}
 .gradient-title {{
-    background: {GRADIENT_TEXT};
+    background: {GRADIENT};
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -165,7 +167,7 @@ with c3:
     if st.button("☀️ Mode clair" if is_dark else "🌙 Mode sombre", key="theme_btn", use_container_width=True):
         st.session_state.theme = "light" if is_dark else "dark"
         st.rerun()
-    if st.button(f"🌐 {st.session_state.lang}", key="lang_btn", use_container_width=True):
+    if st.button(f"🌐 {st.session_state.lang}", key="lang_btn2", use_container_width=True):
         st.session_state.lang = "EN" if st.session_state.lang == "FR" else "FR"
         st.rerun()
 
@@ -198,22 +200,16 @@ licence_key = sanitize_key(st.query_params.get("key", ""))
 if not licence_key:
     st.markdown(f"<h1 class='gradient-title' style='font-size:58px;line-height:1.05;text-align:center;margin-top:20px;'>BehaviorLab AI</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:{DESC};font-size:19px;line-height:1.7;text-align:center;max-width:900px;margin:20px auto 35px auto;'><b style='color:{TEXT};'>BehaviorLab AI a créé les premières intelligences artificielles du comportement.</b><br>Destinée à ceux qui veulent booster leur réussite nous proposons des intelligences artificielles qui correspondent à vos besoins. Que ce soit pour les entreprises qui veulent augmenter leur chiffre d'affaires ou les individus qui veulent se lancer dans la création de contenus nos intelligences artificielles sont formées dans un seul but: <span style='background:{GRADIENT};-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;'>votre réussite</span>.</p>", unsafe_allow_html=True)
-
     cA,cB,cC = st.columns(3, gap="large")
-
     with cA:
         st.markdown(f"<div class='pricing-card'><span class='badge'>ENTREPRISE</span><h3 style='margin-top:14px;color:{TEXT};'>Bea Basique</h3><h1 style='color:{TEXT};'>14,90€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>12 requêtes par mois</b><br>✓ Analyse des blocages d'achat<br>✓ Scripts de vente comportementaux<br>✓ Management d'équipe<br>✓ Historique complet</div></div>", unsafe_allow_html=True)
         st.link_button("Choisir Bea Basique →", STRIPE_BASIQUE, use_container_width=True)
-
     with cB:
         st.markdown(f"<div class='pricing-card' style='border-width:3px;'><span class='badge'>ENTREPRISE - RECOMMANDÉ</span><h3 style='margin-top:14px;color:{TEXT};'>Bea Pro</h3><h1 style='color:{TEXT};'>21€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>Requêtes illimitées</b><br>✓ Analyse d'images galerie<br>✓ Générateur visuels pub<br>✓ Scripts avancés<br>✓ Toutes les nouveautés</div></div>", unsafe_allow_html=True)
         st.link_button("Choisir Bea Pro →", STRIPE_PRO, use_container_width=True)
-
     with cC:
-        st.markdown(f"<div class='pricing-card'><span class='badge' style='background:linear-gradient(135deg,#db2777,#7c3aed);'>CRÉATEURS - NOUVEAU</span><h3 style='margin-top:14px;color:{TEXT};'>Nova</h3><p style='color:{DESC};font-size:12px;'>Pour créateurs de contenu</p><h1 style='color:{TEXT};'>7,90€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>IA des biais cognitifs</b><br>✓ Titres qui captent<br>✓ Hooks TikTok / Reels<br>✓ Scripts viraux<br>✓ Chat direct dans l'app</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='pricing-card'><span class='badge'>CRÉATEURS - NOUVEAU</span><h3 style='margin-top:14px;color:{TEXT};'>Nova</h3><p style='color:{DESC};font-size:12px;'>Pour créateurs de contenu</p><h1 style='color:{TEXT};'>7,90€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>IA des biais cognitifs</b><br>✓ Titres qui captent<br>✓ Hooks TikTok / Reels<br>✓ Scripts viraux<br>✓ Chat direct dans l'app</div></div>", unsafe_allow_html=True)
         st.link_button("Choisir Nova →", STRIPE_CREATOR, use_container_width=True)
-
-    st.markdown(f"<div style='text-align:center;margin-top:50px;padding:22px;border-radius:20px;background:{CARD_BG};border:2px solid transparent;background-image: linear-gradient({CARD_BG}, {CARD_BG}), {GRADIENT};background-origin: border-box;background-clip: padding-box, border-box;'><p style='color:{TEXT};font-size:16px;'>Toutes nos IA utilisent <b>biais cognitifs + économie comportementale + neurosciences</b> pour transformer votre audience en clients et vos idées en contenu qui performe.</p></div>", unsafe_allow_html=True)
     st.stop()
 
 if "user" not in st.session_state:
@@ -246,28 +242,25 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-if plan in ["PRO","CREATOR"] or True:
-    if plan == "PRO":
-        if st.button("🖼️ Glisse une image (galerie) - Pro"):
-            st.session_state.show_uploader = not st.session_state.show_uploader
-            st.rerun()
-        if st.session_state.show_uploader:
-            up = st.file_uploader("Glisse une image", type=["png","jpg","jpeg"])
-            if up:
-                if up.size > 5 * 1024 * 1024: st.error("Image trop lourde max 5Mo")
-                else: st.image(up, width=500)
+if plan == "PRO":
+    if st.button("🖼️ Glisse une image (galerie) - Pro"):
+        st.session_state.show_uploader = not st.session_state.show_uploader
+        st.rerun()
+    if st.session_state.show_uploader:
+        up = st.file_uploader("Glisse une image", type=["png","jpg","jpeg"])
+        if up:
+            if up.size > 5 * 1024 * 1024: st.error("Image trop lourde max 5Mo")
+            else: st.image(up, width=500)
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(sanitize_input(m["content"]))
         if "image" in m and m["image"] is not None: st.image(m["image"], use_container_width=True)
 
-st.checkbox("🖼️ Générer une image d'illustration", key="gen_image")
-
 if plan == "CREATOR":
-    prompt_raw = st.chat_input("Décris ton contenu, ta cible, ton objectif de vues / abonnés...")
+    prompt_raw = st.chat_input("Décris ton contenu, ta cible, ton objectif de vues / abonnés... Si tu veux une image, dis 'génère une image de...'")
 else:
-    prompt_raw = st.chat_input("Décris une situation de ton entreprise et ton état d'esprit actuel...")
+    prompt_raw = st.chat_input("Décris ta situation... Si tu veux un visuel, dis 'génère une image de...'")
 
 if prompt_raw:
     check_rate_limit(plan)
@@ -278,7 +271,7 @@ if prompt_raw:
     prompt = check_security(prompt_clean)
     st.session_state.messages.append({"role":"user","content":prompt})
     if plan not in ["PRO","CREATOR"] and len(st.session_state.messages) > 30: st.session_state.messages = st.session_state.messages[-30:]
-    if st.session_state.gen_image:
+    if demande_image(prompt):
         img = generer_apercu_paysage(prompt)
         st.session_state.messages.append({"role":"assistant","content":f"Illustration générée pour : {prompt}", "image": img})
         supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
