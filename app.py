@@ -15,33 +15,34 @@ STRIPE_BASIQUE="https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
 STRIPE_PRO="https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
 STRIPE_CREATOR="https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
 
-GROQ_KEY=st.secrets["GROQ_API_KEY"]
-SUPA_URL=st.secrets["SUPABASE_URL"]
-SUPA_KEY=st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_PUBLISHABLE_KEY")
-client=Groq(api_key=GROQ_KEY)
-supabase=create_client(SUPA_URL,SUPA_KEY)
+# SECRETS AVEC VERIF
+try:
+    GROQ_KEY=st.secrets["GROQ_API_KEY"]
+    SUPA_URL=st.secrets["SUPABASE_URL"]
+    SUPA_KEY=st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_PUBLISHABLE_KEY")
+    if not GROQ_KEY or len(GROQ_KEY)<20:
+        st.error("⚠️ GROQ_API_KEY manquante ou invalide dans Secrets"); st.stop()
+    client=Groq(api_key=GROQ_KEY)
+    supabase=create_client(SUPA_URL,SUPA_KEY)
+except Exception as e:
+    st.error(f"Erreur Secrets: {e} - Vérifie GROQ_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY dans Manage app > Secrets")
+    st.stop()
+
+MODEL_GROQ="llama-3.3-70b-versatile" # modèle valide 2025-2026, plus de 3.1-8b-instant
 
 for k,v in {"theme":"light","lang":"FR","messages":[],"show_uploader":False,"uploaded_file_info":None,"rate_limit":deque(),"violations":0,"blocked_until":0,"last_prompts":deque(maxlen=5),"selected_ia":None,"auth_error":None}.items():
     if k not in st.session_state: st.session_state[k]=v
 
-def toggle_theme():
-    st.session_state.theme="light" if st.session_state.theme=="dark" else "dark"
-def toggle_lang():
-    st.session_state.lang="EN" if st.session_state.lang=="FR" else "FR"
-    # force l'IA à répondre dans la nouvelle langue
-    if st.session_state.messages:
-        # on ajoute une instruction cachée pour changer de langue au prochain message
-        st.session_state.messages.append({"role":"system","content":f"LANGUAGE SWITCH TO {st.session_state.lang}"})
+def toggle_theme(): st.session_state.theme="light" if st.session_state.theme=="dark" else "dark"
+def toggle_lang(): st.session_state.lang="EN" if st.session_state.lang=="FR" else "FR"
 
 if "user" not in st.session_state:
     try:
         sess=supabase.auth.get_session()
-        if sess and sess.session and sess.session.user:
-            st.session_state.user=sess.session.user
+        if sess and sess.session and sess.session.user: st.session_state.user=sess.session.user
         else:
             u=supabase.auth.get_user()
-            if u and u.user:
-                st.session_state.user=u.user
+            if u and u.user: st.session_state.user=u.user
     except: pass
 
 def get_logo_base64(path):
@@ -67,32 +68,33 @@ def detect_threats(p):
     return "ok"
 def check_rate_limit(plan="BASIQUE"):
     now=time.time()
-    if now<st.session_state.blocked_until:
-        st.error(f"🚫 {int(st.session_state.blocked_until-now)}s"); st.stop()
+    if now<st.session_state.blocked_until: st.error(f"🚫 {int(st.session_state.blocked_until-now)}s"); st.stop()
     dq=st.session_state.rate_limit
     while dq and now-dq[0]>60: dq.popleft()
-    if len(dq)>=(30 if plan in ["PRO","CREATOR"] else 10):
-        st.session_state.blocked_until=now+60; st.error("Trop de requêtes"); st.stop()
+    if len(dq)>=(30 if plan in ["PRO","CREATOR"] else 10): st.session_state.blocked_until=now+60; st.error("Trop de requêtes"); st.stop()
     dq.append(now)
 def check_security(prompt):
     if detect_threats(prompt)!="ok":
         st.session_state.violations+=1
-        if st.session_state.violations>=3:
-            st.session_state.blocked_until=time.time()+300; st.error("🚫 blocage 5 min"); st.stop()
+        if st.session_state.violations>=3: st.session_state.blocked_until=time.time()+300; st.error("🚫 blocage 5 min"); st.stop()
     return prompt
+
 def generer_image_pollinations(prompt_utilisateur, plan):
     try:
         sys_en=f"English viral thumbnail prompt max 180 chars: {prompt_utilisateur}" if plan=="CREATOR" else f"English business marketing visual prompt max 180 chars: {prompt_utilisateur}"
-        comp=client.chat.completions.create(model="llama-3.1-8b-instant",messages=[{"role":"system","content":sys_en},{"role":"user","content":prompt_utilisateur}])
+        comp=client.chat.completions.create(model=MODEL_GROQ,messages=[{"role":"system","content":sys_en},{"role":"user","content":prompt_utilisateur}])
         enhanced=comp.choices[0].message.content[:200]
-    except: enhanced=prompt_utilisateur[:200]
+    except Exception as e:
+        # si Groq fail, on utilise prompt brut pour ne pas crasher
+        enhanced=prompt_utilisateur[:200]
     url=f"https://image.pollinations.ai/prompt/{urllib.parse.quote(enhanced)}?width=1280&height=720&model=flux&nologo=true&enhance=true"
     return url, enhanced
+
 def demande_image(p): return any(k in p.lower() for k in ["image","visuel","photo","miniature","thumbnail","affiche","poster","dessine","vignette","cover","crée une image","genere une image","génère"])
 
 T={
- "FR":{"main_title":"BehaviorLab AI","sub_title":"Les IA comportementales pour votre réussite","hero_desc":"<b>BehaviorLab AI a créé les premières IA du comportement.</b><br>Destinée à ceux qui veulent booster leur réussite nous proposons des IA qui correspondent à vos besoins. Formées dans un seul but:","success":"votre réussite","discover_formats":"Découvrir les différents formats IA","bea_tag":"L'IA qui décode tes clients et double ton closing","nova_tag":"L'IA qui propulse tes contenus et ton audience","ask_bea":"Demander à Bea...","ask_nova":"Demander à Nova...","file_btn":"📎 Glisser un fichier","return":"⬅️ Retour","discover_bea":"Découvrir Bea →","discover_nova":"Découvrir Nova →","email_label":"Adresse e-mail","pwd_label":"Mot de passe","login":"Connexion","auth_title":"Authentification","welcome_bea":"Salut! Moi c'est Bea, créée par BehaviorLab AI. Dis-moi quel blocage client tu veux débloquer aujourd'hui?","welcome_nova":"Yo! Moi c'est Nova, créée par BehaviorLab AI. Quel contenu tu veux faire exploser?","connect_msg":"Connecte-toi pour accéder à ton IA avec ta licence","invalid":"Identifiants invalides"},
- "EN":{"main_title":"BehaviorLab AI","sub_title":"Behavioral AIs for your success","hero_desc":"<b>BehaviorLab AI created the first behavioral AIs.</b><br>For your success:","success":"your success","discover_formats":"Discover the different AI formats","bea_tag":"The AI that decodes your customers and doubles your closing","nova_tag":"The AI that boosts your content and your audience","ask_bea":"Ask Bea...","ask_nova":"Ask Nova...","file_btn":"📎 Drop a file","return":"⬅️ Back","discover_bea":"Discover Bea →","discover_nova":"Discover Nova →","email_label":"Email address","pwd_label":"Password","login":"Login","auth_title":"Authentication","welcome_bea":"Hi! I'm Bea, created by BehaviorLab AI. What customer block do you want to unlock?","welcome_nova":"Yo! I'm Nova, created by BehaviorLab AI. What content do you want to blow up?","connect_msg":"Log in to access your AI with your license","invalid":"Invalid credentials"},
+ "FR":{"main_title":"BehaviorLab AI","sub_title":"Les IA comportementales pour votre réussite","hero_desc":"<b>BehaviorLab AI a créé les premières IA du comportement.</b><br>Destinée à ceux qui veulent booster leur réussite nous proposons des IA qui correspondent à vos besoins. Formées dans un seul but:","success":"votre réussite","discover_formats":"Découvrir les différents formats IA","bea_tag":"L'IA qui décode tes clients et double ton closing","nova_tag":"L'IA qui propulse tes contenus et ton audience","ask_bea":"Demander à Bea...","ask_nova":"Demander à Nova...","file_btn":"📎 Glisser un fichier","return":"⬅️ Retour","discover_bea":"Découvrir Bea →","discover_nova":"Découvrir Nova →","email_label":"Adresse e-mail","pwd_label":"Mot de passe","login":"Connexion","auth_title":"Authentification","welcome_bea":"Salut, c'est Bea, ton IA de BehaviorLab AI. Contente de te retrouver. Comment je peux t'aider aujourd'hui?","welcome_nova":"Salut, c'est Nova, ton IA de BehaviorLab AI. Ravie de te voir. Comment je peux t'aider aujourd'hui?","connect_msg":"Connecte-toi pour accéder à ton IA avec ta licence","invalid":"Identifiants invalides"},
+ "EN":{"main_title":"BehaviorLab AI","sub_title":"Behavioral AIs for your success","hero_desc":"<b>BehaviorLab AI created the first behavioral AIs.</b><br>For your success:","success":"your success","discover_formats":"Discover the different AI formats","bea_tag":"The AI that decodes your customers and doubles your closing","nova_tag":"The AI that boosts your content and your audience","ask_bea":"Ask Bea...","ask_nova":"Ask Nova...","file_btn":"📎 Drop a file","return":"⬅️ Back","discover_bea":"Discover Bea →","discover_nova":"Discover Nova →","email_label":"Email address","pwd_label":"Password","login":"Login","auth_title":"Authentication","welcome_bea":"Hi, it's Bea, your AI from BehaviorLab AI. Happy to see you. How can I help you today?","welcome_nova":"Hi, it's Nova, your AI from BehaviorLab AI. Happy to see you. How can I help you today?","connect_msg":"Log in to access your AI with your license","invalid":"Invalid credentials"},
 }
 L=T[st.session_state.lang]
 
@@ -112,12 +114,6 @@ TEXT="#1e1b4b" if not is_dark else "#f5f3ff"
 DESC="#312e81" if not is_dark else "#c4b5fd"
 CARD_BG="white" if not is_dark else "#1e1450"
 
-# RECUP LOGOS POUR AVATAR
-bea_logo_b64=get_logo_base64("logo_bea.png")
-nova_logo_b64=get_logo_base64("logo_nova.png")
-bea_avatar=f"data:image/png;base64,{bea_logo_b64}" if bea_logo_b64 else "🧠"
-nova_avatar=f"data:image/png;base64,{nova_logo_b64}" if nova_logo_b64 else "🚀"
-
 st.markdown(f"""
 <style>
 .stApp{{background:{BG}!important;}}
@@ -131,8 +127,6 @@ header[data-testid="stHeader"]{{background:{BG}!important;}}
 div[data-testid="stButton"]>button{{background:{GRADIENT}!important;color:white!important;border-radius:14px!important;font-weight:700!important;border:none!important;}}
 div[data-testid="stLinkButton"]>a{{background:{GRADIENT}!important;color:white!important;border-radius:14px!important;}}
 div[data-testid="stChatInput"]{{border:2px solid #7c3aed!important;border-radius:20px!important;background:{CARD_BG}!important;}}
-div[data-testid="stAlert"]{{background:{CARD_BG}!important;color:{TEXT}!important;border:1px solid #7c3aed!important;border-radius:12px!important;}}
-div[data-testid="stAlert"] p{{color:{TEXT}!important;}}
 .header-card{{background:{GRADIENT_BEA}!important;border-radius:20px;padding:22px 28px;margin:20px 0;}}
 .detail-box{{background:{CARD_BG};border:2px solid #7c3aed;border-radius:24px;padding:35px;margin:15px 0;color:{TEXT};text-align:left;line-height:1.8;}}
 .ia-card{{background:{CARD_BG};border:2px solid #7c3aed;border-radius:24px;padding:25px;text-align:center;min-height:400px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}}
@@ -142,8 +136,6 @@ div[data-testid="stAlert"] p{{color:{TEXT}!important;}}
 .logo-bea-small{{width:60px;height:60px;background:{GRADIENT_BEA};border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px;}}
 .logo-nova-small{{width:60px;height:60px;background:{GRADIENT_NOVA};border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px;}}
 .gradient-title{{background:{GRADIENT_BEA};-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;}}
-/* corrige le robot jaune */
-[data-testid="stChatMessageAvatar"] img{{border-radius:12px!important;}}
 </style>
 """,unsafe_allow_html=True)
 
@@ -159,7 +151,6 @@ with c2:
     else:
         st.markdown(f'<div class="header-card"><h2>{L["main_title"]}</h2><p>{L["sub_title"]}</p></div>',unsafe_allow_html=True)
 with c3:
-    # CORRIGE: CLAIR AU LIEU DE LIGHT
     label_theme="☀️ Clair" if is_dark else "🌙 Sombre"
     st.button(label_theme,key="btn_theme",on_click=toggle_theme,use_container_width=True)
     st.button(f"🌐 {st.session_state.lang}",key="btn_lang",on_click=toggle_lang,use_container_width=True)
@@ -181,25 +172,19 @@ with st.sidebar:
                     st.session_state.user=auth.user
                     st.session_state.auth_error=None
                     st.rerun()
-                except Exception as e:
+                except:
                     st.session_state.auth_error=L["invalid"]
-        # Affiche erreur seulement si elle existe et qu'on n'est pas connecté
-        if st.session_state.auth_error:
-            st.error(st.session_state.auth_error)
+        if st.session_state.auth_error: st.error(st.session_state.auth_error)
     else:
         st.success(f"Connecté: {st.session_state.user.email}")
-        if st.session_state.auth_error:
-            st.session_state.auth_error=None
+        st.session_state.auth_error=None
         if st.button("Déconnexion" if st.session_state.lang=="FR" else "Logout",use_container_width=True,key="deco"):
             supabase.auth.sign_out()
             if "user" in st.session_state: del st.session_state.user
-            st.session_state.auth_error=None
             st.rerun()
     st.divider()
     if st.button("🗑️ Nouvelle discussion",key="new_chat"):
-        st.session_state.messages=[]
-        st.session_state.uploaded_file_info=None
-        st.rerun()
+        st.session_state.messages=[]; st.session_state.uploaded_file_info=None; st.rerun()
 
 if not licence_key:
     if st.session_state.selected_ia=="bea":
@@ -208,10 +193,8 @@ if not licence_key:
         with col_logo: st.markdown(f"<div class='logo-bea-small'>🧠</div>",unsafe_allow_html=True)
         with col_title: st.markdown(f"<h1 style='color:{TEXT};font-size:42px;margin:0;text-align:left;'>Bea</h1><p style='color:{DESC};font-size:11px;font-weight:700;text-align:left;margin:0;'>L'IA QUI DÉCODE TES CLIENTS</p>",unsafe_allow_html=True)
         left,right=st.columns([1.6,1],gap="large")
-        with left:
-            st.markdown(f"<div class='detail-box'><h1 style='font-size:32px;color:{TEXT};margin:0;'>Bea, ton IA comportementaliste pour ton entreprise.</h1><h3 style='margin-top:30px;'>Ses avantages :</h3><ul><li>🧠 Décode le non-dit</li><li>👁️ Lit le comportement humain</li><li>🎯 Active les bons leviers psycho</li><li>🗣️ Corrige ton ton de voix</li><li>📈 Double ton closing</li></ul></div>",unsafe_allow_html=True)
-        with right:
-            st.markdown(f"<div class='example-box'><b>Exemple:</b><br><i>'Je dois réfléchir'</i><br><br><b style='color:#7c3aed;'>Réponse de Bea:</b><br>Blocage statu quo + aversion perte<br>Levier preuve sociale</div>",unsafe_allow_html=True)
+        with left: st.markdown(f"<div class='detail-box'><h1 style='font-size:32px;color:{TEXT};margin:0;'>Bea, ton IA comportementaliste pour ton entreprise.</h1><h3 style='margin-top:30px;'>Ses avantages :</h3><ul><li>🧠 Décode le non-dit</li><li>👁️ Lit le comportement humain</li><li>🎯 Active les bons leviers psycho</li><li>🗣️ Corrige ton ton de voix</li><li>📈 Double ton closing</li></ul></div>",unsafe_allow_html=True)
+        with right: st.markdown(f"<div class='example-box'><b>Exemple:</b><br><i>'Je dois réfléchir'</i><br><br><b style='color:#7c3aed;'>Réponse Bea:</b><br>Blocage statu quo</div>",unsafe_allow_html=True)
         st.link_button("Choisir Bea Pro - 21€/mois →",STRIPE_PRO,use_container_width=True); st.stop()
     if st.session_state.selected_ia=="nova":
         if st.button(L["return"],key="ret_top_nova"): st.session_state.selected_ia=None; st.query_params.clear(); st.rerun()
@@ -219,12 +202,9 @@ if not licence_key:
         with col_logo: st.markdown(f"<div class='logo-nova-small'>🚀</div>",unsafe_allow_html=True)
         with col_title: st.markdown(f"<h1 style='background:{GRADIENT_NOVA};-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:42px;font-weight:900;margin:0;text-align:left;'>Nova</h1><p style='color:{DESC};font-size:11px;font-weight:700;text-align:left;margin:0;'>L'IA QUI PROPULSE TES CONTENUS</p>",unsafe_allow_html=True)
         left,right=st.columns([1.6,1],gap="large")
-        with left:
-            st.markdown(f"<div class='detail-box'><h1 style='font-size:32px;color:{TEXT};margin:0;'>Nova, ton IA pour exploser ton audience.</h1><h3 style='margin-top:30px;'>Ses avantages :</h3><ul><li>💡 Réglage lumière à 45° +40% watch time</li><li>👀 Contact visuel 0.8s</li><li>🎥 Cadrage qui capte</li><li>🧠 Hooks qui hackent le cerveau</li><li>🎨 Miniatures 1280x720</li></ul></div>",unsafe_allow_html=True)
-        with right:
-            st.markdown(f"<div class='example-box'><b>Exemple:</b><br><i>'Hook TikTok ebook?'</i><br><br><b style='color:#db2777;'>Réponse Nova:</b><br>Hook perte + curiosité + technique lumière</div>",unsafe_allow_html=True)
+        with left: st.markdown(f"<div class='detail-box'><h1 style='font-size:32px;color:{TEXT};margin:0;'>Nova, ton IA pour exploser ton audience.</h1><h3 style='margin-top:30px;'>Ses avantages :</h3><ul><li>💡 Lumière 45° +40% watch time</li><li>👀 Contact visuel 0.8s</li><li>🎥 Cadrage qui capte</li><li>🧠 Hooks qui hackent le cerveau</li><li>🎨 Miniatures 1280x720</li></ul></div>",unsafe_allow_html=True)
+        with right: st.markdown(f"<div class='example-box'><b>Exemple:</b><br><i>'Hook TikTok ebook?'</i></div>",unsafe_allow_html=True)
         st.link_button("Choisir Nova - 7,90€/mois →",STRIPE_CREATOR,use_container_width=True); st.stop()
-
     st.markdown(f"<h1 class='gradient-title' style='font-size:58px;text-align:center;margin-top:20px;'>{L['main_title']}</h1>",unsafe_allow_html=True)
     st.markdown(f"<p style='color:{DESC};font-size:19px;text-align:center;max-width:900px;margin:20px auto 35px auto;'>{T[st.session_state.lang]['hero_desc']} <span style='background:{GRADIENT_BEA};-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;'>{L['success']}</span>.</p>",unsafe_allow_html=True)
     st.markdown(f"<h2 style='text-align:center;color:{TEXT};margin:50px 0 30px 0;'>{T[st.session_state.lang]['discover_formats']}</h2>",unsafe_allow_html=True)
@@ -241,18 +221,13 @@ if not licence_key:
     with cC: st.markdown(f"<div class='pricing-card-nova'><b>Nova</b><h1>7,90€</h1></div>",unsafe_allow_html=True); st.link_button("Choisir →",STRIPE_CREATOR,use_container_width=True)
     st.stop()
 
-# VERSION CONNECTEE
 if "user" not in st.session_state:
-    # CORRIGE CASE INVISIBLE EN CLAIR
-    if is_dark:
-        st.warning(L["connect_msg"])
-    else:
-        st.markdown(f"<div style='background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:12px 16px;color:#92400e;font-weight:600;margin:15px 0;'>⚠️ {L['connect_msg']}</div>",unsafe_allow_html=True)
+    if is_dark: st.warning(L["connect_msg"])
+    else: st.markdown(f"<div style='background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:12px 16px;color:#92400e;font-weight:600;margin:15px 0;'>⚠️ {L['connect_msg']}</div>",unsafe_allow_html=True)
     st.stop()
 
 res=supabase.table("licences").select("*").eq("key",licence_key).eq("user_id",st.session_state.user.id).execute()
-if not res.data:
-    st.error("Licence invalide"); st.stop()
+if not res.data: st.error("Licence invalide"); st.stop()
 lic=res.data[0]; plan,used,max_req=lic["plan"],lic["used"],lic["max_requests"]
 nom="Nova" if plan=="CREATOR" else "Bea"
 grad=GRADIENT_NOVA if plan=="CREATOR" else GRADIENT_BEA
@@ -277,18 +252,20 @@ if st.session_state.show_uploader:
             if up.type.startswith("image/"): st.image(up,width=400)
             st.markdown(f"📎 {up.name}",unsafe_allow_html=True)
 
-# CHAT AVEC VRAI LOGO BEA SANS TEXTE
-avatar_assistant = nova_avatar if plan=="CREATOR" else bea_avatar
+# AVATAR FIXE NON INVERSABLE - LOGO SEUL SANS TEXTE
 for m in st.session_state.messages:
+    if m.get("role")=="system": continue
     if m["role"]=="user":
-        with st.chat_message("user"):
-            st.markdown(sanitize_input(m["content"]))
+        with st.chat_message("user"): st.markdown(sanitize_input(m["content"]))
     else:
-        if m.get("role")=="system": continue
-        with st.chat_message("assistant", avatar=avatar_assistant):
-            st.markdown(sanitize_input(m["content"]))
-            if "image" in m and m["image"]:
-                st.image(m["image"],use_container_width=True)
+        if plan=="CREATOR":
+            with st.chat_message("assistant", avatar="🚀"):
+                st.markdown(sanitize_input(m["content"]))
+                if "image" in m and m["image"]: st.image(m["image"],use_container_width=True)
+        else:
+            with st.chat_message("assistant", avatar="🧠"):
+                st.markdown(sanitize_input(m["content"]))
+                if "image" in m and m["image"]: st.image(m["image"],use_container_width=True)
 
 placeholder_text=L["ask_nova"] if plan=="CREATOR" else L["ask_bea"]
 prompt_raw=st.chat_input(placeholder_text,key="chat_input")
@@ -299,21 +276,27 @@ if prompt_raw:
     prompt=check_security(prompt_clean)
     if st.session_state.uploaded_file_info: prompt=f"[Fichier: {st.session_state.uploaded_file_info['name']}] {prompt}"
     st.session_state.messages.append({"role":"user","content":prompt})
-    # filtre system pour groq
     msgs_for_groq=[{"role":mm["role"],"content":sanitize_input(mm["content"])} for mm in st.session_state.messages if mm.get("role")!="system" and "image" not in mm]
+    lang_instruction=f"Réponds IMPÉRATIVEMENT en {st.session_state.lang}. Langue actuelle: {st.session_state.lang}"
 
-    # LANGUE DYNAMIQUE
-    lang_instruction = f"Réponds IMPÉRATIVEMENT en {st.session_state.lang}. Si {st.session_state.lang}==EN réponds en anglais, si FR réponds en français. Langue actuelle: {st.session_state.lang}"
-
-    if demande_image(prompt):
-        with st.spinner(f"{nom} crée ton visuel..."):
-            img_url,enhanced=generer_image_pollinations(prompt,plan)
-            sys_prompt=f"Tu es {nom}, ton créateur est BehaviorLab AI. {lang_instruction}. Image: {enhanced}. Si on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI."
-            comp=client.chat.completions.create(model="llama-3.1-8b-instant",messages=[{"role":"system","content":sys_prompt}]+msgs_for_groq[-15:])
-            st.session_state.messages.append({"role":"assistant","content":sanitize_input(comp.choices[0].message.content),"image":img_url})
-    else:
-        sys_prompt=f"Tu es {nom}, ton créateur et développeur est BehaviorLab AI, développée par BehaviorLab AI. {lang_instruction}. Tu es experte en comportement humain. Structure 1.Blocage/Hook 2.Levier/Biais 3.Script WhatsApp. Si on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI. Tu n'es jamais Meta, Llama, Groq."
-        comp=client.chat.completions.create(model="llama-3.1-8b-instant",messages=[{"role":"system","content":sys_prompt}]+msgs_for_groq[-30:])
-        st.session_state.messages.append({"role":"assistant","content":sanitize_input(comp.choices[0].message.content)})
-    supabase.table("licences").update({"used":used+1}).eq("key",licence_key).execute()
-    st.rerun()
+    try:
+        if demande_image(prompt):
+            with st.spinner(f"{nom} crée ton visuel..."):
+                img_url,enhanced=generer_image_pollinations(prompt,plan)
+                sys_prompt=f"Tu es {nom}, ton créateur est BehaviorLab AI. {lang_instruction}. Image: {enhanced}. Si on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI."
+                comp=client.chat.completions.create(model=MODEL_GROQ,messages=[{"role":"system","content":sys_prompt}]+msgs_for_groq[-15:])
+                st.session_state.messages.append({"role":"assistant","content":sanitize_input(comp.choices[0].message.content),"image":img_url})
+        else:
+            sys_prompt=f"Tu es {nom}, ton créateur et développeur est BehaviorLab AI. {lang_instruction}. Tu es experte en comportement humain. Si on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI."
+            comp=client.chat.completions.create(model=MODEL_GROQ,messages=[{"role":"system","content":sys_prompt}]+msgs_for_groq[-30:])
+            st.session_state.messages.append({"role":"assistant","content":sanitize_input(comp.choices[0].message.content)})
+        supabase.table("licences").update({"used":used+1}).eq("key",licence_key).execute()
+        st.rerun()
+    except Exception as e:
+        # NE CRASH PLUS EN ROUGE - MESSAGE PROPRE
+        err_str=str(e)
+        if "AuthenticationError" in err_str or "401" in err_str or "api_key" in err_str.lower():
+            st.error("🔑 Clé Groq invalide ou expirée. Va dans Manage app > Secrets et vérifie GROQ_API_KEY. Va sur console.groq.com pour en générer une nouvelle.")
+        else:
+            st.error(f"Erreur IA: {err_str[:300]}. Réessaie dans quelques secondes.")
+        st.stop()
