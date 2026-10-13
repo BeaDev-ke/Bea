@@ -3,6 +3,7 @@ import os
 import re
 import time
 import html
+import urllib.parse
 from groq import Groq
 from supabase import create_client
 from PIL import Image, ImageDraw, ImageFont
@@ -91,28 +92,23 @@ def check_security(prompt: str):
             if threat == "injection": return "[Requête bloquée pour sécurité]"
     return prompt
 
-def generer_apercu_paysage(texte):
-    texte = sanitize_input(texte)
-    W, H = 1280, 720
-    is_dark = st.session_state.theme == "dark"
-    bg = (26, 16, 51) if is_dark else (245, 243, 255)
-    img = Image.new("RGB", (W, H), bg)
-    draw = ImageDraw.Draw(img)
+def generer_image_pollinations(prompt_utilisateur: str, plan: str):
     try:
-        ft = ImageFont.truetype("DejaVuSans-Bold.ttf", 28)
-        fs = ImageFont.truetype("DejaVuSans.ttf", 20)
+        if plan == "CREATOR":
+            system_enhance = f"Transform this user request into a highly detailed viral thumbnail prompt. English only, max 180 chars. Request: {prompt_utilisateur}"
+        else:
+            system_enhance = f"Transform this user request into a detailed professional business marketing visual prompt. English only, max 180 chars. Request: {prompt_utilisateur}"
+        comp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"system","content":system_enhance},{"role":"user","content":prompt_utilisateur}])
+        enhanced = comp.choices[0].message.content[:200]
     except:
-        ft = ImageFont.load_default()
-        fs = ImageFont.load_default()
-    draw.rectangle([0,0,W,90], fill=(67,56,202))
-    draw.text((30,25), "BehaviorLab AI - 1280x720", font=ft, fill="white")
-    draw.rectangle([30,120,W-30,H-30], fill=(255,255,255) if not is_dark else (46,32,90), outline=(124,58,237), width=3)
-    draw.text((60,150), f"Illustration: {texte[:110]}", font=fs, fill="#4338ca" if not is_dark else "white")
-    return img
+        enhanced = prompt_utilisateur[:200]
+    enhanced_clean = urllib.parse.quote(enhanced)
+    url = f"https://image.pollinations.ai/prompt/{enhanced_clean}?width=1280&height=720&model=flux&nologo=true&enhance=true"
+    return url, enhanced
 
 def demande_image(prompt: str) -> bool:
     p = prompt.lower()
-    keywords = ["image","visuel","illustration","génère","genere","crée une image","cree une image","fais une image","affiche","poster","miniature","affiche pub"]
+    keywords = ["image","visuel","photo","illustration","miniature","thumbnail","affiche","poster","dessine","vignette","cover","crée","genere","génère","fais une image"]
     return any(k in p for k in keywords)
 
 is_dark = st.session_state.theme == "dark"
@@ -132,7 +128,7 @@ st.markdown(f"""
 [data-testid="stSidebar"] * {{ color:{TEXT}!important; }}
 header[data-testid="stHeader"] {{ background:{BG}!important; height:65px!important; }}
 div[data-testid="stBottom"] {{ background:{BG}!important; border-top:1px solid {CARD_BORDER}!important; padding-top:12px!important; }}
-#MainMenu, footer, div[data-testid="stDecoration"], div[data-testid="stToolbar"], div[data-testid="stStatusWidget"], div[data-testid="manage-app-button"], a[href*="streamlit.io"] {{ display:none!important; visibility:hidden!important; height:0!important; }}
+#MainMenu, footer, div[data-testid="stDecoration"], div[data-testid="stToolbar"], div[data-testid="stStatusWidget"], div[data-testid="manage-app-button"] {{ display:none!important; visibility:hidden!important; height:0!important; }}
 div[data-testid="stButton"] > button {{ background:{GRADIENT}!important; color:white!important; border:none!important; border-radius:14px!important; font-weight:700!important; margin:2px 0!important; padding:8px 14px!important; }}
 div[data-testid="stButton"] > button * {{ color:white!important; }}
 div[data-testid="stLinkButton"] > a {{ background:{GRADIENT}!important; color:white!important; border-radius:14px!important; font-weight:700!important; }}
@@ -147,13 +143,7 @@ div[data-testid="stTextInput"] input {{ background: transparent!important; color
 .licence-card {{ background:{GRADIENT}; color:white; padding:14px 20px; border-radius:16px; font-weight:700; margin:15px 0 20px 0; }}
 div[data-testid="stChatInput"] {{ border:2px solid #7c3aed!important; border-radius:20px!important; background:{CARD_BG}!important; }}
 .pricing-card {{ background:{CARD_BG}; border:2px solid transparent; background-image: linear-gradient({CARD_BG}, {CARD_BG}), {GRADIENT}; background-origin: border-box; background-clip: padding-box, border-box; border-radius:24px; padding:28px; color:{TEXT}; }}
-.gradient-title {{
-    background: {GRADIENT};
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 900;
-}}
+.gradient-title {{ background: {GRADIENT}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; }}
 .badge {{ background:{GRADIENT}; color:white; padding:6px 14px; border-radius:20px; font-size:11px; font-weight:800; }}
 </style>
 """, unsafe_allow_html=True)
@@ -208,7 +198,7 @@ if not licence_key:
         st.markdown(f"<div class='pricing-card' style='border-width:3px;'><span class='badge'>ENTREPRISE - RECOMMANDÉ</span><h3 style='margin-top:14px;color:{TEXT};'>Bea Pro</h3><h1 style='color:{TEXT};'>21€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>Requêtes illimitées</b><br>✓ Analyse d'images galerie<br>✓ Générateur visuels pub<br>✓ Scripts avancés<br>✓ Toutes les nouveautés</div></div>", unsafe_allow_html=True)
         st.link_button("Choisir Bea Pro →", STRIPE_PRO, use_container_width=True)
     with cC:
-        st.markdown(f"<div class='pricing-card'><span class='badge'>CRÉATEURS - NOUVEAU</span><h3 style='margin-top:14px;color:{TEXT};'>Nova</h3><p style='color:{DESC};font-size:12px;'>Pour créateurs de contenu</p><h1 style='color:{TEXT};'>7,90€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>IA des biais cognitifs</b><br>✓ Titres qui captent<br>✓ Hooks TikTok / Reels<br>✓ Scripts viraux<br>✓ Chat direct dans l'app</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='pricing-card'><span class='badge'>CRÉATEURS - NOUVEAU</span><h3 style='margin-top:14px;color:{TEXT};'>Nova</h3><p style='color:{DESC};font-size:12px;'>Pour créateurs de contenu</p><h1 style='color:{TEXT};'>7,90€ <span style='font-size:14px;font-weight:400;'>/mois</span></h1><div style='line-height:2;color:{TEXT};font-size:14px;margin-top:10px;'>✓ <b>IA des biais cognitifs</b><br>✓ Titres qui captent<br>✓ Hooks TikTok / Reels<br>✓ Scripts viraux<br>✓ Génération d'images Pollinations</div></div>", unsafe_allow_html=True)
         st.link_button("Choisir Nova →", STRIPE_CREATOR, use_container_width=True)
     st.stop()
 
@@ -255,12 +245,16 @@ if plan == "PRO":
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(sanitize_input(m["content"]))
-        if "image" in m and m["image"] is not None: st.image(m["image"], use_container_width=True)
+        if "image" in m and m["image"] is not None:
+            if isinstance(m["image"], str) and m["image"].startswith("http"):
+                st.image(m["image"], use_container_width=True)
+            else:
+                st.image(m["image"], use_container_width=True)
 
 if plan == "CREATOR":
-    prompt_raw = st.chat_input("Décris ton contenu, ta cible, ton objectif de vues / abonnés... Si tu veux une image, dis 'génère une image de...'")
+    prompt_raw = st.chat_input("Parle à Nova...")
 else:
-    prompt_raw = st.chat_input("Décris ta situation... Si tu veux un visuel, dis 'génère une image de...'")
+    prompt_raw = st.chat_input("Parle à Bea...")
 
 if prompt_raw:
     check_rate_limit(plan)
@@ -270,10 +264,19 @@ if prompt_raw:
         st.stop()
     prompt = check_security(prompt_clean)
     st.session_state.messages.append({"role":"user","content":prompt})
-    if plan not in ["PRO","CREATOR"] and len(st.session_state.messages) > 30: st.session_state.messages = st.session_state.messages[-30:]
+    if plan not in ["PRO","CREATOR"] and len(st.session_state.messages) > 30:
+        st.session_state.messages = st.session_state.messages[-30:]
+
     if demande_image(prompt):
-        img = generer_apercu_paysage(prompt)
-        st.session_state.messages.append({"role":"assistant","content":f"Illustration générée pour : {prompt}", "image": img})
+        with st.spinner("Je crée ton visuel..."):
+            img_url, enhanced = generer_image_pollinations(prompt, plan)
+            if plan == "CREATOR":
+                sys_prompt = f"Tu es Nova, IA BehaviorLab pour créateurs. Langue:{st.session_state.lang}. L'utilisateur a demandé une image, tu viens de la générer avec le prompt: {enhanced}. Réponds TOUJOURS avec du texte structuré: 1.Hook 2.Biais cognitif utilisé 3.Texte exact à mettre sur le visuel + légende. Sois concise, pro."
+            else:
+                sys_prompt = f"Tu es Bea, IA comportementaliste. Langue:{st.session_state.lang}. L'utilisateur a demandé une image, tu viens de la générer avec le prompt: {enhanced}. Réponds TOUJOURS avec du texte structuré: 1.Blocage résolu par ce visuel 2.Levier psycho du visuel 3.Comment l'utiliser en vente. Sois concise."
+            comp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"system","content":sys_prompt}] + [{"role": m["role"], "content": sanitize_input(m["content"])} for m in st.session_state.messages if "image" not in m][-15:])
+            safe_answer = sanitize_input(comp.choices[0].message.content)
+            st.session_state.messages.append({"role":"assistant","content":safe_answer, "image": img_url})
         supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
         st.rerun()
     else:
