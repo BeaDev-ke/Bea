@@ -24,7 +24,39 @@ try:
 except Exception as e:
     st.error(f"Erreur Secrets: {e}"); st.stop()
 
-MODEL_VALIDE = "llama-3.1-8b-instant"
+# SYSTEME DURABLE - NE SERA PLUS JAMAIS SUPPRIME - 100% GRATUIT
+def get_modeles_valides_groq():
+    try:
+        liste = client.models.list()
+        ids = [m.id for m in liste.data]
+        preferes = [
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            "qwen/qwen3-32b",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+        ]
+        valides = [m for m in preferes if m in ids]
+        return valides if valides else ids
+    except Exception:
+        return ["openai/gpt-oss-20b","openai/gpt-oss-120b","llama-3.3-70b-versatile"]
+
+MODELES_DISPO = get_modeles_valides_groq()
+
+def call_groq_durable(messages):
+    last_err = None
+    for model_id in MODELES_DISPO:
+        try:
+            comp = client.chat.completions.create(model=model_id, messages=messages, temperature=0.7, max_tokens=800)
+            return comp.choices[0].message.content, model_id
+        except Exception as e:
+            last_err = e
+            if "model_not_found" in str(e) or "404" in str(e) or "decommissioned" in str(e) or "does not exist" in str(e):
+                continue
+            continue
+    raise last_err
 
 for k,v in {
     "theme":"light","lang":"FR","messages":[],"show_uploader":False,
@@ -83,7 +115,7 @@ def generer_apercu_paysage(texte_modif, plan="PRO"):
     draw.text((70,152),titre,font=font_sub,fill="white")
     draw.text((60,220),f"Demande: {texte_modif[:105]}",font=font_text,fill="white")
     draw.text((60,260),"=> Format paysage ordi - 100% Pillow local",font=font_text,fill="#AAAAFF")
-    draw.text((60,290),"=> Généré par BehaviorLab AI",font=font_text,fill="#AAAAFF")
+    draw.text((60,290),"=> Généré par BehaviorLab AI - sans Pollination",font=font_text,fill="#AAAAFF")
     draw.text((60,340),"Aperçu de ce que ton client verrait:",font=font_sub,fill="#c4b5fd")
     draw.text((60,375),"- Visuel pro qui inspire confiance",font=font_text,fill="white")
     draw.text((60,400),"- Message clair qui fait passer à l'action",font=font_text,fill="white")
@@ -92,15 +124,15 @@ def generer_apercu_paysage(texte_modif, plan="PRO"):
 
 def generer_image_comportementale(prompt_utilisateur, plan):
     try:
-        comp=client.chat.completions.create(model=MODEL_VALIDE,messages=[{"role":"system","content":f"Resume en 80 chars max punchy: {prompt_utilisateur}"},{"role":"user","content":prompt_utilisateur}])
-        enhanced=comp.choices[0].message.content[:120]
+        prompt_court = f"Resume en 80 chars max punchy: {prompt_utilisateur}"
+        txt,_ = call_groq_durable([{"role":"system","content":prompt_court},{"role":"user","content":prompt_utilisateur}])
+        enhanced = txt[:120]
     except: enhanced=prompt_utilisateur[:120]
     img=generer_apercu_paysage(enhanced, plan)
     return img, enhanced
 
 def demande_image(p): return any(k in p.lower() for k in ["image","visuel","photo","miniature","thumbnail","affiche","poster","dessine","vignette","cover","crée une image","genere une image","génère"])
 
-# SYSTEM PROMPT BEHAVIORLAB AI - SANS SOURCES - SANS MONSTRE
 SYSTEM_BEA = """
 Tu es Bea, l'IA de BehaviorLab AI. Tu es la référence en psychologie de vente et comportement d'achat.
 Tu n'es JAMAIS Groq, Llama, Meta. Tu es Bea, créée et entraînée par BehaviorLab AI.
@@ -189,7 +221,6 @@ DESC="#312e81" if not is_dark else "#c4b5fd"
 CARD_BG="#ffffff" if not is_dark else "#1e1450"
 CARD_BORDER="#7c3aed"
 
-# FIX NOIR SUR NOIR - CHATINPUT VISIBLE EN CLAIR ET SOMBRE
 st.markdown(f"""
 <style>
 .stApp{{background:{BG}!important;}}
@@ -202,7 +233,6 @@ header[data-testid="stHeader"]{{background:{BG}!important;height:3.5rem!importan
 #MainMenu,footer{{display:none!important;}}
 div[data-testid="stButton"]>button{{background:{GRADIENT}!important;color:white!important;border-radius:14px!important;font-weight:700!important;border:none!important;min-height:44px!important;}}
 div[data-testid="stLinkButton"]>a{{background:{GRADIENT}!important;color:white!important;border-radius:14px!important;}}
-/* FIX NOIR SUR NOIR - INPUT CLAIR EN MODE CLAIR, SOMBRE MAIS LISIBLE EN MODE SOMBRE */
 div[data-testid="stChatInput"]{{
     background:{"#2a2250" if is_dark else "#ffffff"}!important;
     border:2px solid #7c3aed!important;
@@ -215,7 +245,6 @@ div[data-testid="stChatInput"] textarea{{
 div[data-testid="stChatInput"] textarea::placeholder{{
     color:{"#a78bfa" if is_dark else "#6b7280"}!important;
 }}
-/* FIX MESSAGE BLANC SUR BLANC ET NOIR SUR NOIR */
 div[data-testid="stChatMessage"]{{
     background:{CARD_BG}!important;
     border:2px solid {CARD_BORDER}!important;
@@ -225,7 +254,6 @@ div[data-testid="stChatMessage"]{{
 div[data-testid="stChatMessage"] p{{color:{TEXT}!important;font-size:15px!important;line-height:1.6!important;opacity:1!important;}}
 div[data-testid="stChatMessage"] span{{color:{TEXT}!important;}}
 div[data-testid="stChatMessage"] div{{color:{TEXT}!important;}}
-div[data-testid="stChatMessageAvatar"]{{background:{"#1e1b4b" if is_dark else "#e9d5ff"}!important;}}
 .header-card{{background:{GRADIENT_BEA}!important;border-radius:20px;padding:22px 28px;margin:15px 0 25px 0!important;min-height:90px!important;}}
 .detail-box{{background:{CARD_BG};border:2px solid #7c3aed;border-radius:24px;padding:35px;margin:15px 0;color:{TEXT};text-align:left;line-height:1.8;}}
 .ia-card{{background:{CARD_BG};border:2px solid #7c3aed;border-radius:24px;padding:30px 25px 25px 25px;text-align:center;min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;margin-top:15px!important;}}
@@ -400,7 +428,10 @@ grad=GRADIENT_NOVA if plan=="CREATOR" else GRADIENT_BEA
 welcome_key="welcome_nova" if plan=="CREATOR" else "welcome_bea"
 
 if plan in ["PRO","CREATOR"]:
-    st.markdown(f"<div style='background:{grad};color:white;padding:14px 20px;border-radius:16px;font-weight:700;margin:15px 0;'>{'🚀' if plan=='CREATOR' else '🧠'} {nom} active : {plan} — Illimité — Créée par BehaviorLab AI</div>",unsafe_allow_html=True)
+    try:
+        model_affiche = MODELES_DISPO[0]
+    except: model_affiche = "auto"
+    st.markdown(f"<div style='background:{grad};color:white;padding:14px 20px;border-radius:16px;font-weight:700;margin:15px 0;'>{'🚀' if plan=='CREATOR' else '🧠'} {nom} active : {plan} — Illimité — Créée par BehaviorLab AI — {model_affiche}</div>",unsafe_allow_html=True)
 else:
     if used>=max_req: st.error(f"Limite {used}/{max_req}"); st.stop()
     st.markdown(f"<div style='background:{grad};color:white;padding:14px 20px;border-radius:16px;font-weight:700;margin:15px 0;'>🧠 {nom} active : {plan} — {used}/{max_req}</div>",unsafe_allow_html=True)
@@ -457,15 +488,15 @@ if prompt_raw:
                 img,enhanced=generer_image_comportementale(prompt_clean, plan)
                 sys_prompt=SYSTEM_BEA if plan!="CREATOR" else SYSTEM_NOVA
                 sys_prompt+=f"\n{lang_instruction}\nVisuel Pillow 1280x720: {enhanced}. Si on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI."
-                comp=client.chat.completions.create(model=MODEL_VALIDE,messages=[{"role":"system","content":sys_prompt}]+msgs_for_groq[-12:])
-                st.session_state.messages.append({"role":"assistant","content":sanitize_input(comp.choices[0].message.content),"image":img})
+                reponse,model_used = call_groq_durable([{"role":"system","content":sys_prompt}]+msgs_for_groq[-12:])
+                st.session_state.messages.append({"role":"assistant","content":sanitize_input(reponse),"image":img})
         else:
             sys_prompt=SYSTEM_BEA if plan!="CREATOR" else SYSTEM_NOVA
-            sys_prompt+=f"\n{lang_instruction}\nSi on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI. Tu es experte BehaviorLab AI."
-            comp=client.chat.completions.create(model=MODEL_VALIDE,messages=[{"role":"system","content":sys_prompt}]+msgs_for_groq[-20:])
-            st.session_state.messages.append({"role":"assistant","content":sanitize_input(comp.choices[0].message.content)})
+            sys_prompt+=f"\n{lang_instruction}\nSi on te demande qui t'a créée: Je suis {nom}, créée par BehaviorLab AI."
+            reponse,model_used = call_groq_durable([{"role":"system","content":sys_prompt}]+msgs_for_groq[-20:])
+            st.session_state.messages.append({"role":"assistant","content":sanitize_input(reponse)})
         supabase.table("licences").update({"used":used+1}).eq("key",licence_key).execute()
         st.rerun()
     except Exception as e:
-        st.error(f"Erreur IA: {str(e)[:300]}. Réessaie.")
+        st.error(f"Erreur IA: {str(e)[:400]}. Réessaie - modèle auto: {MODELES_DISPO[0] if MODELES_DISPO else 'aucun'}")
         st.stop()
