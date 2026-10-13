@@ -395,33 +395,23 @@ if plan!= "CREATOR":
             st.error(f"Erreur : {str(e)[:400]}")
     st.stop()
 
-# SI NOVA = NOUVEAU STUDIO CAPCUT AVEC DOUBLE SIDEBAR
-# PREMIER SIDEBAR FIN + SECOND SIDEBAR + EDITEUR
+# SI NOVA = NOUVEAU STUDIO CAPCUT - VERSION FIX ECRAN BLANC
 col_icon, col_tools, col_editor = st.columns([0.08, 0.24, 0.68], gap="small")
 
 with col_icon:
     if os.path.exists("logo.png"):
         st.image("logo.png", width=56)
-    else:
-        st.markdown("<div style='width:56px;height:56px;background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:14px;display:flex;align-items:center;justify-content:center;color:white;font-size:22px;'>🚀</div>", unsafe_allow_html=True)
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-    if st.button("💬", key="nav_nova_ai", help="Nova AI Chat", use_container_width=True):
-        st.session_state.nova_tab="nova_ai"; st.rerun()
+    if st.button("💬", key="nav_nova_ai", use_container_width=True):
+        st.session_state.nova_tab="nova_ai"
     st.caption("Nova AI")
-    if st.button("🖼️", key="nav_montage", help="Montage photo", use_container_width=True):
-        st.session_state.nova_tab="montage"; st.rerun()
+    if st.button("🖼️", key="nav_montage", use_container_width=True):
+        st.session_state.nova_tab="montage"
     st.caption("Montage")
-    if st.button("⚙️", key="nav_params", help="Paramètres", use_container_width=True):
-        st.session_state.nova_tab="params"; st.rerun()
+    if st.button("⚙️", key="nav_params", use_container_width=True):
+        st.session_state.nova_tab="params"
     st.caption("Paramètres")
-    st.divider()
-    if st.button("🚪", key="nav_logout_nova"):
-        supabase.auth.sign_out()
-        if "user" in st.session_state: del st.session_state.user
-        st.rerun()
 
 with col_tools:
-    # BOUTONS LANGUES ET CLAIR/SOMBRE EN HAUT A GAUCHE JUSTE A DROITE DU PREMIER SIDEBAR
     c_theme, c_lang = st.columns(2)
     with c_theme:
         st.button("☀️ Clair" if is_dark else "🌙 Sombre", key="btn_theme_nova", on_click=toggle_theme, use_container_width=True)
@@ -430,125 +420,72 @@ with col_tools:
     st.divider()
     if st.session_state.nova_tab == "nova_ai":
         st.markdown("### 💬 Nova AI - Chat")
-        st.caption("Ton studio IA qui répond comme un chat")
-        # LOGOS DU SCREEN DANS NOVA AI CHAT
         logo_path = "logo.png" if os.path.exists("logo.png") else None
-        for m in st.session_state.messages[-10:]:
+        for m in st.session_state.messages[-8:]:
             if m.get("role")=="system": continue
             if m["role"]=="user":
-                with st.chat_message("user"): st.markdown(sanitize_user(m["content"])[:120])
+                st.markdown(f"💬 {sanitize_user(m['content'])[:120]}")
             else:
-                with st.chat_message("assistant", avatar=logo_path if logo_path else "🚀"):
-                    st.markdown(sanitize_assistant(m["content"])[:200])
-                    if "image" in m and m["image"]: st.image(m["image"], use_container_width=True)
-        if st.button("🗑️ Nouvelle discussion", key="new_chat_nova"):
-            st.session_state.messages=[{"role":"assistant","content":L["welcome_nova"]}]; st.rerun()
+                st.markdown(f"**Nova:** {sanitize_assistant(m['content'])[:200]}")
     elif st.session_state.nova_tab == "montage":
-        st.markdown("### 🖼️ Montage photo")
-        st.caption("Tout ce qu'il y a dans CapCut")
+        st.markdown("### 🖼️ Montage photo - CapCut")
         with st.expander("📁 Média", expanded=True):
-            st.file_uploader("Importer média", type=["png","jpg","jpeg","mp4"], key="media_up")
-            st.button("Stock vidéos", use_container_width=True)
-            st.button("Mes projets", use_container_width=True)
-        with st.expander("🎵 Audio"):
-            st.button("Musiques libres", use_container_width=True)
-            st.button("Effets sonores", use_container_width=True)
-            st.button("Extraire audio", use_container_width=True)
-            st.button("Voix off IA", use_container_width=True)
-        with st.expander("🔤 Texte"):
-            st.button("Titres animés", use_container_width=True)
-            st.button("Sous-titres auto", use_container_width=True)
-            st.button("Animations texte", use_container_width=True)
-        with st.expander("😃 Stickers"):
-            st.button("Emoji", use_container_width=True)
-            st.button("Formes", use_container_width=True)
-        with st.expander("✨ Effets"):
-            st.button("Effets vidéo", use_container_width=True)
-            st.button("Effets corps", use_container_width=True)
-        with st.expander("🔀 Transitions"):
-            st.button("Fondu", use_container_width=True)
-            st.button("Zoom", use_container_width=True)
-            st.button("Glitch", use_container_width=True)
-        with st.expander("🎨 Filtres"):
-            st.button("Cinématique", use_container_width=True)
-            st.button("Vintage", use_container_width=True)
-        with st.expander("🪄 Outils IA"):
-            st.button("Supprimer arrière-plan", use_container_width=True)
-            st.button("Auto-cut silences", use_container_width=True)
-            st.button("Upscale 4K", use_container_width=True)
-            st.button("Générer miniature 1280x720", use_container_width=True)
+            st.file_uploader("Importer", type=["png","jpg","jpeg","mp4"], key="media_up")
+        with st.expander("🎵 Audio"): st.button("Musiques libres", use_container_width=True)
+        with st.expander("🔤 Texte"): st.button("Titres animés", use_container_width=True)
+        with st.expander("😃 Stickers"): st.button("Emoji", use_container_width=True)
+        with st.expander("✨ Effets"): st.button("Effets vidéo", use_container_width=True)
+        with st.expander("🔀 Transitions"): st.button("Fondu", use_container_width=True)
+        with st.expander("🎨 Filtres"): st.button("Cinématique", use_container_width=True)
+        with st.expander("🪄 Outils IA"): st.button("Supprimer arrière-plan", use_container_width=True)
     else:
         st.markdown("### ⚙️ Paramètres")
-        st.success(f"Connecté : {st.session_state.user.email}")
-        st.markdown(f"Plan : {plan}")
-        st.markdown(f"Utilisé : {used}/{max_req}")
-        st.divider()
-        st.button("Déconnexion", key="deco_nova", use_container_width=True)
+        st.success(f"{st.session_state.user.email}")
 
 with col_editor:
     if st.session_state.nova_tab == "nova_ai":
-        st.markdown(f"<div style='background:{GRADIENT_NOVA};border-radius:16px;padding:16px;color:white;'><b>Nova Studio - Chat IA</b> - {L['nova_tag']}</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-        logo_path = "logo.png" if os.path.exists("logo.png") else None
+        st.markdown(f"<div style='background:{GRADIENT_NOVA};border-radius:16px;padding:16px;color:white;'><b>Nova Studio - Chat IA</b></div>", unsafe_allow_html=True)
         for m in st.session_state.messages:
             if m.get("role")=="system": continue
             if m["role"]=="user":
                 with st.chat_message("user"): st.markdown(sanitize_user(m["content"]))
             else:
+                logo_path = "logo.png" if os.path.exists("logo.png") else None
                 with st.chat_message("assistant", avatar=logo_path if logo_path else "🚀"):
                     st.markdown(sanitize_assistant(m["content"]))
                     if "image" in m and m["image"]: st.image(m["image"], use_container_width=True)
-        if st.button(L["file_btn"], key="file_btn_nova"):
-            st.session_state.show_uploader = not st.session_state.show_uploader; st.rerun()
-        if st.session_state.show_uploader:
-            up = st.file_uploader("file", type=["png","jpg","jpeg","pdf","txt","mp4","mp3"], label_visibility="collapsed", key="uploader_nova")
-            if up:
-                st.session_state.uploaded_file_info={"name":up.name}
-                if up.type.startswith("image/"): st.image(up,width=400)
-        prompt_raw = st.chat_input(L["ask_nova"], key="chat_input_nova")
-        if prompt_raw:
-            check_rate_limit(plan)
-            prompt_clean = sanitize_user(prompt_raw)
-            if st.session_state.uploaded_file_info: prompt_clean = f"[Fichier : {st.session_state.uploaded_file_info['name']}] {prompt_clean}"
-            st.session_state.messages.append({"role":"user","content":prompt_clean})
-            msgs_for_groq = [{"role":mm["role"],"content":sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!="system" and "image" not in mm]
-            sys_prompt = SYSTEM_NOVA + f"\nRéponds en {st.session_state.lang}. Si on te demande qui t'a créée : Je suis Nova, créée par BehaviorLab AI."
-            try:
-                if demande_image(prompt_clean):
-                    with st.spinner("Nova crée ton visuel studio..."):
-                        img,enhanced = generer_image_comportementale(prompt_clean, plan)
-                        reponse,_ = call_groq_durable([{"role":"system","content":sys_prompt}]+msgs_for_groq[-12:])
-                        st.session_state.messages.append({"role":"assistant","content":sanitize_assistant(reponse),"image":img})
-                else:
-                    reponse,_ = call_groq_durable([{"role":"system","content":sys_prompt}]+msgs_for_groq[-20:])
-                    st.session_state.messages.append({"role":"assistant","content":sanitize_assistant(reponse)})
-                supabase.table("licences").update({"used":used+1}).eq("key",licence_key).execute()
-                st.rerun()
-            except Exception as e:
-                st.error(f"Erreur : {str(e)[:400]}")
     else:
-        st.markdown(f"<div style='background:{GRADIENT_NOVA};border-radius:16px;padding:16px;color:white;display:flex;justify-content:space-between;align-items:center;'><span><b>Studio Nova - 1280x720</b> - Montage photo</span><span>● REC</span></div>", unsafe_allow_html=True)
-        st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-        # CANVAS STYLE CANVA
-        st.markdown(f"<div style='background:{CARD_BG};border:2px solid #db2777;border-radius:16px;height:360px;display:flex;align-items:center;justify-content:center;color:{TEXT};'>Aperçu 1280x720 - Glisse ton média ici<br>Génère avec Nova AI</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-        # TIMELINE STYLE CAPCUT
-        st.markdown(f"""
-        <div style='background:#1e1b4b;border-radius:12px;padding:12px;color:#c4b5fd;'>
-        <b>Timeline</b><br>
-        <div style='background:#2a2250;height:45px;border-radius:8px;margin:8px 0;display:flex;align-items:center;padding:0 12px;'>🎬 Vidéo 1 - 00:00:05</div>
-        <div style='background:#3a2a60;height:35px;border-radius:8px;margin:8px 0;display:flex;align-items:center;padding:0 12px;'>🎵 Audio - Musique libre</div>
-        <div style='background:#4a3560;height:30px;border-radius:8px;margin:8px 0;display:flex;align-items:center;padding:0 12px;'>🔤 Texte - Hook</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-        c_exp1, c_exp2, c_exp3 = st.columns(3)
-        with c_exp1:
-            if st.button("Exporter 1080p", use_container_width=True): st.success("Export simulé 1280x720 Pillow OK")
-        with c_exp2:
-            if st.button("Générer miniature IA", use_container_width=True):
-                img, _ = generer_image_comportementale("miniature qui clique", plan)
-                st.image(img, use_container_width=True)
-        with c_exp3:
-            if st.button("Demander à Nova AI", use_container_width=True):
-                st.session_state.nova_tab="nova_ai"; st.rerun()
+        st.markdown(f"<div style='background:{GRADIENT_NOVA};border-radius:16px;padding:16px;color:white;'><b>Studio Nova - 1280x720</b> - Montage</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:{CARD_BG};border:2px solid #db2777;border-radius:16px;height:360px;display:flex;align-items:center;justify-content:center;color:{TEXT};'>Aperçu 1280x720</div>", unsafe_allow_html=True)
+        if st.button("Générer miniature IA"):
+            img,_ = generer_image_comportementale("miniature qui clique", plan)
+            st.image(img, use_container_width=True)
+
+# CHAT INPUT TOUJOURS HORS COLONNES POUR NOVA
+if st.session_state.nova_tab == "nova_ai" and plan=="CREATOR":
+    if st.button(L["file_btn"], key="file_btn_nova_out"):
+        st.session_state.show_uploader = not st.session_state.show_uploader; st.rerun()
+    if st.session_state.show_uploader:
+        up = st.file_uploader("file", type=["png","jpg","jpeg","pdf","txt","mp4"], label_visibility="collapsed", key="uploader_nova_fix")
+        if up: st.session_state.uploaded_file_info={"name":up.name}
+    prompt_raw = st.chat_input(L["ask_nova"], key="chat_input_nova_fix")
+    if prompt_raw:
+        check_rate_limit(plan)
+        prompt_clean = sanitize_user(prompt_raw)
+        if st.session_state.uploaded_file_info: prompt_clean = f"[Fichier : {st.session_state.uploaded_file_info['name']}] {prompt_clean}"
+        st.session_state.messages.append({"role":"user","content":prompt_clean})
+        msgs_for_groq = [{"role":mm["role"],"content":sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!="system" and "image" not in mm]
+        sys_prompt = SYSTEM_NOVA + f"\nRéponds en {st.session_state.lang}. Si on te demande qui t'a créée : Je suis Nova, créée par BehaviorLab AI."
+        try:
+            if demande_image(prompt_clean):
+                with st.spinner("Nova crée ton visuel..."):
+                    img,enhanced = generer_image_comportementale(prompt_clean, plan)
+                    reponse,_ = call_groq_durable([{"role":"system","content":sys_prompt}]+msgs_for_groq[-12:])
+                    st.session_state.messages.append({"role":"assistant","content":sanitize_assistant(reponse),"image":img})
+            else:
+                reponse,_ = call_groq_durable([{"role":"system","content":sys_prompt}]+msgs_for_groq[-20:])
+                st.session_state.messages.append({"role":"assistant","content":sanitize_assistant(reponse)})
+            supabase.table("licences").update({"used":used+1}).eq("key",licence_key).execute()
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erreur : {str(e)[:400]}")
