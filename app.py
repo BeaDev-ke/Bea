@@ -42,9 +42,9 @@ st.set_page_config(page_title="Bea", page_icon=_icon, layout="wide", initial_sid
 AVATAR = LOGO or "🧠"
 
 # --- Liens Stripe (inchangés : à remplacer par tes liens définitifs) ---------
-STRIPE_BEA_9 = "https://buy.stripe.com/test_6oUfZic9X1gaejIetq3wQ03"
-STRIPE_PRO_1490 = "https://buy.stripe.com/test_eVq28sa1P7Ey8Zo0CA3wQ04"
-STRIPE_ABO_16 = "https://buy.stripe.com/test_bJe00kde19MG7VkgBy3wQ02" # TODO : même lien que STRIPE_BEA_9 pour l'instant
+STRIPE_BEA_9 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
+STRIPE_PRO_1490 = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
+STRIPE_ABO_16 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"  # TODO : même lien que STRIPE_BEA_9 pour l'instant
 
 # --- Configuration -----------------------------------------------------------
 try:
@@ -58,6 +58,8 @@ except Exception:
     st.stop()
 
 CONTACT_EMAIL = st.secrets.get("CONTACT_EMAIL", "")
+# Si true : après le mot de passe, un code reçu par e-mail est demandé à chaque connexion.
+REQUIRE_LOGIN_CODE = str(st.secrets.get("REQUIRE_LOGIN_CODE", "false")).strip().lower() in ("1", "true", "yes", "oui")
 
 PLANS = ("free", "bea", "pro", "abo")
 PLAN_LABEL = {"free": "Gratuit", "bea": "Bea", "pro": "Bea Pro", "abo": "Bea Ultra"}
@@ -93,7 +95,7 @@ for k, v in {
     "conv_id": None, "messages": [], "convs": None, "projects": None,
     "code_messages": [], "code_project_id": None, "code_name_in": "", "code_lang_in": "python",
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
-    "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None,
+    "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -140,13 +142,18 @@ STYLE_HINT = {
 
 SYSTEM_BEHAVIOR_BASE = """Tu es Bea, une IA d'analyse comportementale créée par BehaviorLab AI. Tu aides les entreprises, les indépendants et les créateurs de contenu à avancer sur leurs projets.
 
-Ta méthode :
-1. Reformule la situation en une phrase.
-2. Repère les schémas de comportement qui freinent la progression (habitudes, réflexes, évitements). Si tu manques d'éléments, pose une ou deux questions précises avant de conclure.
-3. Propose des comportements de remplacement concrets, alignés sur l'objectif de la personne.
-4. Termine par un plan d'action court et mesurable (quoi, quand, et comment savoir si ça marche).
+PRINCIPE CENTRAL : tu apportes de la valeur dès ta toute première réponse. Tu ne poses JAMAIS de questions avant d'aider et tu ne conditionnes jamais ta réponse à des précisions. Si la demande est floue, fais des hypothèses explicites et couvre plusieurs cas possibles.
 
-Règles : réponds dans la langue de l'utilisateur (français par défaut) ; sois concret et structuré ; n'invente ni chiffres, ni statistiques, ni exemples présentés comme réels ; tu ne poses pas de diagnostic médical ou psychologique et tu ne remplaces pas un professionnel. Si la personne semble en détresse ou en danger, encourage-la à en parler à un proche ou à un professionnel (en France : 3114 pour la prévention du suicide, 15 ou 112 en urgence). Si un fichier est joint, appuie-toi dessus."""
+FORMAT PAR DÉFAUT (pour toute question sur un projet, un blocage, une décision, une habitude) :
+1. Une phrase qui reformule la situation (sauf si c'est évident).
+2. **Problèmes possibles** : énumère 4 à 6 blocages ou comportements fréquents qui peuvent expliquer la situation, du plus probable au moins probable, une ligne chacun.
+3. **Leviers d'action** : donne 4 à 6 leviers concrets et applicables tout de suite (quoi faire, comment, en combien de temps), reliés aux problèmes ci-dessus.
+4. **Plan de démarrage** : 3 actions pour aujourd'hui ou cette semaine, avec un indicateur simple pour savoir si ça marche.
+5. Tu peux terminer par UNE seule question courte et facultative pour affiner (par exemple « Lequel de ces blocages te ressemble le plus ? »), seulement si elle est vraiment utile. Jamais plusieurs questions.
+
+Pour une salutation, une question factuelle ou une demande simple, réponds brièvement sans cette structure.
+
+RÈGLES : réponds dans la langue de l'utilisateur (français par défaut) ; sois dense, concret et sans jargon ; n'invente ni chiffres, ni statistiques, ni exemples présentés comme réels ; tu ne poses pas de diagnostic médical ou psychologique et tu ne remplaces pas un professionnel. Si la personne semble en détresse ou en danger, encourage-la à en parler à un proche ou à un professionnel (en France : 3114 pour la prévention du suicide, 15 ou 112 en urgence). Si un fichier est joint, appuie-toi dessus."""
 
 SYSTEM_CODE = ("Tu es l'IA code de Bea. Tu aides à comprendre, déboguer et améliorer du code. Réponds en français sauf demande contraire. "
                "Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code puis explique brièvement les changements. "
@@ -505,20 +512,69 @@ def page_vitrine():
                 st.info(st.session_state.auth_notice)
             t_in, t_up, t_rst = st.tabs(["Se connecter", "Créer un compte", "Mot de passe oublié"])
             with t_in:
-                with st.form("form_login"):
-                    email = st.text_input("Adresse e-mail", key="li_email")
-                    pwd = st.text_input("Mot de passe", type="password", key="li_pwd")
-                    go = st.form_submit_button("Continuer", use_container_width=True)
-                if go:
-                    try:
-                        c = new_client()
-                        res = c.auth.sign_in_with_password({"email": email.strip(), "password": pwd})
-                        st.session_state.sb, st.session_state.user = c, res.user
-                        st.session_state.auth_notice = ""
-                        load_account()
-                        st.rerun()
-                    except Exception as e:
-                        st.error("Adresse e-mail à confirmer : vérifie ta boîte mail." if "confirm" in str(e).lower() else "Identifiants invalides.")
+                pend = st.session_state.pending_login
+                if pend:
+                    st.info(f"Un code de vérification vient d'être envoyé à {pend['email']}. Saisis-le pour terminer la connexion.")
+                    with st.form("form_code"):
+                        code = st.text_input("Code reçu par e-mail", key="li_code", max_chars=10)
+                        go_code = st.form_submit_button("Valider le code", use_container_width=True)
+                    if go_code:
+                        try:
+                            d = new_client()
+                            res = d.auth.verify_otp({"email": pend["email"], "token": code.strip(), "type": "email"})
+                            st.session_state.sb, st.session_state.user = d, res.user
+                            st.session_state.pending_login = None
+                            st.session_state.auth_notice = ""
+                            load_account()
+                            st.rerun()
+                        except Exception:
+                            st.error("Code invalide ou expiré.")
+                    c_a, c_b = st.columns(2)
+                    with c_a:
+                        if st.button("Renvoyer le code", key="resend_code", use_container_width=True):
+                            try:
+                                new_client().auth.sign_in_with_otp({"email": pend["email"], "options": {"should_create_user": False}})
+                                st.success("Nouveau code envoyé.")
+                            except Exception:
+                                st.error("Envoi impossible pour le moment (attends une minute puis réessaie).")
+                    with c_b:
+                        if st.button("Annuler", key="cancel_code", use_container_width=True):
+                            st.session_state.pending_login = None
+                            st.rerun()
+                else:
+                    with st.form("form_login"):
+                        email = st.text_input("Adresse e-mail", key="li_email")
+                        pwd = st.text_input("Mot de passe", type="password", key="li_pwd")
+                        go = st.form_submit_button("Continuer", use_container_width=True)
+                    if go:
+                        try:
+                            c = new_client()
+                            res = c.auth.sign_in_with_password({"email": email.strip(), "password": pwd})
+                            if REQUIRE_LOGIN_CODE:
+                                # Mot de passe correct : on n'ouvre PAS la session, on envoie un code par e-mail.
+                                try:
+                                    c.auth.sign_out()
+                                except Exception:
+                                    pass
+                                new_client().auth.sign_in_with_otp({"email": email.strip(), "options": {"should_create_user": False}})
+                                st.session_state.pending_login = {"email": email.strip()}
+                                st.rerun()
+                            st.session_state.sb, st.session_state.user = c, res.user
+                            st.session_state.auth_notice = ""
+                            load_account()
+                            st.rerun()
+                        except Exception as e:
+                            st.error("Adresse e-mail à confirmer : vérifie ta boîte mail." if "confirm" in str(e).lower() else "Identifiants invalides.")
+                    with st.expander("Je n'ai pas reçu l'e-mail de confirmation de mon compte"):
+                        with st.form("form_resend"):
+                            email_r = st.text_input("Adresse e-mail", key="rc_email")
+                            go_r = st.form_submit_button("Renvoyer l'e-mail de confirmation", use_container_width=True)
+                        if go_r:
+                            try:
+                                new_client().auth.resend({"type": "signup", "email": email_r.strip()})
+                            except Exception:
+                                pass
+                            st.success("Si ce compte existe et n'est pas encore confirmé, un nouvel e-mail vient d'être envoyé.")
             with t_up:
                 with st.form("form_signup"):
                     email2 = st.text_input("Adresse e-mail", key="su_email")
@@ -931,6 +987,9 @@ def page_compte():
     st.markdown("### 💎 Compte & offres")
     q = st.session_state.quota or {}
     st.markdown(f"**Offre actuelle :** {PLAN_LABEL[st.session_state.plan]}")
+    if st.button("🔄 Actualiser mon offre", key="refresh_plan"):
+        refresh_quota()
+        st.rerun()
     for k, label in (("chat", "Requêtes de chat"), ("code", "Requêtes IA code")):
         if q.get(k):
             st.progress(min(q[k]["used"] / max(q[k]["limit"], 1), 1.0), text=f"{label} ce mois-ci : {q[k]['used']}/{q[k]['limit']}")
