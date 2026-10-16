@@ -1,3 +1,4 @@
+import html
 import io
 import json
 import os
@@ -41,9 +42,9 @@ st.set_page_config(page_title="Bea", page_icon=_icon, layout="wide", initial_sid
 AVATAR = LOGO or "🧠"
 
 # --- Liens Stripe (inchangés : à remplacer par tes liens définitifs) ---------
-STRIPE_BEA_9 = "https://buy.stripe.com/test_6oUfZic9X1gaejIetq3wQ03"
-STRIPE_PRO_1490 = "https://buy.stripe.com/test_eVq28sa1P7Ey8Zo0CA3wQ04"
-STRIPE_ABO_16 = "https://buy.stripe.com/test_bJe00kde19MG7VkgBy3wQ02"  # TODO : même lien que STRIPE_BEA_9 pour l'instant
+STRIPE_BEA_9 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
+STRIPE_PRO_1490 = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
+STRIPE_ABO_16 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"  # TODO : même lien que STRIPE_BEA_9 pour l'instant
 
 # --- Configuration -----------------------------------------------------------
 try:
@@ -63,7 +64,7 @@ PLAN_LABEL = {"free": "Gratuit", "bea": "Bea", "pro": "Bea Pro", "abo": "Bea Ult
 WHISPER_MODEL = "whisper-large-v3-turbo"
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
 EXT = {"python": "py", "javascript": "js", "typescript": "ts", "html": "html", "css": "css", "json": "json", "sql": "sql"}
-DEFAULT_CODE = "# Écris ton code ici\n\ndef bonjour(nom):\n    return f'Bonjour {nom} !'\n\nprint(bonjour('Bea'))\n"
+DEFAULT_CODE = ""
 
 
 @st.cache_resource
@@ -115,8 +116,12 @@ div[data-testid="stButton"]>button:hover{{background:#231a4a!important; border-c
 div[data-testid="stLinkButton"]>a{{background:{GRAD}!important; color:white!important; border-radius:12px!important; font-weight:700!important; border:2px solid {BORDER}!important; padding:12px!important;}}
 div[data-testid="stChatMessage"]{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:16px!important; padding:14px!important;}}
 div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!important; line-height:1.6!important;}}
+div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
+div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
+div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
 div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important;}}
-input, textarea{{background:#1a1535!important; color:{TEXT}!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
+div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
+div[data-testid="stBottom"], div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .claude-title{{font-size:34px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0;}}
 .claude-sub{{font-size:12px; color:#d8ccff!important; text-align:center; font-weight:700; letter-spacing:0.8px; margin-bottom:16px;}}
 .desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
@@ -586,6 +591,9 @@ def render_sidebar():
                 if st.button(f"{prefix}{c['title'][:22]}", key=f"hist_{c['id']}", use_container_width=True):
                     open_conv(c["id"])
                     st.rerun()
+        nom = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
+        if nom:
+            st.markdown(f'<div style="font-size:14px; font-weight:700; margin-top:10px;">{html.escape(nom)}</div>', unsafe_allow_html=True)
         st.caption(st.session_state.user.email or "")
         if st.button("🚪 Déconnexion", key="nav_logout", use_container_width=True):
             try:
@@ -681,21 +689,27 @@ def page_code():
             name = st.text_input("Nom du fichier", placeholder="mon_script", key="code_name_in")
         with c2:
             lang = st.selectbox("Langage", list(EXT), key="code_lang_in")
-        code = st.text_area("Code", height=440, key="code_area", label_visibility="collapsed")
+        code = st.text_area("Code", height=440, key="code_area", placeholder="Écris ton code ici...", label_visibility="collapsed")
         b1, b2, b3 = st.columns(3)
         fname = f"{(name or 'code').strip()[:40]}.{EXT[lang]}"
         with b1:
             if st.button("📄 Nouveau", key="ed_new", use_container_width=True):
-                st.session_state.pending_editor = {"code": "# Nouveau fichier\n", "name": "", "lang": "python"}
+                st.session_state.pending_editor = {"code": "", "name": "", "lang": "python"}
                 st.session_state.code_project_id, st.session_state.code_messages = None, []
                 st.rerun()
         with b2:
             if st.button("💾 Enregistrer", key="ed_save", use_container_width=True):
-                save_project((name or f"code_{len(get_projects()) + 1}").strip()[:40], lang, code)
+                if code.strip():
+                    save_project((name or f"code_{len(get_projects()) + 1}").strip()[:40], lang, code)
+                else:
+                    st.warning("Rien à enregistrer : l'éditeur est vide.")
         with b3:
             st.download_button("⬇️ Télécharger", code, file_name=fname, key="ed_dl", use_container_width=True)
         with st.expander("Aperçu coloré"):
-            st.code(code, language=lang)
+            if code.strip():
+                st.code(code, language=lang)
+            else:
+                st.caption("Écris du code pour voir l'aperçu coloré.")
     with col_c:
         hist = st.container()
         with hist:
@@ -892,6 +906,8 @@ def page_studio():
 # --- Personnalisation, compte, confidentialité -------------------------------
 def page_perso():
     st.markdown("### 🎨 Personnaliser Bea")
+    if st.session_state.pop("perso_saved", False):
+        st.success("Personnalisation enregistrée : Bea l'utilisera dans toutes tes discussions.")
     p = st.session_state.prefs or {}
     styles = list(STYLE_HINT)
     with st.form("form_perso"):
@@ -904,9 +920,11 @@ def page_perso():
         try:
             sb().table("preferences").upsert(row).execute()
             st.session_state.prefs = {k: row[k] for k in ("display_name", "style", "goal")}
-            st.success("Personnalisation enregistrée : Bea l'utilisera dans toutes tes discussions.")
+            st.session_state.perso_saved = True
         except Exception as e:
             db_error(e)
+            return
+        st.rerun()
 
 
 def page_compte():
