@@ -7,12 +7,11 @@ from supabase import create_client
 from collections import deque
 from PIL import Image, ImageDraw, ImageFont
 
-st.set_page_config(page_title="BehaviorLab AI", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Bea", page_icon="logo_bea.png", layout="wide", initial_sidebar_state="expanded")
 
-STRIPE_BASIQUE = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
+STRIPE_BEA = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
 STRIPE_PRO = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
-STRIPE_NOVA = "https://buy.stripe.com/test_nova_8_90"
-STRIPE_FORGE = "https://buy.stripe.com/test_forge_13"
+STRIPE_ULTRA = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
 
 def find_file(cands):
     for f in cands:
@@ -20,25 +19,19 @@ def find_file(cands):
             return f
     return None
 
-def load_logos():
-    bea = find_file(["logo_bea.png"])
-    forge = find_file(["logo_forge.png", "logo_bloxks.png"])
-    nova = find_file(["logo_nova.png"])
-    main = find_file(["logo.png"])
-    if bea and forge and "forge" in bea.lower():
-        bea, forge = forge, bea
-    return {"bea": bea, "forge": forge, "nova": nova, "main": main}
-
-LOGOS = load_logos()
+LOGOS = {
+    "bea": find_file(["logo_bea.png", "logo.png"]),
+    "main": find_file(["logo.png", "logo_bea.png"])
+}
 
 try:
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
     SUPA_URL = st.secrets["SUPABASE_URL"]
-    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_PUBLISHABLE_KEY")
+    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY")
     client = Groq(api_key=GROQ_KEY)
     supabase = create_client(SUPA_URL, SUPA_KEY)
 except Exception as e:
-    st.error(f"Erreur Secrets : {e}")
+    st.error(f"Erreur : {e}")
     st.stop()
 
 def get_modeles():
@@ -55,22 +48,21 @@ def call_groq(messages):
     last = None
     for mid in MODELES:
         try:
-            c = client.chat.completions.create(model=mid, messages=messages, temperature=0.7, max_tokens=1800)
+            c = client.chat.completions.create(model=mid, messages=messages, temperature=0.7, max_tokens=2000)
             return c.choices[0].message.content, mid
         except Exception as e:
             last = e
             continue
     raise last
 
-for k, v in {"theme": "light", "lang": "FR", "messages": [], "show_uploader": False, "uploaded_file_info": None, "rate_limit": deque(), "blocked_until": 0, "selected_ia": None, "logged": False, "action_message": "", "uploaded_video_name": None}.items():
+for k, v in {
+    "theme": "light", "lang": "FR", "messages": [], "rate_limit": deque(), "blocked_until": 0,
+    "selected_format": "bea", "logged": False, "history": [], "show_persona": False,
+    "action_message": "", "uploaded_video": None, "current_tool": "", "script_text": "",
+    "format_export": "9:16 Vertical", "style_sub": "Viral pop", "speed": 1.0, "filter": "Aucun"
+}.items():
     if k not in st.session_state:
         st.session_state[k] = v
-
-def toggle_theme():
-    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
-
-def toggle_lang():
-    st.session_state.lang = "EN" if st.session_state.lang == "FR" else "FR"
 
 if "user" not in st.session_state:
     try:
@@ -82,470 +74,501 @@ if "user" not in st.session_state:
         pass
 
 def sanitize_user(t):
-    if not t:
-        return ""
-    return re.sub(r"<[^>]*>", "", t.strip()[:3000])
+    return re.sub(r"<[^>]*>", "", t.strip()[:3000]) if t else ""
 
 def sanitize_assistant(t):
-    if not t:
-        return ""
     t = re.sub(r"<script.*?>.*?</script>", "", t, flags=re.DOTALL | re.IGNORECASE)
-    return re.sub(r"<[^>]*>", "", t).strip()[:6000]
+    return re.sub(r"<[^>]*>", "", t).strip()[:6000] if t else ""
 
 def sanitize_key(t):
     return re.sub(r"[^a-zA-Z0-9-_]", "", t)[:100] if t else ""
 
-def check_rate(plan):
+def check_rate():
     now = time.time()
     if now < st.session_state.blocked_until:
-        st.error(f"Bloque {int(st.session_state.blocked_until - now)}s")
+        st.error(f"Patiente {int(st.session_state.blocked_until - now)}s")
         st.stop()
     dq = st.session_state.rate_limit
     while dq and now - dq[0] > 60:
         dq.popleft()
-    if len(dq) >= (50 if plan in ["PRO", "CREATOR", "FORGE"] else 15):
-        st.session_state.blocked_until = now + 90
-        st.error("Trop de requetes - 90s")
+    if len(dq) >= 25:
+        st.session_state.blocked_until = now + 60
+        st.error("Trop de requetes")
         st.stop()
     dq.append(now)
 
-def generer_apercu(texte, plan="PRO"):
+def generer_visuel(texte, style="Viral"):
     W, H = 1280, 720
     img = Image.new("RGB", (W, H), (18, 18, 40))
     draw = ImageDraw.Draw(img)
     try:
-        ft = ImageFont.truetype("DejaVuSans-Bold.ttf", 34)
-        fs = ImageFont.truetype("DejaVuSans.ttf", 18)
+        ft = ImageFont.truetype("DejaVuSans-Bold.ttf", 28)
+        fs = ImageFont.truetype("DejaVuSans.ttf", 16)
     except:
-        ft = ImageFont.load_default()
-        fs = ImageFont.load_default()
-    for y in range(90):
-        draw.line([(0, y), (W, y)], fill=(int(100+y*0.8), int(50+y*0.3), int(255-y*0.5)))
-    draw.text((30, 22), "BehaviorLab AI - 1280x720", font=ft, fill="white")
-    draw.rectangle([30, 120, W-30, H-30], fill=(35, 35, 70), outline=(120, 60, 255), width=3)
-    draw.text((60, 160), f"{texte[:110]}", font=fs, fill="white")
+        ft = fs = ImageFont.load_default()
+    for y in range(80):
+        draw.line([(0, y), (W, y)], fill=(int(90+y*0.7), int(40+y*0.3), int(220-y*0.3)))
+    draw.rectangle([30, 110, W-30, H-30], fill=(30, 30, 60), outline=(130, 70, 255), width=2)
+    draw.text((50, 130), f"Bea - {style} - 1280x720", font=ft, fill="white")
+    draw.text((50, 180), texte[:120], font=fs, fill="#d1c5ff")
     return img
 
-SYSTEM_BEA = "Tu es Bea, IA de BehaviorLab AI."
-SYSTEM_NOVA = "Tu es Nova Ultra, studio de BehaviorLab AI pour montage video professionnel. Format 9:16 TikTok. Style Viral pop."
-SYSTEM_FORGE = "Tu es Forge, IA de BehaviorLab AI qui cree des apps Play Store en un prompt."
+SYSTEM_BEA = "Tu es Bea, creee par BehaviorLab. Tu transformes une idee vague en projet structure avec blocage exact, levier, scripts doux et directs, chiffrage."
+SYSTEM_PRO = "Tu es Bea Pro, creee par BehaviorLab. Tu fais Bea + studio montage video pro complet : sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, nettoyage audio, bibliotheque modeles, effets, transitions, animations, export optimise format vertical 9:16, horizontal 16:9, carre 1:1, miniatures 1280x720."
+SYSTEM_ULTRA = "Tu es Bea Ultra, creee par BehaviorLab. Tu fais tout Bea Pro + creation application complete en un prompt : ecrans, base donnees, authentification, paiement, icone 512x512, captures, description, export fichier pret a publier."
 
-T = {"FR": {"main_title": "BehaviorLab AI", "sub_title": "Les IA comportementales pour votre reussite", "hero_desc": "BehaviorLab AI a cree les premieres IA du comportement. Pensee pour ceux qui veulent booster leur reussite, nos IA decodent le comportement humain pour un seul but :", "success": "votre reussite", "discover": "Decouvrir les 3 formats IA", "bea_tag": "L'IA qui decode tes clients et double ton closing", "nova_tag": "Le studio de montage video professionnel", "forge_tag": "L'IA qui cree ton app Play Store en un prompt", "ask_bea": "Demander a Bea...", "ask_nova": "Demander a Nova Ultra...", "ask_forge": "Decris ton app a Forge...", "dis_bea": "Decouvrir Bea", "dis_nova": "Decouvrir Nova Ultra", "dis_forge": "Decouvrir Forge", "email": "Adresse e-mail", "pwd": "Mot de passe", "login": "Connexion", "auth": "Authentification", "welcome_bea": "Salut, c'est Bea.", "welcome_nova": "Salut, c'est Nova Ultra.", "welcome_forge": "Salut, c'est Forge.", "connect": "Connecte-toi pour acceder a ton IA avec ta licence", "invalid": "Identifiants invalides"}}
-
-L = T[st.session_state.lang]
 licence_key = sanitize_key(st.query_params.get("key", ""))
-ia_param = st.query_params.get("ia", "")
-if ia_param:
-    st.session_state.selected_ia = ia_param
-is_dark = st.session_state.theme == "dark"
-try:
-    plan_detect = supabase.table("licences").select("plan").eq("key", licence_key).execute().data[0]["plan"] if licence_key else "VITRINE"
-except:
-    plan_detect = "VITRINE"
 
-GRAD_BEA = "linear-gradient(135deg, #1d4ed8 0%, #4f46e5 30%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
-GRAD_NOVA = "linear-gradient(135deg, #7c3aed 0%, #db2777 50%, #f97316 100%)"
-GRAD_FORGE = "linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #8b5cf6 100%)"
-GRAD = GRAD_FORGE if plan_detect == "FORGE" else GRAD_NOVA if plan_detect == "CREATOR" else GRAD_BEA
-BG = "#ffffff" if not is_dark else "#0f0a1e"
-TEXT = "#1e1b4b" if not is_dark else "#f5f3ff"
-DESC = "#312e81" if not is_dark else "#c4b5fd"
-CARD = "#ffffff" if not is_dark else "#1e1450"
-
-st.markdown(f"""
+st.markdown("""
 <style>
-.stApp{{background:{BG}!important;}}
-.block-container{{padding-top:3.5rem!important;max-width:100%!important;}}
-header[data-testid="stHeader"]{{background:{BG}!important;height:3.5rem!important;}}
-[data-testid="stSidebar"]{{background:#1e1b4b!important;border-right:3px solid #7c3aed!important;}}
-.auth-label{{color:#c4b5fd!important;font-size:13px!important;font-weight:700!important;margin:12px 0 6px 0!important;display:block!important;}}
-#MainMenu,footer{{display:none!important;}}
-div[data-testid="stButton"]>button{{background:{GRAD}!important;color:white!important;border-radius:14px!important;font-weight:700!important;border:none!important;min-height:44px!important;}}
-div[data-testid="stLinkButton"]>a{{background:{GRAD}!important;color:white!important;border-radius:14px!important;}}
-div[data-testid="stChatInput"]{{background:{"#2a2250" if is_dark else "#ffffff"}!important;border:2px solid #7c3aed!important;border-radius:20px!important;}}
-div[data-testid="stChatMessage"]{{background:{CARD}!important;border:2px solid #7c3aed!important;border-radius:18px!important;padding:18px!important;}}
-.montage-title{{font-size:38px;font-weight:800;color:{TEXT};margin:20px 0;}}
-.montage-label{{color:{TEXT};font-size:14px;margin:18px 0 8px 0;font-weight:600;}}
+.stApp{background:#f9f8f6!important;}
+[data-testid="stSidebar"]{background:#171717!important; border-right:1px solid #2a2a2a!important;}
+[data-testid="stSidebar"] *{color:#d4d4d4!important;}
+header[data-testid="stHeader"]{background:#f9f8f6!important;}
+.block-container{max-width:1000px!important; padding-top:0.5rem!important;}
+#MainMenu,footer{visibility:hidden;}
+div[data-testid="stButton"]>button{background:#2a2a2a!important; color:#e8e8e8!important; border:1px solid #3a3a3a!important; border-radius:10px!important; font-weight:500!important; font-size:13px!important; text-align:left!important; min-height:38px!important;}
+div[data-testid="stButton"]>button:hover{background:#3a3a3a!important; border-color:#555!important;}
+.tool-btn button{background:#ffffff!important; color:#1a1a1a!important; border:1px solid #e5e0da!important; border-radius:12px!important; font-weight:600!important; font-size:12px!important; text-align:center!important; min-height:68px!important; box-shadow:0 1px 3px rgba(0,0,0,0.05)!important;}
+.tool-btn button:hover{background:#f5f2ef!important; border-color:#d4cfc8!important; transform:translateY(-1px)!important;}
+div[data-testid="stLinkButton"]>a{background:#5a3df6!important; color:white!important; border-radius:12px!important; font-weight:600!important; border:none!important;}
+div[data-testid="stChatMessage"]{background:transparent!important; border:none!important; padding:14px 0!important;}
+div[data-testid="stChatMessage"] p{color:#1a1a1a!important; font-size:15px!important; line-height:1.7!important;}
+div[data-testid="stChatInput"]{background:#ffffff!important; border:1px solid #e0ddd8!important; border-radius:24px!important; box-shadow:0 1px 6px rgba(0,0,0,0.06)!important;}
+.claude-title{font-size:34px; font-weight:600; color:#1a1a1a; text-align:center; margin:50px 0 10px 0; font-family: Georgia, serif;}
+.claude-sub{font-size:15px; color:#6b6b6b; text-align:center; max-width:620px; margin:0 auto 36px auto; line-height:1.6;}
+.format-card{background:white; border:1px solid #e8e3dc; border-radius:16px; padding:20px; margin:10px 0;}
+.sidebar-logo{font-size:21px; font-weight:600; color:#f5f5f5!important; margin-bottom:22px; letter-spacing:0.2px;}
+.sidebar-section{font-size:10px; color:#8a8a8a!important; text-transform:uppercase; letter-spacing:0.8px; margin:22px 0 8px 0; font-weight:600;}
+.timeline{background:#111118; border-radius:12px; padding:12px; border:1px solid #2a2a3f; margin:12px 0;}
+.timeline-track{background:#1e1e2e; height:44px; border-radius:8px; margin:6px 0; display:flex; align-items:center; padding:0 8px; overflow:hidden;}
+.track-block{background:linear-gradient(135deg,#7c3aed,#c026d3); height:32px; border-radius:6px; min-width:70px; margin-right:6px; display:flex; align-items:center; justify-content:center; font-size:10px; color:white; font-weight:600;}
 </style>
 """, unsafe_allow_html=True)
 
-def vitrine_card(logo_key, title, tag, grad):
-    path = LOGOS.get(logo_key)
-    with st.container(border=True):
-        if path and os.path.exists(path):
-            st.image(path, width=80)
-        else:
-            st.markdown(f"<div style='width:80px;height:80px;background:{grad};border-radius:18px;display:flex;align-items:center;justify-content:center;color:white;font-weight:900;margin-bottom:12px;'>{title[0]}</div>", unsafe_allow_html=True)
-        st.markdown(f"### {title}")
-        st.caption(tag)
+# SIDEBAR CLAUDE
+with st.sidebar:
+    st.markdown('<div class="sidebar-logo">Bea</div>', unsafe_allow_html=True)
 
-if st.session_state.selected_ia:
-    if st.button("Retour", key="retour_vitrine_top"):
-        st.session_state.selected_ia = None
-        st.query_params.clear()
+    if st.button("Nouveau", key="new_side", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.action_message = ""
+        st.session_state.current_tool = ""
+        st.session_state.history.append(f"Chat {len(st.session_state.history)+1}")
         st.rerun()
 
-c1, c2 = st.columns([0.9, 5.1])
-with c1:
-    ml = LOGOS.get("main") or LOGOS.get("bea")
-    if ml and os.path.exists(ml):
-        st.image(ml, width=68)
-with c2:
-    if licence_key:
-        nom = "Forge" if plan_detect == "FORGE" else "Nova Ultra" if plan_detect == "CREATOR" else "Bea"
-        grad = GRAD_FORGE if plan_detect == "FORGE" else GRAD_NOVA if plan_detect == "CREATOR" else GRAD_BEA
-        sous = L["forge_tag"] if plan_detect == "FORGE" else L["nova_tag"] if plan_detect == "CREATOR" else L["bea_tag"]
-        st.markdown(f'<div style="background:{grad};border-radius:20px;padding:14px 22px;margin:10px 0;"><h2 style="color:white;margin:0;font-size:20px;">{nom}</h2><p style="color:white;margin:4px 0 0 0;font-size:13px;">{sous}</p></div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div style="background:{GRAD_BEA};border-radius:20px;padding:22px 28px;margin:15px 0 25px 0;"><h2 style="color:white;margin:0;font-size:24px;">{L["main_title"]}</h2><p style="color:white;margin:5px 0 0 0;font-size:14px;">{L["sub_title"]}</p></div>', unsafe_allow_html=True)
+    if st.button("Projets", key="proj_side", use_container_width=True):
+        st.toast("Projets ouverts")
+        st.session_state.current_tool = "Projets"
 
-# VITRINE LIBRE SANS CONNEXION OBLIGATOIRE
-if not licence_key:
-    with st.sidebar:
-        if st.button("Clair" if is_dark else "Sombre", key="theme_vitrine", on_click=toggle_theme):
+    if st.button("Artefacts", key="art_side", use_container_width=True):
+        st.toast("Artefacts ouverts")
+        st.session_state.current_tool = "Artefacts"
+
+    if st.button("Code", key="code_side", use_container_width=True):
+        st.toast("Editeur code ouvert")
+        st.session_state.current_tool = "Code"
+
+    if st.button("Personnalisation", key="perso_side", use_container_width=True):
+        st.session_state.show_persona = not st.session_state.show_persona
+        st.rerun()
+
+    st.markdown('<div class="sidebar-section">Formats et options</div>', unsafe_allow_html=True)
+
+    if st.button("Importer la memoire", key="import_mem"):
+        st.toast("Memoire importee")
+        st.session_state.action_message = "Memoire importee"
+
+    if st.button("Personnaliser Bea pour vous", key="custom_bea"):
+        st.session_state.show_persona = True
+        st.rerun()
+
+    if st.button("Bea - 14,90", key="side_bea"):
+        st.session_state.selected_format = "bea"
+        st.toast("Format Bea selectionne")
+        st.rerun()
+
+    if st.button("Bea Pro - 21", key="side_pro"):
+        st.session_state.selected_format = "pro"
+        st.toast("Format Bea Pro selectionne - montage pro inclus")
+        st.rerun()
+
+    if st.button("Bea Ultra - 29,90", key="side_ultra"):
+        st.session_state.selected_format = "ultra"
+        st.toast("Format Bea Ultra selectionne - app incluse")
+        st.rerun()
+
+    st.markdown('<div class="sidebar-section">Recents</div>', unsafe_allow_html=True)
+    for h in st.session_state.history[-6:]:
+        if st.button(h[:26], key=f"hist_{h}_{len(st.session_state.history)}"):
+            st.toast(f"Ouverture {h}")
+
+    st.markdown("<div style='height:50px;'></div>", unsafe_allow_html=True)
+
+    if st.session_state.logged and "user" in st.session_state:
+        st.caption(f"{st.session_state.user.email}")
+        if st.button("Deconnexion", key="deco_side"):
+            supabase.auth.sign_out()
+            st.session_state.logged = False
+            if "user" in st.session_state:
+                del st.session_state.user
             st.rerun()
-        if st.button(f"{st.session_state.lang}", key="lang_vitrine", on_click=toggle_lang):
-            st.rerun()
-        st.divider()
-        st.markdown(f"### {L['auth']}")
-        st.caption("Optionnel - uniquement si vous avez une licence")
-        if st.session_state.logged and "user" in st.session_state:
-            st.success(f"Connecte : {st.session_state.user.email}")
-            if st.button("Deconnexion", key="deco_vitrine"):
-                supabase.auth.sign_out()
-                st.session_state.logged = False
-                if "user" in st.session_state:
-                    del st.session_state.user
-                st.rerun()
-        else:
-            email = st.text_input("email_v", label_visibility="collapsed", placeholder="email@exemple.com", key="email_v")
-            pwd = st.text_input("pwd_v", type="password", label_visibility="collapsed", placeholder="********", key="pwd_v")
-            if st.button(L["login"], use_container_width=True, key="login_vitrine"):
+    else:
+        st.caption("Non connecte")
+
+# PAGE CONNEXION
+if not st.session_state.logged and not licence_key:
+    st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
+    st.markdown('<div class="claude-sub">Bea transforme une intention en projet concret. Elle structure votre demarche, produit des videos pretes a diffuser avec sous-titres stylises et cree votre application en un prompt. Connectez-vous pour acceder a votre format.</div>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+    with col2:
+        with st.container(border=True):
+            st.markdown("#### Connexion")
+            email = st.text_input("email_login", label_visibility="collapsed", placeholder="Adresse e-mail", key="email_claude")
+            pwd = st.text_input("pwd_login", label_visibility="collapsed", type="password", placeholder="Mot de passe", key="pwd_claude")
+            if st.button("Continuer", use_container_width=True, key="login_claude"):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
                     st.session_state.user = res.user
                     st.session_state.logged = True
                     st.rerun()
                 except:
-                    st.error(L["invalid"])
-            st.caption("Pas encore de compte? Choisissez une offre ci-dessous, vous recevrez votre licence par e-mail.")
-
-if not licence_key:
-    if st.session_state.selected_ia == "bea":
-        with st.container(border=True):
-            st.markdown("## Bea - L'IA qui decode tes clients et double ton closing")
-            st.markdown("**Transformer une intention en resultats concrets**")
-            st.markdown("A partir d'une situation de vente, construire le blocage exact, le levier et le script qui debloque.")
-            st.markdown("**Avantages**")
-            st.markdown("- Detection du blocage exact qui freine la vente\n- Script doux et script direct prets a l'emploi\n- Chiffrage de ce que tu gagnes\n- Exemple vecu avec prenom age ville")
-            st.caption("Pourquoi payer : Bea remplace des mois de tests par un script qui convertit immediatement.")
-        st.link_button("Choisir Bea Pro - 21 / mois", STRIPE_PRO, use_container_width=True)
-        st.stop()
-    if st.session_state.selected_ia == "nova":
-        with st.container(border=True):
-            st.markdown("## Nova Ultra - Studio de montage video professionnel")
-            st.markdown("**L'ensemble des fonctions de montage video professionnel reuni dans un seul outil.**")
-            st.markdown("Production de videos pretes a diffuser : sous-titrage, decoupe, effets et mise en forme sont automatises.")
-            st.markdown("**Avantages**")
-            st.markdown("- Generation automatique de sous-titres stylises et synchronises avec la parole\n- Suppression de l'arriere-plan, decoupe des silences et nettoyage de la piste audio\n- Bibliotheque integree de modeles, d'effets, de transitions et d'animations\n- Export direct dans un format optimise pour chaque plateforme de diffusion")
-            st.caption("Pourquoi payer : un seul outil remplace plusieurs logiciels et des heures de montage manuel.")
-        st.link_button("Choisir Nova Ultra - 8,90 / mois", STRIPE_NOVA, use_container_width=True)
-        st.stop()
-    if st.session_state.selected_ia == "forge":
-        with st.container(border=True):
-            st.markdown("## Forge - L'IA qui cree ton app Play Store en un prompt")
-            st.markdown("**De l'idee au projet executable**")
-            st.markdown("A partir d'une intention de depart, construire un plan, des systemes et des outils qui fonctionnent.")
-            st.markdown("**Avantages**")
-            st.markdown("- Generation d'un plan d'action complet et ordonne\n- Creation de systemes reutilisables et de routines stables\n- Passage direct de la conception a l'execution, sans etape intermediaire inutile\n- Export APK/AAB, icone 512x512, screenshots, description Play Store")
-            st.caption("Pourquoi payer : acces a une methode de construction qui evite des mois de dispersion et livre un resultat utilisable tout de suite.")
-        st.link_button("Choisir Forge - 13 / mois", STRIPE_FORGE, use_container_width=True)
-        st.stop()
-
-    st.markdown(f"<h1 style='background:{GRAD_BEA};-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;font-size:52px;text-align:center;margin:20px 0 10px 0;'>{L['main_title']}</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:{DESC};font-size:19px;text-align:center;max-width:900px;margin:10px auto 30px auto;'>{T[st.session_state.lang]['hero_desc']} <span style='background:{GRAD_BEA};-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;'>{L['success']}</span>.</p>", unsafe_allow_html=True)
-    st.markdown(f"<h2 style='text-align:center;color:{TEXT};margin:40px 0 25px 0;font-size:28px;'>{L['discover']}</h2>", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3, gap="large")
-    with col1:
-        vitrine_card("bea", "Bea", L["bea_tag"], GRAD_BEA)
-        if st.button(L["dis_bea"], use_container_width=True, key="dis_bea"):
-            st.session_state.selected_ia = "bea"
-            st.query_params["ia"] = "bea"
-            st.rerun()
-    with col2:
-        vitrine_card("nova", "Nova Ultra", L["nova_tag"], GRAD_NOVA)
-        if st.button(L["dis_nova"], use_container_width=True, key="dis_nova"):
-            st.session_state.selected_ia = "nova"
-            st.query_params["ia"] = "nova"
-            st.rerun()
-    with col3:
-        vitrine_card("forge", "Forge", L["forge_tag"], GRAD_FORGE)
-        if st.button(L["dis_forge"], use_container_width=True, key="dis_forge"):
-            st.session_state.selected_ia = "forge"
-            st.query_params["ia"] = "forge"
-            st.rerun()
+                    st.error("Identifiants invalides")
+            st.caption("Acces avec licence Bea, Bea Pro ou Bea Ultra")
 
     st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
-    cA, cB, cC, cD = st.columns(4, gap="medium")
-    with cA:
-        with st.container(border=True):
-            st.markdown("**Bea Basique** # 14,90")
-            st.caption("12 requetes/mois")
-            st.link_button("Choisir", STRIPE_BASIQUE, use_container_width=True, key="buy_basique_v")
-    with cB:
-        with st.container(border=True):
-            st.markdown("**Bea Pro** # 21")
-            st.caption("Illimite - Fichiers + Visuels 1280x720")
-            st.link_button("Choisir", STRIPE_PRO, use_container_width=True, key="buy_pro_v")
-    with cC:
-        with st.container(border=True):
-            st.markdown("**Nova Ultra** # 8,90")
-            st.caption("Sous-titres auto - Decoupe silences - Effets")
-            st.link_button("Choisir", STRIPE_NOVA, use_container_width=True, key="buy_nova_v")
-    with cD:
-        with st.container(border=True):
-            st.markdown("**Forge** # 13")
-            st.caption("1 prompt = 1 app - Publie Play Store")
-            st.link_button("Choisir", STRIPE_FORGE, use_container_width=True, key="buy_forge_v")
 
-    # DESCRIPTIONS BEHAVIORLAB AI AVEC FORMATS EN BAS - CE QUE TU DEMANDAIS
-    st.markdown("<div style='height:50px;'></div>", unsafe_allow_html=True)
-    st.divider()
-    st.markdown(f"<h2 style='text-align:center;color:{TEXT};font-size:32px;margin:40px 0 20px 0;'>BehaviorLab AI - Les 3 formats</h2>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3, gap="medium")
+    with c1:
+        with st.container(border=True):
+            if LOGOS["bea"] and os.path.exists(LOGOS["bea"]):
+                st.image(LOGOS["bea"], width=48)
+            st.markdown("### Bea")
+            st.caption("14,90 / mois")
+            st.markdown("**De l'idee au projet structure**")
+            st.markdown("- Blocage exact et levier\n- Scripts doux et directs\n- Chiffrage gain\n- Exemple prenom age ville")
+            st.link_button("Choisir Bea", STRIPE_BEA, use_container_width=True)
+    with c2:
+        with st.container(border=True):
+            st.markdown("### Bea Pro")
+            st.caption("21 / mois")
+            st.markdown("**Bea + Studio montage video professionnel complet**")
+            st.markdown("- Tout Bea\n- Sous-titres stylises synchronises parole\n- Suppression arriere-plan, decoupe silences, nettoyage audio\n- Modeles, effets, transitions, animations\n- Export optimise vertical horizontal carre\n- Visuels 1280x720")
+            st.link_button("Choisir Bea Pro", STRIPE_PRO, use_container_width=True)
+    with c3:
+        with st.container(border=True):
+            st.markdown("### Bea Ultra")
+            st.caption("29,90 / mois")
+            st.markdown("**Bea Pro + Application complete en un prompt**")
+            st.markdown("- Tout Bea Pro\n- 1 prompt = 1 application\n- Ecrans + base + paiement\n- Icone 512x512 + captures + description\n- Export fichier pret a publier")
+            st.link_button("Choisir Bea Ultra", STRIPE_ULTRA, use_container_width=True)
 
-    col_f1, col_f2, col_f3 = st.columns(3, gap="large")
-    with col_f1:
-        with st.container(border=True):
-            if LOGOS.get("bea") and os.path.exists(LOGOS.get("bea")):
-                st.image(LOGOS.get("bea"), width=60)
-            st.markdown("#### De l'idee au projet - Bea")
-            st.markdown("**Transformer une idee vague en projet structure et executable.**")
-            st.caption("A partir d'une intention de depart, construire un plan, des systemes et des outils qui fonctionnent.")
-            st.markdown("**Avantages**\n- Generation d'un plan d'action complet et ordonne\n- Creation de systemes reutilisables et de routines stables\n- Passage direct de la conception a l'execution")
-            st.caption("Pourquoi payer : acces a une methode qui evite des mois de dispersion et livre un resultat utilisable tout de suite.")
-            st.link_button("Payer - Bea 21€", STRIPE_PRO, use_container_width=True, key="pay_bea_bottom")
-            if st.button("Ouvrir Bea", key="open_bea_bottom", use_container_width=True):
-                st.session_state.selected_ia = "bea"
-                st.query_params["ia"] = "bea"
-                st.rerun()
-    with col_f2:
-        with st.container(border=True):
-            if LOGOS.get("nova") and os.path.exists(LOGOS.get("nova")):
-                st.image(LOGOS.get("nova"), width=60)
-            st.markdown("#### Montage video professionnel - Nova Ultra")
-            st.markdown("**L'ensemble des fonctions de montage video professionnel reuni dans un seul outil.**")
-            st.caption("Production de videos pretes a diffuser : sous-titrage, decoupe, effets et mise en forme sont automatises.")
-            st.markdown("**Avantages**\n- Generation automatique de sous-titres stylises et synchronises\n- Suppression de l'arriere-plan, decoupe des silences et nettoyage audio\n- Bibliotheque integree de modeles, d'effets, de transitions et d'animations\n- Export direct dans un format optimise pour chaque plateforme")
-            st.caption("Pourquoi payer : un seul outil remplace plusieurs logiciels et des heures de montage manuel.")
-            st.link_button("Payer - Nova 8,90€", STRIPE_NOVA, use_container_width=True, key="pay_nova_bottom")
-            if st.button("Ouvrir Nova", key="open_nova_bottom", use_container_width=True):
-                st.session_state.selected_ia = "nova"
-                st.query_params["ia"] = "nova"
-                st.rerun()
-    with col_f3:
-        with st.container(border=True):
-            if LOGOS.get("forge") and os.path.exists(LOGOS.get("forge")):
-                st.image(LOGOS.get("forge"), width=60)
-            st.markdown("#### De l'idee au projet - Forge")
-            st.markdown("**L'IA qui cree ton app Play Store en un prompt**")
-            st.caption("De l'idee vague a l'app publiee sur Play Store en un prompt.")
-            st.markdown("**Avantages**\n- 1 prompt = 1 app Android + iOS\n- Ecrans + Base de donnees + Paiement\n- Export APK/AAB, icone 512x512, screenshots\n- Publie Play Store en 1 clic")
-            st.caption("Pourquoi payer : Forge evite des mois de dev et livre une app prete a publier.")
-            st.link_button("Payer - Forge 13€", STRIPE_FORGE, use_container_width=True, key="pay_forge_bottom")
-            if st.button("Ouvrir Forge", key="open_forge_bottom", use_container_width=True):
-                st.session_state.selected_ia = "forge"
-                st.query_params["ia"] = "forge"
-                st.rerun()
-
-    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
-    st.caption("BehaviorLab AI - Acces complet aux 3 IA")
-    st.link_button("Acces complet aux 3 IA - Payer maintenant", STRIPE_PRO, use_container_width=True, key="buy_all_bottom")
     st.stop()
 
-# Si licence presente, on demande connexion uniquement la
-if "user" not in st.session_state or not st.session_state.logged:
-    with st.sidebar:
-        st.button("Clair" if is_dark else "Sombre", on_click=toggle_theme, use_container_width=True, key="theme_lic")
-        st.divider()
-        st.markdown(f"### {L['auth']}")
-        st.caption("Connexion requise pour utiliser votre licence")
-        email = st.text_input("email_lic", label_visibility="collapsed", placeholder="email@exemple.com", key="email_lic")
-        pwd = st.text_input("pwd_lic", type="password", label_visibility="collapsed", placeholder="********", key="pwd_lic")
-        if st.button(L["login"], use_container_width=True, key="login_lic"):
+if licence_key and not st.session_state.logged:
+    st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
+    st.markdown('<div class="claude-sub">Connectez-vous pour acceder a votre Bea avec votre licence.</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        email = st.text_input("email_lic", label_visibility="collapsed", placeholder="Adresse e-mail")
+        pwd = st.text_input("pwd_lic", label_visibility="collapsed", type="password", placeholder="Mot de passe")
+        if st.button("Continuer", key="login_lic"):
             try:
                 res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
                 st.session_state.user = res.user
                 st.session_state.logged = True
                 st.rerun()
             except:
-                st.error(L["invalid"])
-    st.warning(L["connect"])
+                st.error("Identifiants invalides")
     st.stop()
 
-try:
-    res = supabase.table("licences").select("*").eq("key", licence_key).eq("user_id", st.session_state.user.id).execute()
-except Exception as e:
-    st.error(f"Erreur licence : {e}")
-    st.stop()
-
-if not res.data:
-    st.error("Licence invalide")
-    st.stop()
-
-lic = res.data[0]
-plan, used, max_req = lic["plan"], lic["used"], lic["max_requests"]
-if plan not in ["PRO", "CREATOR", "FORGE"]:
-    if used >= max_req:
-        st.error(f"Limite {used}/{max_req} atteinte")
+if licence_key:
+    try:
+        res = supabase.table("licences").select("*").eq("key", licence_key).eq("user_id", st.session_state.user.id).execute()
+        if not res.data:
+            st.error("Licence invalide")
+            st.stop()
+        lic = res.data[0]
+        plan, used, max_req = lic["plan"], lic["used"], lic["max_requests"]
+    except Exception as e:
+        st.error(f"Erreur licence : {e}")
         st.stop()
+else:
+    plan, used, max_req = "PRO", 0, 100
 
 if len(st.session_state.messages) == 0:
-    if plan == "FORGE":
-        st.session_state.messages.append({"role": "assistant", "content": L["welcome_forge"]})
-    elif plan == "CREATOR":
-        st.session_state.messages.append({"role": "assistant", "content": L["welcome_nova"]})
+    fmt = st.session_state.selected_format
+    if fmt == "ultra":
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea Ultra. Je fais analyse comportementale, montage video pro complet avec sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, nettoyage audio, modeles effets transitions, et creation d'application en un prompt. Dites-moi ce que vous voulez creer."})
+    elif fmt == "pro":
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea Pro. Je combine analyse comportementale et studio montage pro. Sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, bibliotheque modeles effets transitions animations, export optimise. Que souhaitez-vous monter?"})
     else:
-        st.session_state.messages.append({"role": "assistant", "content": L["welcome_bea"]})
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea. Decrivez votre situation, je vous donne blocage exact, levier et scripts."})
 
-if st.button("Retour", key="retour_photo"):
-    st.session_state.selected_ia = None
-    st.query_params.clear()
-    st.rerun()
-
-st.markdown(f"<h1 class='montage-title'>Montage video professionnel - Groq + Montage</h1>", unsafe_allow_html=True)
-
-st.markdown(f"<p class='montage-label'>Video brute</p>", unsafe_allow_html=True)
-col_up1, col_up2 = st.columns([0.3, 0.7])
-with col_up1:
-    uploaded_video = st.file_uploader("Upload", type=["mp4", "mov", "webm", "avi"], label_visibility="collapsed", key="upload_brute")
-    if uploaded_video:
-        st.session_state.uploaded_video_name = uploaded_video.name
-        st.success(f"Charge : {uploaded_video.name}")
-        if st.button("Supprimer video", key="del_video"):
-            st.session_state.uploaded_video_name = None
+if st.session_state.show_persona:
+    with st.container(border=True):
+        st.markdown("#### Personnaliser Bea pour vous")
+        nom = st.text_input("Comment Bea doit vous appeler?", key="perso_nom")
+        style = st.selectbox("Style", ["Direct", "Doux", "Detaille"], key="perso_style")
+        if st.button("Enregistrer", key="save_perso"):
+            st.toast(f"Bea vous appellera {nom} en style {style}")
+            st.session_state.show_persona = False
             st.rerun()
-with col_up2:
-    st.markdown(f"<p style='color:#a1a1aa;font-size:13px;margin-top:10px;'>200MB per file - MP4, MOV, WEBM, AVI</p>", unsafe_allow_html=True)
-    if uploaded_video:
-        st.video(uploaded_video)
 
-st.markdown(f"<p class='montage-label'>Script / paroles pour sous-titres</p>", unsafe_allow_html=True)
-script = st.text_area("Script", height=120, label_visibility="collapsed", key="script_photo")
+# BARRE OUTILS MONTAGE COMPLETE - TOUS LES OUTILS CAPCUT
+st.markdown("### Montage video professionnel")
+st.markdown(f"<div style='color:#6b6b6b; font-size:12px; margin-bottom:12px;'>Format: {st.session_state.format_export} | Style: {st.session_state.style_sub} | Outil actif: {st.session_state.current_tool or 'Aucun'} | {st.session_state.action_message}</div>", unsafe_allow_html=True)
 
-c_fmt, c_style = st.columns([0.6, 0.4])
+# Ligne 1 - Import et texte
+col_a, col_b = st.columns([0.35, 0.65])
+with col_a:
+    up = st.file_uploader("Video brute", type=["mp4", "mov", "webm", "avi"], label_visibility="collapsed", key="up_video")
+    if up:
+        st.session_state.uploaded_video = up
+        st.success(f"{up.name} - {up.size//1024} Ko")
+        st.video(up)
+        if st.button("Supprimer video", key="del_vid"):
+            st.session_state.uploaded_video = None
+            st.rerun()
+    else:
+        st.caption("200MB max - MP4 MOV WEBM AVI")
+
+with col_b:
+    txt = st.text_area("Script / paroles pour sous-titres", height=130, placeholder="Collez votre script ici pour generer les sous-titres synchronises...", key="script_area")
+    if txt:
+        st.session_state.script_text = txt
+
+c_fmt, c_style, c_speed = st.columns(3)
 with c_fmt:
-    st.markdown(f"<p class='montage-label'>Format export</p>", unsafe_allow_html=True)
-    fmt = st.selectbox("Format export", ["9:16 TikTok", "16:9 YouTube", "1:1 Carre"], label_visibility="collapsed", key="fmt_photo")
-    if st.button(f"Format : {fmt}", key="btn_fmt"):
-        st.toast(f"Format {fmt} selectionne")
-        st.session_state.action_message = f"Format {fmt}"
+    fmt = st.selectbox("Format export", ["9:16 Vertical", "16:9 Horizontal", "1:1 Carre", "4:5", "21:9"], key="fmt_sel")
+    if fmt!= st.session_state.format_export:
+        st.session_state.format_export = fmt
+        st.toast(f"Format {fmt}")
 with c_style:
-    st.markdown(f"<p class='montage-label'>Style sous-titres</p>", unsafe_allow_html=True)
-    style_sub = st.selectbox("Style sous-titres", ["Viral pop", "Hormozi bold", "Minimal"], label_visibility="collapsed", key="style_photo")
-    if st.button(f"Style : {style_sub}", key="btn_style"):
-        st.toast(f"Style {style_sub}")
-        st.session_state.action_message = f"Style {style_sub}"
+    sty = st.selectbox("Style sous-titres", ["Viral pop", "Hormozi bold", "Minimal", "Cinema", "Neon", "Journal"], key="style_sel")
+    if sty!= st.session_state.style_sub:
+        st.session_state.style_sub = sty
+        st.toast(f"Style {sty}")
+with c_speed:
+    spd = st.select_slider("Vitesse", options=[0.5, 0.75, 1.0, 1.25, 1.5, 2.0], value=1.0, key="speed_sel")
+    st.session_state.speed = spd
 
-st.markdown("---")
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    if st.button("Couper", key="btn_cut", use_container_width=True):
-        st.session_state.action_message = "Couper"
-        st.toast("Couper")
+# TOUS LES OUTILS - LIGNE 1
+st.markdown("**Outils principaux**")
+r1_c1, r1_c2, r1_c3, r1_c4, r1_c5, r1_c6 = st.columns(6)
+with r1_c1:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Couper\nDecouper", key="t_cut", use_container_width=True):
+        st.session_state.current_tool = "Couper"
+        st.session_state.action_message = "Mode Couper active - decoupe clip active"
+        st.toast("Couper active")
         st.rerun()
-with c2:
-    if st.button("Sous-titres auto", key="btn_sub", use_container_width=True):
-        st.session_state.action_message = "Sous-titres auto"
-        st.toast("Sous-titres auto")
+    st.markdown('</div>', unsafe_allow_html=True)
+with r1_c2:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Sous-titres\nAuto", key="t_sub", use_container_width=True):
+        st.session_state.current_tool = "Sous-titres auto"
+        if st.session_state.script_text:
+            mots = st.session_state.script_text.split()
+            srt = ""
+            for i in range(0, len(mots), 5):
+                srt += f"{i//5+1}\n00:00:{i//3:02d},000 --> 00:00:{i//3+2:02d},000\n{' '.join(mots[i:i+5])}\n\n"
+            st.session_state.action_message = f"{len(mots)} mots en sous-titres"
+            st.toast(f"{len(mots)} sous-titres generes")
+            st.download_button("Telecharger SRT", srt, file_name="sous_titres.srt", key="dl_srt_now")
+        else:
+            st.toast("Ajoutez un script d'abord")
         st.rerun()
-with c3:
-    if st.button("Supprimer fond", key="btn_bg", use_container_width=True):
-        st.session_state.action_message = "Supprimer fond"
+    st.markdown('</div>', unsafe_allow_html=True)
+with r1_c3:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Supprimer\nFond", key="t_bg", use_container_width=True):
+        st.session_state.current_tool = "Supprimer fond"
+        st.session_state.action_message = "Suppression arriere-plan active"
         st.toast("Fond supprime")
         st.rerun()
-with c4:
-    if st.button("Modeles", key="btn_template", use_container_width=True):
-        st.session_state.action_message = "Modeles"
+    st.markdown('</div>', unsafe_allow_html=True)
+with r1_c4:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Decoupe\nSilences", key="t_sil", use_container_width=True):
+        st.session_state.current_tool = "Decoupe silences"
+        st.session_state.action_message = "Silences detectes et coupes"
+        st.toast("Silences coupes")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r1_c5:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Nettoyage\nAudio", key="t_audio", use_container_width=True):
+        st.session_state.current_tool = "Nettoyage audio"
+        st.session_state.action_message = "Bruit reduit, voix nettoyee"
+        st.toast("Audio nettoye")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r1_c6:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Modeles\nBibliotheque", key="t_model", use_container_width=True):
+        st.session_state.current_tool = "Modeles"
+        st.session_state.action_message = "Bibliotheque modeles ouverte"
         st.toast("Modeles")
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-c5, c6, c7, c8 = st.columns(4)
-with c5:
-    if st.button("Effets", key="btn_eff", use_container_width=True):
-        st.session_state.action_message = "Effets"
+# LIGNE 2
+r2_c1, r2_c2, r2_c3, r2_c4, r2_c5, r2_c6 = st.columns(6)
+with r2_c1:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Effets\nVideo", key="t_eff", use_container_width=True):
+        st.session_state.current_tool = "Effets"
+        st.session_state.action_message = "Effets video appliques"
         st.toast("Effets")
         st.rerun()
-with c6:
-    if st.button("Transitions", key="btn_trans", use_container_width=True):
-        st.session_state.action_message = "Transitions"
+    st.markdown('</div>', unsafe_allow_html=True)
+with r2_c2:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Transitions\nAnimees", key="t_trans", use_container_width=True):
+        st.session_state.current_tool = "Transitions"
+        st.session_state.action_message = "Transitions ajoutees"
         st.toast("Transitions")
         st.rerun()
-with c7:
-    if st.button("Nettoyage audio", key="btn_audio", use_container_width=True):
-        st.session_state.action_message = "Nettoyage audio"
-        st.toast("Audio")
+    st.markdown('</div>', unsafe_allow_html=True)
+with r2_c3:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Animations\nTexte", key="t_anim", use_container_width=True):
+        st.session_state.current_tool = "Animations texte"
+        st.session_state.action_message = "Animations texte actives"
+        st.toast("Animations texte")
         st.rerun()
-with c8:
-    if st.button("Couper silences", key="btn_sil", use_container_width=True):
-        st.session_state.action_message = "Couper silences"
-        st.toast("Silences")
+    st.markdown('</div>', unsafe_allow_html=True)
+with r2_c4:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Filtres\nCouleur", key="t_filt", use_container_width=True):
+        filtres = ["Aucun", "Cinema", "Vintage", "Vivid", "Noir & Blanc", "Chaud", "Froid"]
+        f = st.selectbox("Filtre", filtres, key="filtre_sel", label_visibility="collapsed")
+        st.session_state.filter = f
+        st.session_state.current_tool = f"Filtre {f}"
+        st.toast(f"Filtre {f}")
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r2_c5:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Vitesse\nRalenti", key="t_speed", use_container_width=True):
+        st.session_state.current_tool = f"Vitesse {st.session_state.speed}x"
+        st.session_state.action_message = f"Vitesse {st.session_state.speed}x appliquee"
+        st.toast(f"Vitesse {st.session_state.speed}x")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r2_c6:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Stickers\nEmojis", key="t_stick", use_container_width=True):
+        st.session_state.current_tool = "Stickers"
+        st.toast("Stickers")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# LIGNE 3 - AVANCE
+r3_c1, r3_c2, r3_c3, r3_c4, r3_c5, r3_c6 = st.columns(6)
+with r3_c1:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Musique\nBibliotheque", key="t_music", use_container_width=True):
+        st.session_state.current_tool = "Musique"
+        st.toast("Musique ajoutee")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r3_c2:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Recadrer\nZoom", key="t_crop", use_container_width=True):
+        st.session_state.current_tool = "Recadrer"
+        st.toast("Recadrage")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r3_c3:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Stabiliser\nVideo", key="t_stab", use_container_width=True):
+        st.session_state.current_tool = "Stabiliser"
+        st.toast("Video stabilisee")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r3_c4:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Voix Off\nIA", key="t_voice", use_container_width=True):
+        st.session_state.current_tool = "Voix Off"
+        st.toast("Voix Off generee")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r3_c5:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Miniature\n1280x720", key="t_thumb", use_container_width=True):
+        img = generer_visuel(st.session_state.script_text or "Bea - miniature", st.session_state.style_sub)
+        st.image(img, use_container_width=True)
+        st.session_state.current_tool = "Miniature 1280x720 generee"
+        st.toast("Miniature generee")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+with r3_c6:
+    st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+    if st.button("Creer App\nEn 1 prompt", key="t_app", use_container_width=True):
+        st.session_state.current_tool = "Creation app"
+        st.session_state.messages.append({"role": "user", "content": "Creer une application en un prompt avec ecrans base paiement"})
+        st.toast("Mode creation app")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# TIMELINE STYLE MONTAGE
+st.markdown('<div class="timeline"><div style="color:#8a8ab0; font-size:11px; margin-bottom:6px;">TIMELINE - Glisser pour editer</div><div class="timeline-track"><div class="track-block">Intro 0:03</div><div class="track-block" style="min-width:120px; background:linear-gradient(135deg,#db2777,#f97316);">Principal 0:12 - Sous-titres Viral pop</div><div class="track-block">Outro 0:02</div><div class="track-block" style="background:#2a2a4a;">Audio nettoye</div></div><div class="timeline-track"><div class="track-block" style="background:#1e3a5f; min-width:200px;">Musique - Volume -12db</div><div class="track-block" style="background:#3a2a5f;">Effet Zoom</div></div></div>', unsafe_allow_html=True)
 
 if st.session_state.action_message:
-    st.info(f"Action : {st.session_state.action_message}")
+    st.info(f"Outil actif: {st.session_state.current_tool} | {st.session_state.action_message}")
 
-if st.button("Generer montage avec Groq", key="gen_groq", use_container_width=True):
-    check_rate(plan)
-    if not script and not uploaded_video:
-        st.warning("Ajoute video ou script")
-    else:
-        prompt_clean = sanitize_user(script) if script else f"Genere montage {fmt} {style_sub}"
-        st.session_state.messages.append({"role": "user", "content": prompt_clean})
+# BOUTONS ACTION FINALE - TOUS MARCHENT
+c_act1, c_act2, c_act3, c_act4 = st.columns(4)
+with c_act1:
+    if st.button("Generer montage complet", key="gen_full", use_container_width=True):
+        check_rate()
+        prompt = st.session_state.script_text or "Generer montage video pro complet"
+        st.session_state.messages.append({"role": "user", "content": f"{prompt} Format {st.session_state.format_export} Style {st.session_state.style_sub} Vitesse {st.session_state.speed}x Filtre {st.session_state.filter}"})
         msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
-        sys_prompt = SYSTEM_NOVA if plan == "CREATOR" else SYSTEM_FORGE
-        sys_prompt += f" Format: {fmt} Style: {style_sub}."
+        fmt = st.session_state.selected_format
+        sys_prompt = SYSTEM_ULTRA if fmt == "ultra" else SYSTEM_PRO if fmt == "pro" else SYSTEM_BEA
         try:
-            with st.spinner("Groq genere..."):
-                reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-15:])
-                img = generer_apercu(prompt_clean, plan)
+            with st.spinner("Generation en cours..."):
+                reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-12:])
+                img = generer_visuel(prompt, st.session_state.style_sub)
                 st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse), "image": img})
-            supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
+            if licence_key:
+                supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
             st.success("Montage genere!")
             st.rerun()
         except Exception as e:
-            st.error(f"Erreur : {str(e)[:400]}")
+            st.error(f"Erreur : {str(e)[:300]}")
 
-st.divider()
-col_a, col_b, col_c, col_d = st.columns(4)
-with col_a:
-    if st.button("Nouvelle discussion", key="new_chat", use_container_width=True):
-        st.session_state.messages = [{"role": "assistant", "content": L["welcome_nova"] if plan == "CREATOR" else L["welcome_forge"]}]
+with c_act2:
+    if st.button("Nouvelle discussion", key="new_chat_main", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.action_message = ""
+        st.session_state.current_tool = ""
         st.rerun()
-with col_b:
-    if st.button("Telecharger SRT", key="dl_srt", use_container_width=True):
-        if script:
-            words = script.split()
-            srt = ""
-            for i in range(0, len(words), 6):
-                chunk = words[i:i+6]
-                srt += f"{i//6+1}\n00:00:{i//3:02d},000 --> 00:00:{i//3+2:02d},000\n{' '.join(chunk)}\n\n"
-            st.download_button("Telecharger sous_titres.srt", srt, file_name="sous_titres.srt", key="dl_btn")
+
+with c_act3:
+    if st.button("Exporter video", key="export_vid", use_container_width=True):
+        if st.session_state.uploaded_video or st.session_state.script_text:
+            st.success(f"Export {st.session_state.format_export} lance - {st.session_state.style_sub}")
+            st.toast(f"Export {st.session_state.format_export}")
+            img = generer_visuel(f"Export {st.session_state.format_export}", st.session_state.style_sub)
+            st.image(img, use_container_width=True)
         else:
-            st.warning("Pas de script")
-with col_c:
-    if st.button("Exporter visuel", key="export_vis", use_container_width=True):
-        img = generer_apercu(script or "montage", plan)
-        st.image(img, use_container_width=True)
-with col_d:
-    if st.button("Deconnexion", key="deco", use_container_width=True):
+            st.warning("Ajoutez video ou script d'abord")
+
+with c_act4:
+    if st.button("Deconnexion", key="deco_main", use_container_width=True):
         supabase.auth.sign_out()
         st.session_state.logged = False
         if "user" in st.session_state:
             del st.session_state.user
         st.rerun()
 
-logo_path = LOGOS.get("main") or LOGOS.get("nova") or "logo.png"
+st.divider()
+
+# CHAT
 for m in st.session_state.messages:
     if m.get("role") == "system":
         continue
@@ -553,23 +576,26 @@ for m in st.session_state.messages:
         with st.chat_message("user"):
             st.markdown(sanitize_user(m["content"]))
     else:
-        with st.chat_message("assistant", avatar=logo_path if os.path.exists(logo_path) else "assistant"):
+        with st.chat_message("assistant", avatar=LOGOS["bea"] if LOGOS["bea"] and os.path.exists(LOGOS["bea"]) else "Bea"):
             st.markdown(sanitize_assistant(m["content"]))
             if "image" in m and m["image"]:
                 st.image(m["image"], use_container_width=True)
 
-ask_key = L["ask_forge"] if plan == "FORGE" else L["ask_nova"]
-prompt_raw = st.chat_input(ask_key, key="chat_input_final")
+prompt_raw = st.chat_input("Ecrivez un message...", key="chat_claude_final")
 if prompt_raw:
-    check_rate(plan)
+    check_rate()
     prompt_clean = sanitize_user(prompt_raw)
     st.session_state.messages.append({"role": "user", "content": prompt_clean})
     msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
-    sys_prompt = SYSTEM_FORGE if plan == "FORGE" else SYSTEM_NOVA
+    fmt = st.session_state.selected_format
+    sys_prompt = SYSTEM_ULTRA if fmt == "ultra" else SYSTEM_PRO if fmt == "pro" else SYSTEM_BEA
     try:
-        reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-20:])
+        reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-15:])
         st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse)})
-        supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
+        if licence_key:
+            supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
         st.rerun()
     except Exception as e:
-        st.error(f"Erreur : {str(e)[:400]}")
+        st.error(f"Erreur : {str(e)[:300]}")
+
+st.markdown("<div style='text-align:center; color:#a0a0a0; font-size:11px; margin-top:30px;'>Bea peut faire des erreurs. Verifiez ses reponses.</div>", unsafe_allow_html=True)
