@@ -41,9 +41,9 @@ st.set_page_config(page_title="Bea", page_icon=_icon, layout="wide", initial_sid
 AVATAR = LOGO or "🧠"
 
 # --- Liens Stripe (inchangés : à remplacer par tes liens définitifs) ---------
-STRIPE_BEA_9 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
-STRIPE_PRO_1490 = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
-STRIPE_ABO_16 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"  # TODO : même lien que STRIPE_BEA_9 pour l'instant
+STRIPE_BEA_9 = "https://buy.stripe.com/test_6oUfZic9X1gaejIetq3wQ03"
+STRIPE_PRO_1490 = "https://buy.stripe.com/test_eVq28sa1P7Ey8Zo0CA3wQ04"
+STRIPE_ABO_16 = "https://buy.stripe.com/test_bJe00kde19MG7VkgBy3wQ02"  # TODO : même lien que STRIPE_BEA_9 pour l'instant
 
 # --- Configuration -----------------------------------------------------------
 try:
