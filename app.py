@@ -356,7 +356,7 @@ if not st.session_state.logged and not licence_key:
     st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
     st.markdown('<div class="claude-sub">BehaviorLab AI</div>', unsafe_allow_html=True)
     # CORRECTION DEMANDEE : ANCIENNE DESCRIPTION BEA A 9 EURO A LA PLACE DE CELLE ENTOUREE EN VERT
-    st.markdown('<div class="desc-main">Bea part d\'une idée encore floue et la transforme en projet concret. Elle construit un plan, met en place des systèmes et des outils qui fonctionnent réellement. Son point fort : repérer le blocage précis qui ralentit votre avancement, puis proposer une solution mesurable, applicable immédiatement.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="desc-main">Bea part d\'une idée encore floue et la transforme en projet concret. Elle construit un plan, met en place des systèmes et des outils qui fonctionnent réellement. Elle repère le blocage précis qui ralentit votre avancement, propose une solution mesurable, applicable immédiatement.</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([0.5, 1.6, 0.5])
     with col2:
