@@ -95,7 +95,7 @@ for k, v in {
     "conv_id": None, "messages": [], "convs": None, "projects": None,
     "code_messages": [], "code_project_id": None, "code_name_in": "", "code_lang_in": "python",
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
-    "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None,
+    "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -240,7 +240,33 @@ def refresh_quota():
     st.session_state.plan = plan if plan in PLANS else "free"
 
 
+def check_admin():
+    try:
+        st.session_state.is_admin = sb().rpc("is_admin", {}).execute().data is True
+    except Exception:
+        st.session_state.is_admin = False
+
+
+def dev_set_plan(plan):
+    try:
+        sb().rpc("admin_set_plan", {"p_plan": plan}).execute()
+        refresh_quota()
+        st.toast(f"Offre de test : {PLAN_LABEL[plan]}")
+    except Exception:
+        st.error("Action impossible : le mode développeur n'est pas activé sur ta base (script SQL admin).")
+
+
+def dev_reset_usage():
+    try:
+        sb().rpc("admin_reset_usage", {}).execute()
+        refresh_quota()
+        st.toast("Compteurs remis à zéro")
+    except Exception:
+        st.error("Action impossible : le mode développeur n'est pas activé sur ta base (script SQL admin).")
+
+
 def load_account():
+    check_admin()
     try:
         rows = sb().table("preferences").select("display_name,style,goal").eq("user_id", uid()).execute().data
         st.session_state.prefs = rows[0] if rows else {}
@@ -647,6 +673,19 @@ def render_sidebar():
                 if st.button(f"{prefix}{c['title'][:22]}", key=f"hist_{c['id']}", use_container_width=True):
                     open_conv(c["id"])
                     st.rerun()
+        if st.session_state.is_admin:
+            with st.expander("🛠️ Mode développeur"):
+                st.caption("Visible uniquement par toi. Choisis une offre pour tester ses fonctions.")
+                cols = st.columns(2)
+                for i, p in enumerate(PLANS):
+                    with cols[i % 2]:
+                        label = ("✓ " if p == st.session_state.plan else "") + PLAN_LABEL[p]
+                        if st.button(label, key=f"dev_{p}", use_container_width=True):
+                            dev_set_plan(p)
+                            st.rerun()
+                if st.button("Remettre les compteurs à zéro", key="dev_reset", use_container_width=True):
+                    dev_reset_usage()
+                    st.rerun()
         nom = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
         if nom:
             st.markdown(f'<div style="font-size:14px; font-weight:700; margin-top:10px;">{html.escape(nom)}</div>', unsafe_allow_html=True)
@@ -659,7 +698,7 @@ def render_sidebar():
             for k in ("sb", "user", "conv_id", "convs", "projects", "sub_result", "plan_result", "app_result", "thumb_png"):
                 st.session_state[k] = None
             st.session_state.messages, st.session_state.code_messages, st.session_state.quota, st.session_state.prefs = [], [], {}, {}
-            st.session_state.plan, st.session_state.page = "free", "chat"
+            st.session_state.plan, st.session_state.page, st.session_state.is_admin = "free", "chat", False
             st.rerun()
 
 
