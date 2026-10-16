@@ -56,7 +56,7 @@ for k, v in {
     "theme": "dark", "lang": "FR", "messages": [], "code_messages": [], "rate_limit": deque(), "blocked_until": 0,
     "selected_format": "bea", "logged": False, "history": [], "projets_codes": [], "show_persona": False,
     "vitrine_section": "accueil", "expanded_format": None,
-    "code_content": "# Bea - Création de code gratuite - BehaviorLab AI - IA comportementale\n# Écris ton code ici librement - Ask about your code à droite\n\ndef bea_project():\n print('Bea - BehaviorLab AI - IA du comportement')\n print('Méthodes psychologiques prouvées pour arrêter le scroll')\n idee = input('Ton idée: ')\n return f'App générée pour: {idee}'\n\nbea_project()",
+    "code_content": "# Bea - Création de code gratuite - BehaviorLab AI - IA du comportement\n# Écris ton code ici librement - Ask about your code à droite\n# L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.\n\ndef bea_project():\n print('Bea - BehaviorLab AI - Analyse comportementale')\n idee = input('Ton idée: ')\n return f'App générée pour: {idee}'\n\nbea_project()",
     "code_language": "python", "script_text": "", "format_export": "9:16 Vertical", "style_sub": "Viral pop",
     "speed": 1.0, "filter": "Aucun", "current_tool": "", "action_message": "", "uploaded_video": None,
     "monthly_code_used": 0, "monthly_bea_used": 0, "monthly_pro_used": 0
@@ -128,10 +128,13 @@ def generer_visuel(texte, style="Viral"):
     draw.text((50, 180), texte[:150], font=fs, fill="#d1c5ff")
     return img
 
-SYSTEM_BEHAVIOR = """Tu es Bea, IA du comportement créée par BehaviorLab AI.
-Tu aides les créateurs de contenu grâce à des méthodes psychologiques prouvées pour réussir.
-Tu comprends la bonne luminosité pour arrêter le scroll et comment une musique fait rester plus longtemps.
-Tu transformes une idée floue en projet concret avec plan, systèmes, outils."""
+SYSTEM_BEHAVIOR = """Tu es Bea, analyse comportementale créée par BehaviorLab AI.
+L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.
+Repérer les schémas comportementaux qui freinent la progression, puis les corriger.
+Détection des habitudes et des réflexes qui vont à l'encontre des objectifs.
+Proposition de comportements de remplacement, alignés sur les objectifs de réussite.
+Mise en place de routines de discipline et de prise de décision.
+Tu aides les créateurs avec méthodes psychologiques prouvées : bonne luminosité pour arrêter le scroll, musique pour faire rester plus longtemps."""
 
 SYSTEM_CODE = "Tu es l'IA code de Bea, BehaviorLab AI. Tu aides à comprendre, debugger, améliorer le code. Limite gratuite 10 req/mois."
 
@@ -151,6 +154,9 @@ header[data-testid="stHeader"]{{background:transparent!important; height:0!impor
 .block-container{{max-width:1150px!important; padding-top:2.8rem!important; padding-bottom:4rem!important; overflow:visible!important;}}
 [data-testid="stVerticalBlock"]{{overflow:visible!important; gap:0.6rem;}}
 #MainMenu,footer{{visibility:hidden;}}
+.card {{background:{CARD};border-radius:20px;padding:24px;border:1.5px solid #2a2a3f;}}
+.av {{background:#0a0a12;border-radius:12px;padding:14px;margin:12px 0; border:1px solid #2a2a3f;}}
+.why {{border-left:2px solid #7c3aed;padding:10px 12px;background:#0a0a12;font-size:12.5px;color:#9ca3af;margin-top:12px}}
 div[data-testid="stButton"]>button{{background:#15112a!important; color:#e8e0ff!important; border:2px solid {BORDER}!important; border-radius:12px!important; font-weight:600!important; font-size:13px!important; min-height:44px!important;}}
 div[data-testid="stButton"]>button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 10px rgba(124,58,237,0.4)!important;}}
 .tool-btn button{{background:#15112a!important; color:#e8e0ff!important; border:2px solid {BORDER}!important; border-radius:14px!important; font-weight:700!important; font-size:12px!important; text-align:center!important; min-height:76px!important; box-shadow:0 0 0 1px rgba(124,58,237,0.3)!important;}}
@@ -251,7 +257,7 @@ with st.sidebar:
 
 def render_editor_complet():
     st.markdown("### Création de code gratuite + discussion libre à droite")
-    st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Éditeur libre - Bea - BehaviorLab AI - IA comportementale - Écris ton code à gauche, discute avec l'IA à droite (Ask about your code) - Limite gratuite {st.session_state.monthly_code_used}/10 par mois - Ensuite découvrir les formats payants</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Éditeur libre - Bea - BehaviorLab AI - IA comportementale - L'analyse des comportements quotidiens qui déterminent la réussite - Écris ton code à gauche, discute avec l'IA à droite (Ask about your code) - Limite gratuite {st.session_state.monthly_code_used}/10 par mois - Ensuite découvrir les formats payants</div>", unsafe_allow_html=True)
 
     col_editor, col_chat = st.columns([1.25, 0.75], gap="medium")
 
@@ -271,7 +277,7 @@ def render_editor_complet():
         with c3:
             if st.button("▶️ Exécuter", key="ed_run", use_container_width=True):
                 st.success("Exécution terminal")
-                st.code(f"> python main.py\n{st.session_state.code_content[:200]}\n\nBea - BehaviorLab AI ready - IA comportementale", language="bash")
+                st.code(f"> python main.py\n{st.session_state.code_content[:200]}\n\nBea - BehaviorLab AI ready - Analyse comportementale", language="bash")
         with c4:
             lang = st.selectbox("Lang", ["python", "javascript", "typescript", "html", "css", "json"], index=0, key="ed_lang", label_visibility="collapsed")
             st.session_state.code_language = lang
@@ -280,7 +286,7 @@ def render_editor_complet():
         if code_input!= st.session_state.code_content:
             st.session_state.code_content = code_input
 
-        st.code(f"Ln {len(code_input.splitlines())}, Col 1 | Spaces: 4 | UTF-8 | CRLF | {st.session_state.code_language} | Bea BehaviorLab AI - IA comportementale | {st.session_state.monthly_code_used}/10", language="text")
+        st.code(f"Ln {len(code_input.splitlines())}, Col 1 | Spaces: 4 | UTF-8 | CRLF | {st.session_state.code_language} | Bea BehaviorLab AI - Analyse comportementale | {st.session_state.monthly_code_used}/10", language="text")
 
     with col_chat:
         st.markdown(f"""
@@ -375,20 +381,23 @@ if not st.session_state.logged and not licence_key:
     with c1:
         with st.container(border=True):
             st.markdown("#### Bea : 9 € par mois")
-            st.caption("25 requêtes / mois - IA comportementale")
+            st.caption("25 requêtes / mois - Analyse comportementale")
             label_bea = "Masquer la description" if st.session_state.expanded_format == "bea" else "Voir description"
             if st.button(label_bea, key="btn_bea", use_container_width=True):
                 st.session_state.expanded_format = None if st.session_state.expanded_format == "bea" else "bea"
                 st.rerun()
             if st.session_state.expanded_format == "bea":
-                st.markdown("**Bea est une IA du comportement. Elle aide les créateurs de contenu grâce à des méthodes psychologiques prouvées pour réussir. Elle ne se contente pas de générer, elle comprend ce qui fait arrêter le scroll.**")
-                st.markdown("**Ancienne description complète d'hier :**")
-                st.markdown("Bea part d'une idée encore floue et la transforme en projet concret. Elle construit un plan, met en place des systèmes et des outils qui fonctionnent réellement. Son point fort : repérer le blocage précis qui ralentit votre avancement, puis proposer une solution mesurable, applicable immédiatement.")
-                st.markdown("**Ce que vous obtenez :**\n- L'identification du blocage exact qui freine votre projet\n- Des scripts prêts à l'emploi, à la fois doux et directs, pour convaincre\n- Une estimation chiffrée du temps et de l'argent gagnés\n- Un exemple concret, avec prénom, âge et ville, qui sert de preuve sociale")
-                st.markdown("Avec Bea, vous passez de l'idée au projet structuré en un seul prompt. Elle fournit un système de relance, une méthode pour doubler votre taux de closing, et un script de vente.")
-                st.markdown("**Dans quoi elle peut vous aider en plus grâce au comportement :**\n- La bonne luminosité pour arrêter le scroll\n- Comment une musique fait rester plus longtemps sur la vidéo\n- Le hook qui capte en 3 secondes\n- Organisation et passage de l'idée au concret")
-                st.markdown("**+ Studio de montage pro inclus (ancien Pro) :**\n- Génération automatique de sous-titres stylisés synchronisés avec la parole\n- Suppression de l'arrière-plan, découpe des silences et nettoyage audio en un clic\n- Bibliothèque intégrée de modèles, d'effets, de transitions et d'animations\n- Export direct dans un format adapté à chaque plateforme (9:16, 16:9, 1:1)\n- Visuels 1280x720 qui augmentent le taux de clic et la rétention")
-                st.caption("Méthodes psychologiques prouvées - sans dévoiler les secrets, Bea les applique pour vous faire réussir.")
+                st.markdown("**L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.**")
+                st.markdown("Repérer les schémas comportementaux qui freinent la progression, puis les corriger.")
+                st.markdown("""
+                <div class="av">
+                <b style="font-size:10px;color:#a78bfa">AVANTAGES</b><br>
+                - Détection des habitudes et des réflexes qui vont à l'encontre des objectifs.<br>
+                - Proposition de comportements de remplacement, alignés sur les objectifs de réussite.<br>
+                - Mise en place de routines de discipline et de prise de décision.
+                </div>
+                <div class="why"><b>Pourquoi payer :</b> les blocages qui reviennent sont remplacés par des comportements de réussite, mesurables et durables.</div>
+                """, unsafe_allow_html=True)
             st.link_button("Choisir Bea - 9 €", STRIPE_BEA_9, use_container_width=True)
 
     with c2:
@@ -400,12 +409,9 @@ if not st.session_state.logged and not licence_key:
                 st.session_state.expanded_format = None if st.session_state.expanded_format == "pro" else "pro"
                 st.rerun()
             if st.session_state.expanded_format == "pro":
-                st.markdown("**Bea Pro reprend toutes les forces de Bea à 9 € et y ajoute la création d'applications complètes. Toujours basée sur des méthodes psychologiques prouvées pour que vos contenus performent.**")
-                st.markdown("**Ancienne description Pro d'hier :**")
                 st.markdown("Bea Pro ajoute un studio de montage vidéo complet. Toutes les fonctions de montage sont réunies dans un seul outil, ce qui vous permet de produire des vidéos prêtes à diffuser, plus susceptibles de retenir l'attention et de convertir. Vous n'avez plus besoin de jongler entre plusieurs logiciels.")
                 st.markdown("**Ce que vous obtenez :**\n- Toutes les fonctions de Bea\n- La génération automatique de sous-titres stylisés, synchronisés avec la parole\n- La suppression de l'arrière-plan, la découpe des silences et le nettoyage audio en un clic\n- Une bibliothèque intégrée de modèles, d'effets, de transitions et d'animations\n- L'export direct dans un format adapté à chaque plateforme (9:16, 16:9, 1:1)\n- Des visuels en 1280x720 qui augmentent le taux de clic et la rétention")
-                st.markdown("**Fonctions supplémentaires :** couper et découper, sous-titres automatiques, suppression du fond, découpe des silences, nettoyage audio, bibliothèque de modèles, effets vidéo, transitions animées, animations de texte, filtres couleur, vitesse et ralenti, stickers et emojis, bibliothèque musicale, recadrage et zoom, stabilisation vidéo, voix off par IA, miniatures en 1280x720, création d'application en un prompt.")
-                st.markdown("**+ Méthodes comportementales :** Bea sait quelle luminosité arrête le scroll et quelle musique fait rester plus longtemps.")
+                st.markdown("**Fonctions supplémentaires de Bea Pro :** couper et découper, sous-titres automatiques, suppression du fond, découpe des silences, nettoyage audio, bibliothèque de modèles, effets vidéo, transitions animées, animations de texte, filtres couleur, vitesse et ralenti, stickers et emojis, bibliothèque musicale, recadrage et zoom, stabilisation vidéo, voix off par IA, miniatures en 1280x720, création d'application en un prompt.")
             st.link_button("Choisir Bea Pro - 14,90 €", STRIPE_PRO_1490, use_container_width=True)
 
     with c3:
@@ -417,12 +423,9 @@ if not st.session_state.logged and not licence_key:
                 st.session_state.expanded_format = None if st.session_state.expanded_format == "abo" else "abo"
                 st.rerun()
             if st.session_state.expanded_format == "abo":
-                st.markdown("**L'offre abonnement complète pour les créateurs qui veulent tout, sans limite.**")
-                st.markdown("**Ancienne description Ultra d'hier :**")
                 st.markdown("Bea Ultra reprend Bea Pro et y ajoute la création d'applications complètes à partir d'un seul prompt. Vous partez d'une idée encore vague et vous obtenez une application prête à publier, sans écrire une seule ligne de code complexe. Bea génère l'ensemble.")
-                st.markdown("**Ce que vous obtenez :**\n- Toutes les fonctions de Bea Pro\n- Un prompt = une application complète et fonctionnelle\n- Les écrans, la base de données, le paiement et l'authentification intégrés automatiquement\n- L'icône 512x512, les captures d'écran et la description générées pour le store\n- Un fichier exporté prêt à publier (APK ou Web)")
-                st.markdown("**Fonctions supplémentaires :** génération d'applications complètes, éditeur de code avec IA intégrée à droite, timeline vidéo professionnelle, export vidéo, discussions illimitées et historique complet.")
-                st.markdown("**+ Aucune rate limit :** requêtes illimitées + méthodes comportementales pour réussir grâce à des méthodes psychologiques prouvées.")
+                st.markdown("**Ce que vous obtenez :**\n- Toutes les fonctions de Bea Pro\n- Un prompt équivaut à une application complète et fonctionnelle\n- Les écrans, la base de données, le paiement et l'authentification sont intégrés automatiquement\n- L'icône 512x512, les captures d'écran et la description sont générées pour le store\n- Un fichier exporté prêt à publier (APK ou Web)")
+                st.markdown("**Fonctions supplémentaires de Bea Ultra :** génération d'applications complètes, éditeur de code avec IA intégrée à droite, timeline vidéo professionnelle, export vidéo, discussions illimitées et historique complet.")
             st.link_button("S'abonner - 16 € Illimité", STRIPE_ABO_16, use_container_width=True)
     st.stop()
 
@@ -511,7 +514,7 @@ else:
     st.divider()
 
     if len(st.session_state.messages) == 0:
-        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea, ton IA du comportement. Je t'aide grâce à des méthodes psychologiques prouvées : bonne luminosité pour arrêter le scroll, musique pour faire rester plus longtemps, hook qui retient."})
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea, analyse comportementale. L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme."})
 
     st.markdown("### Montage vidéo professionnel - Bea peut tout faire grâce aux méthodes comportementales")
     st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Format: {st.session_state.format_export} | Style: {st.session_state.style_sub} | Filtre: {st.session_state.filter} | Vitesse: {st.session_state.speed}x | Outil: {st.session_state.current_tool} | {st.session_state.action_message} | Rate: {st.session_state.monthly_bea_used+st.session_state.monthly_pro_used}/25 ou illimité si abonnement 16 €</div>", unsafe_allow_html=True)
@@ -649,8 +652,8 @@ else:
 
     st.divider()
 
-    st.markdown("### Discussion libre - Bea IA comportementale")
-    st.caption("Bea utilise des méthodes psychologiques prouvées pour vous faire réussir - luminosité, musique, hook")
+    st.markdown("### Discussion libre - Bea analyse comportementale")
+    st.caption("Bea : L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.")
     for m in st.session_state.messages[-10:]:
         if m.get("role") == "system":
             continue
