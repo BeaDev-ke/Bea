@@ -56,7 +56,7 @@ for k, v in {
     "theme": "dark", "lang": "FR", "messages": [], "code_messages": [], "rate_limit": deque(), "blocked_until": 0,
     "selected_format": "bea", "logged": False, "history": [], "projets_codes": [], "show_persona": False,
     "vitrine_section": "accueil", "expanded_format": None,
-    "code_content": "# Bea - Création de code gratuite - BehaviorLab AI - IA du comportement\n# Écris ton code ici librement - Ask about your code à droite\n# L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.\n\ndef bea_project():\n print('Bea - BehaviorLab AI - Analyse comportementale')\n print('Bea part d une idee floue et la transforme en projet concret')\n idee = input('Ton idée: ')\n return f'App générée pour: {idee}'\n\nbea_project()",
+    "code_content": "# Bea - Création de code gratuite - BehaviorLab AI\n# Écris ton code ici librement - Ask about your code à droite\n# Bea part d'une idée encore floue et la transforme en projet concret\n\ndef bea_project():\n print('Bea - BehaviorLab AI - Analyse comportementale')\n print('Bea part d une idee floue et la transforme en projet concret')\n idee = input('Ton idée: ')\n return f'App générée pour: {idee}'\n\nbea_project()\n",
     "code_language": "python", "script_text": "", "format_export": "9:16 Vertical", "style_sub": "Viral pop",
     "speed": 1.0, "filter": "Aucun", "current_tool": "", "action_message": "", "uploaded_video": None,
     "monthly_code_used": 0, "monthly_bea_used": 0, "monthly_pro_used": 0
@@ -128,7 +128,7 @@ def generer_visuel(texte, style="Viral"):
     draw.text((50, 180), texte[:150], font=fs, fill="#d1c5ff")
     return img
 
-SYSTEM_BEHAVIOR = """Tu es Bea, analyse comportementale créée par BehaviorLab AI.
+SYSTEM_BEHAVIOR = """Tu es Bea, analyse comportementale.
 L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.
 Repérer les schémas comportementaux qui freinent la progression, puis les corriger.
 Détection des habitudes et des réflexes qui vont à l'encontre des objectifs.
@@ -185,13 +185,11 @@ with st.sidebar:
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('<div style="text-align:center; font-size:18px; font-weight:800; color:#f5f3ff; margin-top:6px;">Bea</div>', unsafe_allow_html=True)
     st.markdown('<div style="text-align:center; font-size:11px; color:#d8ccff!important; font-weight:700; letter-spacing:0.8px; margin-bottom:12px;">BehaviorLab AI</div>', unsafe_allow_html=True)
-
     if st.session_state.logged:
         if st.session_state.selected_format == "abo":
             st.markdown('<div class="limit-badge">♾️ Abonnement 16 € - Aucune rate limit - Illimité</div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div class="limit-badge">Code gratuit: {st.session_state.monthly_code_used}/10 | Bea: {st.session_state.monthly_bea_used+st.session_state.monthly_pro_used}/25</div>', unsafe_allow_html=True)
-
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         if st.button("🌙 Sombre", key="btn_theme", use_container_width=True):
@@ -200,9 +198,7 @@ with st.sidebar:
         if st.button(f"🌐 {st.session_state.lang}", key="btn_lang", use_container_width=True):
             st.session_state.lang = "EN" if st.session_state.lang == "FR" else "FR"
             st.rerun()
-
     st.divider()
-
     if not st.session_state.logged and not licence_key:
         st.caption("Bienvenue sur Bea - Gratuit après connexion")
         st.caption("Vitrine - Se connecter pour accéder")
@@ -214,20 +210,16 @@ with st.sidebar:
             st.session_state.history.append(f"Chat {len(st.session_state.history)+1}")
             st.toast("Nouvelle discussion")
             st.rerun()
-
         if st.button("💻 Code", key="code_side_pay", use_container_width=True):
             st.session_state.vitrine_section = "code"
             st.rerun()
-
         if st.button("🎨 Personnalisation", key="perso_side_pay", use_container_width=True):
             st.session_state.show_persona = True
             st.session_state.vitrine_section = "perso"
             st.rerun()
-
         if st.button("📁 Projets", key="proj_side_pay", use_container_width=True):
             st.session_state.vitrine_section = "projets"
             st.rerun()
-
         if st.session_state.history:
             st.markdown('<div style="font-size:10px; color:#8a7ab8; text-transform:uppercase; margin:14px 0 6px 0; font-weight:700;">Historique</div>', unsafe_allow_html=True)
             for h in st.session_state.history[-8:][::-1]:
@@ -236,14 +228,12 @@ with st.sidebar:
                 if st.button(f"• {h[:20]}", key=f"hist_{h}_{len(h)}", use_container_width=True):
                     st.session_state.vitrine_section = "accueil"
                     st.rerun()
-
         st.markdown('<div style="font-size:10px; color:#8a7ab8; text-transform:uppercase; margin:14px 0 6px 0; font-weight:700;">Derniers codes</div>', unsafe_allow_html=True)
         for idx, code_item in enumerate(st.session_state.projets_codes[-6:][::-1]):
             if st.button(f"💾 {code_item['name'][:18]}", key=f"code_proj_{idx}", use_container_width=True):
                 st.session_state.code_content = code_item["content"]
                 st.session_state.vitrine_section = "code"
                 st.rerun()
-
         st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
         if "user" in st.session_state:
             st.caption(f"{st.session_state.user.email}")
@@ -257,9 +247,7 @@ with st.sidebar:
 def render_editor_complet():
     st.markdown("### Création de code gratuite + discussion libre à droite")
     st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Éditeur libre - Bea - BehaviorLab AI - L'analyse des comportements quotidiens qui déterminent la réussite - Écris ton code à gauche, discute avec l'IA à droite (Ask about your code) - Limite gratuite {st.session_state.monthly_code_used}/10 par mois - Ensuite découvrir les formats payants</div>", unsafe_allow_html=True)
-
     col_editor, col_chat = st.columns([1.25, 0.75], gap="medium")
-
     with col_editor:
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -280,13 +268,10 @@ def render_editor_complet():
         with c4:
             lang = st.selectbox("Lang", ["python", "javascript", "typescript", "html", "css", "json"], index=0, key="ed_lang", label_visibility="collapsed")
             st.session_state.code_language = lang
-
         code_input = st.text_area("Éditeur code", value=st.session_state.code_content, height=480, key="code_editor_main", label_visibility="collapsed")
         if code_input!= st.session_state.code_content:
             st.session_state.code_content = code_input
-
         st.code(f"Ln {len(code_input.splitlines())}, Col 1 | Spaces: 4 | UTF-8 | CRLF | {st.session_state.code_language} | Bea BehaviorLab AI - Analyse comportementale | {st.session_state.monthly_code_used}/10", language="text")
-
     with col_chat:
         st.markdown(f"""
         <div style="background:#15112a; border:2px solid {BORDER}; border-radius:12px; padding:14px; text-align:center; margin-bottom:10px;">
@@ -295,7 +280,6 @@ def render_editor_complet():
             <div style="color:#8a7ab8; font-size:11px; line-height:1.4;">AI responses may be inaccurate<br/>Generate Agent Instructions to onboard<br/>AI onto your codebase.<br/>Gratuit: {st.session_state.monthly_code_used}/10 par mois<br/>Après: Découvrir les formats payants</div>
         </div>
         """, unsafe_allow_html=True)
-
         for m in st.session_state.code_messages[-8:]:
             if m["role"] == "user":
                 with st.chat_message("user"):
@@ -303,7 +287,6 @@ def render_editor_complet():
             else:
                 with st.chat_message("assistant", avatar=LOGOS["bea"] if LOGOS["bea"] and os.path.exists(LOGOS["bea"]) else "Bea"):
                     st.markdown(sanitize_assistant(m["content"]))
-
         q = st.chat_input("Ask about your code...", key="code_chat")
         if q:
             check_rate_minute()
@@ -318,7 +301,6 @@ def render_editor_complet():
                 st.rerun()
             except Exception as e:
                 st.error(str(e)[:400])
-
         if st.button("Expliquer mon code", key="exp_code", use_container_width=True):
             check_rate_minute()
             check_monthly_limit("code")
@@ -352,31 +334,25 @@ if not st.session_state.logged and not licence_key:
     if logo_path and os.path.exists(logo_path):
         st.image(logo_path, width=80)
     st.markdown('</div>', unsafe_allow_html=True)
-
     st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
     st.markdown('<div class="claude-sub">BehaviorLab AI</div>', unsafe_allow_html=True)
-    # CORRECTION DEMANDEE : ANCIENNE DESCRIPTION BEA A 9 EURO A LA PLACE DE CELLE ENTOUREE EN VERT
-    st.markdown('<div class="desc-main">Bea part d\'une idée encore floue et la transforme en projet concret. Elle construit un plan, met en place des systèmes et des outils qui fonctionnent réellement. Elle repère le blocage précis qui ralentit votre avancement, propose une solution mesurable, applicable immédiatement.</div>', unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns([0.5, 1.6, 0.5])
-    with col2:
-        st.markdown('<div class="login-box">', unsafe_allow_html=True)
-        st.markdown("#### Se connecter pour accéder")
-        email = st.text_input("email_login", label_visibility="collapsed", placeholder="Adresse e-mail", key="email_claude")
-        pwd = st.text_input("pwd_login", label_visibility="collapsed", type="password", placeholder="Mot de passe", key="pwd_claude")
-        if st.button("Continuer", use_container_width=True, key="login_claude"):
-            try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
-                st.session_state.user = res.user
-                st.session_state.logged = True
-                st.rerun()
-            except:
-                st.error("Identifiants invalides")
-        st.markdown('</div>', unsafe_allow_html=True)
-
+    st.markdown('<div class="desc-main">Bea part d\'une idée encore floue et la transforme en projet concret. Elle construit un plan, met en place des systèmes et des outils qui fonctionnent réellement. Son point fort : repérer le blocage précis qui ralentit votre avancement, puis proposer une solution mesurable, applicable immédiatement.</div>', unsafe_allow_html=True)
+    _, col_login, _ = st.columns([0.5, 1.6, 0.5])
+    with col_login:
+        with st.container(border=True):
+            st.markdown("#### Se connecter pour accéder")
+            email = st.text_input("email_login", label_visibility="collapsed", placeholder="Adresse e-mail", key="email_claude")
+            pwd = st.text_input("pwd_login", label_visibility="collapsed", type="password", placeholder="Mot de passe", key="pwd_claude")
+            if st.button("Continuer", use_container_width=True, key="login_claude"):
+                try:
+                    res = supabase.auth.sign_in_with_password({"email": email, "password": pwd})
+                    st.session_state.user = res.user
+                    st.session_state.logged = True
+                    st.rerun()
+                except:
+                    st.error("Identifiants invalides")
     st.markdown("<div style='height:42px;'></div>", unsafe_allow_html=True)
     st.markdown("## Découvrir les formats")
-
     c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
         with st.container(border=True):
@@ -400,7 +376,6 @@ if not st.session_state.logged and not licence_key:
                 """, unsafe_allow_html=True)
                 st.markdown("**Ce que vous obtenez en plus :**\n- L'identification du blocage exact qui freine votre projet\n- Des scripts prêts à l'emploi, à la fois doux et directs, pour convaincre\n- Une estimation chiffrée du temps et de l'argent gagnés\n- Un exemple concret, avec prénom, âge et ville, qui sert de preuve sociale")
             st.link_button("Choisir Bea - 9 €", STRIPE_BEA_9, use_container_width=True)
-
     with c2:
         with st.container(border=True):
             st.markdown("#### Bea Pro : 14,90 € par mois")
@@ -414,7 +389,6 @@ if not st.session_state.logged and not licence_key:
                 st.markdown("**Ce que vous obtenez :**\n- Toutes les fonctions de Bea\n- La génération automatique de sous-titres stylisés, synchronisés avec la parole\n- La suppression de l'arrière-plan, la découpe des silences et le nettoyage audio en un clic\n- Une bibliothèque intégrée de modèles, d'effets, de transitions et d'animations\n- L'export direct dans un format adapté à chaque plateforme (9:16, 16:9, 1:1)\n- Des visuels en 1280x720 qui augmentent le taux de clic et la rétention")
                 st.markdown("**Fonctions supplémentaires de Bea Pro :** couper et découper, sous-titres automatiques, suppression du fond, découpe des silences, nettoyage audio, bibliothèque de modèles, effets vidéo, transitions animées, animations de texte, filtres couleur, vitesse et ralenti, stickers et emojis, bibliothèque musicale, recadrage et zoom, stabilisation vidéo, voix off par IA, miniatures en 1280x720, création d'application en un prompt.")
             st.link_button("Choisir Bea Pro - 14,90 €", STRIPE_PRO_1490, use_container_width=True)
-
     with c3:
         with st.container(border=True):
             st.markdown("#### Abonnement : 16 € par mois")
@@ -432,7 +406,6 @@ if not st.session_state.logged and not licence_key:
 
 if licence_key and not st.session_state.logged:
     with st.container(border=True):
-        st.markdown('<div class="login-box">', unsafe_allow_html=True)
         st.markdown("#### Se connecter pour accéder")
         email = st.text_input("email_lic", label_visibility="collapsed", placeholder="Adresse e-mail")
         pwd = st.text_input("pwd_lic", label_visibility="collapsed", type="password", placeholder="Mot de passe")
@@ -444,7 +417,6 @@ if licence_key and not st.session_state.logged:
                 st.rerun()
             except:
                 st.error("Identifiants invalides")
-        st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 if licence_key:
@@ -482,7 +454,6 @@ if st.session_state.vitrine_section == "perso" or st.session_state.show_persona:
             st.session_state.show_persona = False
             st.session_state.vitrine_section = "code"
             st.rerun()
-
 elif st.session_state.vitrine_section == "projets":
     with st.container(border=True):
         st.markdown("### 📁 Projets - Derniers codes sauvés")
@@ -508,37 +479,30 @@ elif st.session_state.vitrine_section == "projets":
             st.session_state.vitrine_section = "code"
             st.rerun()
     st.stop()
-
 else:
     render_editor_complet()
-
     st.divider()
-
     if len(st.session_state.messages) == 0:
         st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea, analyse comportementale. L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme."})
-
     st.markdown("### Montage vidéo professionnel - Bea peut tout faire grâce aux méthodes comportementales")
     st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Format: {st.session_state.format_export} | Style: {st.session_state.style_sub} | Filtre: {st.session_state.filter} | Vitesse: {st.session_state.speed}x | Outil: {st.session_state.current_tool} | {st.session_state.action_message} | Rate: {st.session_state.monthly_bea_used+st.session_state.monthly_pro_used}/25 ou illimité si abonnement 16 €</div>", unsafe_allow_html=True)
-
     col_a, col_b = st.columns([0.35, 0.65])
     with col_a:
         up = st.file_uploader("Vidéo brute - 200MB max MP4 MOV WEBM AVI", type=["mp4", "mov", "webm", "avi"], label_visibility="collapsed", key="up_video")
         if up:
             st.session_state.uploaded_video = up
-            st.success(f"{up.name} chargée - Bea analyse")
+            st.success(f"{up.name} chargée")
             st.video(up)
             if st.button("Supprimer vidéo", key="del_vid"):
                 st.session_state.uploaded_video = None
                 st.rerun()
         else:
             st.caption("Glissez vidéo ici - MP4 MOV WEBM AVI - 200MB max")
-
     with col_b:
         txt = st.text_area("Script / paroles pour sous-titres stylisés synchronisés", height=140, placeholder="Collez votre script ici pour générer sous-titres auto...", key="script_area")
         if txt:
             st.session_state.script_text = txt
             st.caption(f"{len(txt.split())} mots - {len(txt)} caractères")
-
     c_fmt, c_style, c_speed, c_filtre = st.columns(4)
     with c_fmt:
         fmt = st.selectbox("Format export", ["9:16 Vertical", "16:9 Horizontal", "1:1 Carré", "4:5", "21:9 Cinéma"], key="fmt_sel")
@@ -552,7 +516,6 @@ else:
     with c_filtre:
         filt = st.selectbox("Filtre couleur", ["Aucun", "Cinéma", "Vintage", "Vivid", "Noir & Blanc"], key="filtre_sel")
         st.session_state.filter = filt
-
     st.markdown("### Outils principaux - Tous les outils de montage")
     r1 = st.columns(6)
     tools_r1 = [("Couper\nDécouper", "t_cut", "Découpe vidéo active"), ("Sous-titres\nAuto", "t_sub", "Sous-titres générés"), ("Supprimer\nFond", "t_bg", "Arrière-plan supprimé"), ("Découpe\nSilences", "t_sil", "Silences coupés"), ("Nettoyage\nAudio", "t_audio", "Audio nettoyé"), ("Modèles\nBibliothèque", "t_model", "Modèles ouverts")]
@@ -571,7 +534,6 @@ else:
                 st.toast(label)
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-
     r2 = st.columns(6)
     tools_r2 = [("Effets\nVidéo", "t_eff"), ("Transitions\nAnimées", "t_trans"), ("Animations\nTexte", "t_anim"), ("Filtres\nCouleur", "t_filt"), ("Vitesse\nRalenti", "t_speed"), ("Stickers\nEmojis", "t_stick")]
     for i, (label, key) in enumerate(tools_r2):
@@ -583,7 +545,6 @@ else:
                 st.toast(label)
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-
     r3 = st.columns(6)
     tools_r3 = [("Musique\nBibliothèque", "t_music"), ("Recadrer\nZoom", "t_crop"), ("Stabiliser\nVidéo", "t_stab"), ("Voix Off\nIA", "t_voice"), ("Miniature\n1280x720", "t_thumb"), ("Créer App\nEn 1 prompt", "t_app")]
     for i, (label, key) in enumerate(tools_r3):
@@ -603,12 +564,9 @@ else:
                 st.toast(label)
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-
     st.markdown(f'<div class="timeline"><div style="color:#c4b5fd; font-size:11px; margin-bottom:8px; font-weight:700;">TIMELINE - Glisser pour éditer - Format {st.session_state.format_export}</div><div class="timeline-track"><div class="track-block">Intro 0:03 - Hook</div><div class="track-block" style="min-width:140px; background:linear-gradient(135deg,#db2777,#f97316);">{st.session_state.style_sub} - {st.session_state.speed}x</div><div class="track-block" style="background:#2a2a4a;">Outro 0:02 - CTA</div></div><div style="color:#8a7ab8; font-size:10px; margin-top:6px;">Filtre: {st.session_state.filter} | {st.session_state.script_text[:60] if st.session_state.script_text else "Ajoutez script pour sous-titres"}</div></div>', unsafe_allow_html=True)
-
     if st.session_state.action_message:
         st.info(f"Outil actif: {st.session_state.current_tool} | {st.session_state.action_message}")
-
     c_act1, c_act2, c_act3, c_act4 = st.columns(4)
     with c_act1:
         if st.button("Générer montage complet", key="gen_full", use_container_width=True):
@@ -618,10 +576,9 @@ else:
             full_prompt = f"{prompt} Format {st.session_state.format_export} Style {st.session_state.style_sub} Filtre {st.session_state.filter} Vitesse {st.session_state.speed}x"
             st.session_state.messages.append({"role": "user", "content": full_prompt})
             msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
-            sys_prompt = SYSTEM_BEHAVIOR
             try:
                 with st.spinner("Génération montage complet..."):
-                    reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-12:])
+                    reponse, _ = call_groq([{"role": "system", "content": SYSTEM_BEHAVIOR}] + msgs[-12:])
                     img = generer_visuel(prompt, st.session_state.style_sub)
                     st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse), "image": img})
                     st.session_state.monthly_bea_used += 1
@@ -647,9 +604,7 @@ else:
             if "user" in st.session_state:
                 del st.session_state.user
             st.rerun()
-
     st.divider()
-
     st.markdown("### Discussion libre - Bea analyse comportementale")
     st.caption("Bea : L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.")
     for m in st.session_state.messages[-10:]:
@@ -663,7 +618,6 @@ else:
                 st.markdown(sanitize_assistant(m["content"]))
                 if "image" in m and m["image"]:
                     st.image(m["image"], use_container_width=True, caption="Visuel 1280x720")
-
     prompt_raw = st.chat_input("Écrivez un message - Bea peut tout faire...", key="chat_final")
     if prompt_raw:
         check_rate_minute()
@@ -671,9 +625,8 @@ else:
         clean = sanitize_user(prompt_raw)
         st.session_state.messages.append({"role": "user", "content": clean})
         msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
-        sys_prompt = SYSTEM_BEHAVIOR
         try:
-            reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-15:])
+            reponse, _ = call_groq([{"role": "system", "content": SYSTEM_BEHAVIOR}] + msgs[-15:])
             st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse)})
             st.session_state.monthly_bea_used += 1
             if licence_key:
