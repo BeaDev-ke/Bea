@@ -56,7 +56,7 @@ for k, v in {
     "theme": "dark", "lang": "FR", "messages": [], "code_messages": [], "rate_limit": deque(), "blocked_until": 0,
     "selected_format": "bea", "logged": False, "history": [], "projets_codes": [], "show_persona": False,
     "vitrine_section": "accueil", "expanded_format": None,
-    "code_content": "# Bea - Création de code gratuite - BehaviorLab AI - IA du comportement\n# Écris ton code ici librement - Ask about your code à droite\n# L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.\n\ndef bea_project():\n print('Bea - BehaviorLab AI - Analyse comportementale')\n idee = input('Ton idée: ')\n return f'App générée pour: {idee}'\n\nbea_project()",
+    "code_content": "# Bea - Création de code gratuite - BehaviorLab AI - IA du comportement\n# Écris ton code ici librement - Ask about your code à droite\n# L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.\n\ndef bea_project():\n print('Bea - BehaviorLab AI - Analyse comportementale')\n print('Bea part d une idee floue et la transforme en projet concret')\n idee = input('Ton idée: ')\n return f'App générée pour: {idee}'\n\nbea_project()",
     "code_language": "python", "script_text": "", "format_export": "9:16 Vertical", "style_sub": "Viral pop",
     "speed": 1.0, "filter": "Aucun", "current_tool": "", "action_message": "", "uploaded_video": None,
     "monthly_code_used": 0, "monthly_bea_used": 0, "monthly_pro_used": 0
@@ -133,8 +133,7 @@ L'analyse des comportements quotidiens qui déterminent la réussite sur le long
 Repérer les schémas comportementaux qui freinent la progression, puis les corriger.
 Détection des habitudes et des réflexes qui vont à l'encontre des objectifs.
 Proposition de comportements de remplacement, alignés sur les objectifs de réussite.
-Mise en place de routines de discipline et de prise de décision.
-Tu aides les créateurs avec méthodes psychologiques prouvées : bonne luminosité pour arrêter le scroll, musique pour faire rester plus longtemps."""
+Mise en place de routines de discipline et de prise de décision."""
 
 SYSTEM_CODE = "Tu es l'IA code de Bea, BehaviorLab AI. Tu aides à comprendre, debugger, améliorer le code. Limite gratuite 10 req/mois."
 
@@ -257,7 +256,7 @@ with st.sidebar:
 
 def render_editor_complet():
     st.markdown("### Création de code gratuite + discussion libre à droite")
-    st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Éditeur libre - Bea - BehaviorLab AI - IA comportementale - L'analyse des comportements quotidiens qui déterminent la réussite - Écris ton code à gauche, discute avec l'IA à droite (Ask about your code) - Limite gratuite {st.session_state.monthly_code_used}/10 par mois - Ensuite découvrir les formats payants</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background:#15112a; border:2px solid {BORDER}; border-radius:10px; padding:10px; font-size:12px; color:#c4b5fd; margin-bottom:12px;'>Éditeur libre - Bea - BehaviorLab AI - L'analyse des comportements quotidiens qui déterminent la réussite - Écris ton code à gauche, discute avec l'IA à droite (Ask about your code) - Limite gratuite {st.session_state.monthly_code_used}/10 par mois - Ensuite découvrir les formats payants</div>", unsafe_allow_html=True)
 
     col_editor, col_chat = st.columns([1.25, 0.75], gap="medium")
 
@@ -356,7 +355,8 @@ if not st.session_state.logged and not licence_key:
 
     st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
     st.markdown('<div class="claude-sub">BehaviorLab AI</div>', unsafe_allow_html=True)
-    st.markdown('<div class="desc-main">Bea est une IA du comportement qui aide les créateurs de contenu à réussir grâce à des méthodes psychologiques prouvées. Elle comprend la bonne luminosité pour arrêter le scroll et comment une musique fait rester plus longtemps.</div>', unsafe_allow_html=True)
+    # CORRECTION DEMANDEE : ANCIENNE DESCRIPTION BEA A 9 EURO A LA PLACE DE CELLE ENTOUREE EN VERT
+    st.markdown('<div class="desc-main">Bea part d\'une idée encore floue et la transforme en projet concret. Elle construit un plan, met en place des systèmes et des outils qui fonctionnent réellement. Son point fort : repérer le blocage précis qui ralentit votre avancement, puis proposer une solution mesurable, applicable immédiatement.</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([0.5, 1.6, 0.5])
     with col2:
@@ -398,6 +398,7 @@ if not st.session_state.logged and not licence_key:
                 </div>
                 <div class="why"><b>Pourquoi payer :</b> les blocages qui reviennent sont remplacés par des comportements de réussite, mesurables et durables.</div>
                 """, unsafe_allow_html=True)
+                st.markdown("**Ce que vous obtenez en plus :**\n- L'identification du blocage exact qui freine votre projet\n- Des scripts prêts à l'emploi, à la fois doux et directs, pour convaincre\n- Une estimation chiffrée du temps et de l'argent gagnés\n- Un exemple concret, avec prénom, âge et ville, qui sert de preuve sociale")
             st.link_button("Choisir Bea - 9 €", STRIPE_BEA_9, use_container_width=True)
 
     with c2:
@@ -524,7 +525,7 @@ else:
         up = st.file_uploader("Vidéo brute - 200MB max MP4 MOV WEBM AVI", type=["mp4", "mov", "webm", "avi"], label_visibility="collapsed", key="up_video")
         if up:
             st.session_state.uploaded_video = up
-            st.success(f"{up.name} chargée - Bea analyse la luminosité pour stopper le scroll")
+            st.success(f"{up.name} chargée - Bea analyse")
             st.video(up)
             if st.button("Supprimer vidéo", key="del_vid"):
                 st.session_state.uploaded_video = None
@@ -552,9 +553,9 @@ else:
         filt = st.selectbox("Filtre couleur", ["Aucun", "Cinéma", "Vintage", "Vivid", "Noir & Blanc"], key="filtre_sel")
         st.session_state.filter = filt
 
-    st.markdown("### Outils principaux - Tous les outils de montage - Méthodes psychologiques prouvées")
+    st.markdown("### Outils principaux - Tous les outils de montage")
     r1 = st.columns(6)
-    tools_r1 = [("Couper\nDécouper", "t_cut", "Découpe vidéo active"), ("Sous-titres\nAuto", "t_sub", "Sous-titres générés avec méthode pour retenir"), ("Supprimer\nFond", "t_bg", "Arrière-plan supprimé - focus attention"), ("Découpe\nSilences", "t_sil", "Silences coupés - rythme qui retient"), ("Nettoyage\nAudio", "t_audio", "Audio nettoyé - clarté = rétention"), ("Modèles\nBibliothèque", "t_model", "Modèles ouverts")]
+    tools_r1 = [("Couper\nDécouper", "t_cut", "Découpe vidéo active"), ("Sous-titres\nAuto", "t_sub", "Sous-titres générés"), ("Supprimer\nFond", "t_bg", "Arrière-plan supprimé"), ("Découpe\nSilences", "t_sil", "Silences coupés"), ("Nettoyage\nAudio", "t_audio", "Audio nettoyé"), ("Modèles\nBibliothèque", "t_model", "Modèles ouverts")]
     for i, (label, key, msg) in enumerate(tools_r1):
         with r1[i]:
             st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
@@ -566,7 +567,6 @@ else:
                     srt = ""
                     for j in range(0, len(mots), 5):
                         srt += f"{j//5+1}\n00:00:{j//3:02d},000 --> 00:00:{j//3+2:02d},000\n{' '.join(mots[j:j+5])}\n\n"
-                    st.session_state.action_message = f"{len(mots)} sous-titres {st.session_state.style_sub} - méthode psychologique pour rester"
                     st.download_button("Télécharger SRT", srt, file_name="sous_titres.srt", key=f"dl_srt_{i}")
                 st.toast(label)
                 st.rerun()
@@ -579,7 +579,7 @@ else:
             st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
             if st.button(label, key=key, use_container_width=True):
                 st.session_state.current_tool = label.replace("\n", " ")
-                st.session_state.action_message = f"{label} appliqué - Filtre {st.session_state.filter} Vitesse {st.session_state.speed}x - méthode pour arrêter le scroll"
+                st.session_state.action_message = f"{label} appliqué - Filtre {st.session_state.filter} Vitesse {st.session_state.speed}x"
                 st.toast(label)
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -592,13 +592,11 @@ else:
             if st.button(label, key=key, use_container_width=True):
                 if key == "t_thumb":
                     img = generer_visuel(st.session_state.script_text or "Bea", st.session_state.style_sub)
-                    st.image(img, caption="Miniature 1280x720 générée - méthode psychologique pour clic", use_container_width=True)
-                    st.session_state.action_message = "Miniature 1280x720 générée - luminosité optimisée pour arrêter le scroll"
+                    st.image(img, caption="Miniature 1280x720 générée", use_container_width=True)
+                    st.session_state.action_message = "Miniature 1280x720 générée"
                 elif key == "t_app":
                     st.session_state.messages.append({"role": "user", "content": "Créer une application complète en un prompt"})
                     st.session_state.action_message = "Création app lancée"
-                elif key == "t_music":
-                    st.session_state.action_message = "Musique sélectionnée - méthode pour faire rester plus longtemps"
                 else:
                     st.session_state.action_message = f"{label} active"
                 st.session_state.current_tool = label.replace("\n", " ")
@@ -606,7 +604,7 @@ else:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="timeline"><div style="color:#c4b5fd; font-size:11px; margin-bottom:8px; font-weight:700;">TIMELINE - Glisser pour éditer - Format {st.session_state.format_export} - Méthodes comportementales pour rétention</div><div class="timeline-track"><div class="track-block">Intro 0:03 - Hook</div><div class="track-block" style="min-width:140px; background:linear-gradient(135deg,#db2777,#f97316);">{st.session_state.style_sub} - {st.session_state.speed}x</div><div class="track-block" style="background:#2a2a4a;">Outro 0:02 - CTA</div></div><div style="color:#8a7ab8; font-size:10px; margin-top:6px;">Filtre: {st.session_state.filter} | {st.session_state.script_text[:60] if st.session_state.script_text else "Ajoutez script pour sous-titres avec méthode psychologique"}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="timeline"><div style="color:#c4b5fd; font-size:11px; margin-bottom:8px; font-weight:700;">TIMELINE - Glisser pour éditer - Format {st.session_state.format_export}</div><div class="timeline-track"><div class="track-block">Intro 0:03 - Hook</div><div class="track-block" style="min-width:140px; background:linear-gradient(135deg,#db2777,#f97316);">{st.session_state.style_sub} - {st.session_state.speed}x</div><div class="track-block" style="background:#2a2a4a;">Outro 0:02 - CTA</div></div><div style="color:#8a7ab8; font-size:10px; margin-top:6px;">Filtre: {st.session_state.filter} | {st.session_state.script_text[:60] if st.session_state.script_text else "Ajoutez script pour sous-titres"}</div></div>', unsafe_allow_html=True)
 
     if st.session_state.action_message:
         st.info(f"Outil actif: {st.session_state.current_tool} | {st.session_state.action_message}")
@@ -616,20 +614,20 @@ else:
         if st.button("Générer montage complet", key="gen_full", use_container_width=True):
             check_rate_minute()
             check_monthly_limit("bea")
-            prompt = st.session_state.script_text or "Générer montage pro complet avec méthodes psychologiques"
-            full_prompt = f"{prompt} Format {st.session_state.format_export} Style {st.session_state.style_sub} Filtre {st.session_state.filter} Vitesse {st.session_state.speed}x - Utilise méthodes comportementales prouvées"
+            prompt = st.session_state.script_text or "Générer montage pro complet"
+            full_prompt = f"{prompt} Format {st.session_state.format_export} Style {st.session_state.style_sub} Filtre {st.session_state.filter} Vitesse {st.session_state.speed}x"
             st.session_state.messages.append({"role": "user", "content": full_prompt})
             msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
             sys_prompt = SYSTEM_BEHAVIOR
             try:
-                with st.spinner("Génération montage complet avec méthodes comportementales..."):
+                with st.spinner("Génération montage complet..."):
                     reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-12:])
                     img = generer_visuel(prompt, st.session_state.style_sub)
                     st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse), "image": img})
                     st.session_state.monthly_bea_used += 1
                 if licence_key:
                     supabase.table("licences").update({"used": used+1}).eq("key", licence_key).execute()
-                st.success("Montage généré! Miniature 1280x720 prête - méthodes pour arrêter le scroll appliquées")
+                st.success("Montage généré! Miniature 1280x720 prête")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erreur : {str(e)[:400]}")
@@ -640,7 +638,7 @@ else:
             st.rerun()
     with c_act3:
         if st.button("Exporter vidéo", key="export_vid", use_container_width=True):
-            st.success(f"Export lancé en {st.session_state.format_export} - Style {st.session_state.style_sub} - {st.session_state.speed}x - Méthodes comportementales appliquées")
+            st.success(f"Export lancé en {st.session_state.format_export} - Style {st.session_state.style_sub} - {st.session_state.speed}x")
             st.toast(f"Export {st.session_state.format_export}")
     with c_act4:
         if st.button("Déconnexion", key="deco_main", use_container_width=True):
@@ -664,9 +662,9 @@ else:
             with st.chat_message("assistant", avatar=LOGOS["bea"] if LOGOS["bea"] and os.path.exists(LOGOS["bea"]) else "Bea"):
                 st.markdown(sanitize_assistant(m["content"]))
                 if "image" in m and m["image"]:
-                    st.image(m["image"], use_container_width=True, caption="Visuel 1280x720 - méthode pour clic")
+                    st.image(m["image"], use_container_width=True, caption="Visuel 1280x720")
 
-    prompt_raw = st.chat_input("Écrivez un message - Bea peut tout faire avec méthodes comportementales...", key="chat_final")
+    prompt_raw = st.chat_input("Écrivez un message - Bea peut tout faire...", key="chat_final")
     if prompt_raw:
         check_rate_minute()
         check_monthly_limit("bea")
