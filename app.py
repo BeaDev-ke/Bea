@@ -19,10 +19,7 @@ def find_file(cands):
             return f
     return None
 
-LOGOS = {
-    "bea": find_file(["logo_bea.png", "logo.png"]),
-    "main": find_file(["logo.png", "logo_bea.png"])
-}
+LOGOS = {"bea": find_file(["logo_bea.png", "logo.png"]), "main": find_file(["logo.png", "logo_bea.png"])}
 
 try:
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
@@ -55,14 +52,15 @@ def call_groq(messages):
             continue
     raise last
 
-for k, v in {
-    "theme": "light", "lang": "FR", "messages": [], "rate_limit": deque(), "blocked_until": 0,
-    "selected_format": "bea", "logged": False, "history": [], "show_persona": False,
-    "action_message": "", "uploaded_video": None, "current_tool": "", "script_text": "",
-    "format_export": "9:16 Vertical", "style_sub": "Viral pop", "speed": 1.0, "filter": "Aucun"
-}.items():
+for k, v in {"theme": "light", "lang": "FR", "messages": [], "rate_limit": deque(), "blocked_until": 0, "selected_format": "bea", "logged": False, "history": [], "show_persona": False, "action_message": "", "uploaded_video": None, "current_tool": "", "script_text": "", "format_export": "9:16 Vertical", "style_sub": "Viral pop", "speed": 1.0, "filter": "Aucun"}.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+def toggle_theme():
+    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+
+def toggle_lang():
+    st.session_state.lang = "EN" if st.session_state.lang == "FR" else "FR"
 
 if "user" not in st.session_state:
     try:
@@ -113,101 +111,119 @@ def generer_visuel(texte, style="Viral"):
     draw.text((50, 180), texte[:120], font=fs, fill="#d1c5ff")
     return img
 
-SYSTEM_BEA = "Tu es Bea, creee par BehaviorLab. Tu transformes une idee vague en projet structure avec blocage exact, levier, scripts doux et directs, chiffrage."
-SYSTEM_PRO = "Tu es Bea Pro, creee par BehaviorLab. Tu fais Bea + studio montage video pro complet : sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, nettoyage audio, bibliotheque modeles, effets, transitions, animations, export optimise format vertical 9:16, horizontal 16:9, carre 1:1, miniatures 1280x720."
-SYSTEM_ULTRA = "Tu es Bea Ultra, creee par BehaviorLab. Tu fais tout Bea Pro + creation application complete en un prompt : ecrans, base donnees, authentification, paiement, icone 512x512, captures, description, export fichier pret a publier."
+SYSTEM_BEA = "Tu es Bea, creee par BehaviorLab."
+SYSTEM_PRO = "Tu es Bea Pro, creee par BehaviorLab. Bea + studio montage video pro complet : sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, nettoyage audio, modeles, effets, transitions, animations, export optimise."
+SYSTEM_ULTRA = "Tu es Bea Ultra, creee par BehaviorLab. Tout Bea Pro + creation application complete en un prompt."
 
 licence_key = sanitize_key(st.query_params.get("key", ""))
+is_dark = st.session_state.theme == "dark"
 
-st.markdown("""
+GRAD_BEA = "linear-gradient(135deg, #1d4ed8 0%, #4f46e5 30%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
+GRAD_PRO = "linear-gradient(135deg, #7c3aed 0%, #db2777 50%, #f97316 100%)"
+GRAD_ULTRA = "linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #8b5cf6 100%)"
+BG = "#0f0a1e" if is_dark else "#f9f8f6"
+TEXT = "#f5f3ff" if is_dark else "#1a1a1a"
+CARD = "#1e1450" if is_dark else "#ffffff"
+
+st.markdown(f"""
 <style>
-.stApp{background:#f9f8f6!important;}
-[data-testid="stSidebar"]{background:#171717!important; border-right:1px solid #2a2a2a!important;}
-[data-testid="stSidebar"] *{color:#d4d4d4!important;}
-header[data-testid="stHeader"]{background:#f9f8f6!important;}
-.block-container{max-width:1000px!important; padding-top:0.5rem!important;}
-#MainMenu,footer{visibility:hidden;}
-div[data-testid="stButton"]>button{background:#2a2a2a!important; color:#e8e8e8!important; border:1px solid #3a3a3a!important; border-radius:10px!important; font-weight:500!important; font-size:13px!important; text-align:left!important; min-height:38px!important;}
-div[data-testid="stButton"]>button:hover{background:#3a3a3a!important; border-color:#555!important;}
-.tool-btn button{background:#ffffff!important; color:#1a1a1a!important; border:1px solid #e5e0da!important; border-radius:12px!important; font-weight:600!important; font-size:12px!important; text-align:center!important; min-height:68px!important; box-shadow:0 1px 3px rgba(0,0,0,0.05)!important;}
-.tool-btn button:hover{background:#f5f2ef!important; border-color:#d4cfc8!important; transform:translateY(-1px)!important;}
-div[data-testid="stLinkButton"]>a{background:#5a3df6!important; color:white!important; border-radius:12px!important; font-weight:600!important; border:none!important;}
-div[data-testid="stChatMessage"]{background:transparent!important; border:none!important; padding:14px 0!important;}
-div[data-testid="stChatMessage"] p{color:#1a1a1a!important; font-size:15px!important; line-height:1.7!important;}
-div[data-testid="stChatInput"]{background:#ffffff!important; border:1px solid #e0ddd8!important; border-radius:24px!important; box-shadow:0 1px 6px rgba(0,0,0,0.06)!important;}
-.claude-title{font-size:34px; font-weight:600; color:#1a1a1a; text-align:center; margin:50px 0 10px 0; font-family: Georgia, serif;}
-.claude-sub{font-size:15px; color:#6b6b6b; text-align:center; max-width:620px; margin:0 auto 36px auto; line-height:1.6;}
-.format-card{background:white; border:1px solid #e8e3dc; border-radius:16px; padding:20px; margin:10px 0;}
-.sidebar-logo{font-size:21px; font-weight:600; color:#f5f5f5!important; margin-bottom:22px; letter-spacing:0.2px;}
-.sidebar-section{font-size:10px; color:#8a8a8a!important; text-transform:uppercase; letter-spacing:0.8px; margin:22px 0 8px 0; font-weight:600;}
-.timeline{background:#111118; border-radius:12px; padding:12px; border:1px solid #2a2a3f; margin:12px 0;}
-.timeline-track{background:#1e1e2e; height:44px; border-radius:8px; margin:6px 0; display:flex; align-items:center; padding:0 8px; overflow:hidden;}
-.track-block{background:linear-gradient(135deg,#7c3aed,#c026d3); height:32px; border-radius:6px; min-width:70px; margin-right:6px; display:flex; align-items:center; justify-content:center; font-size:10px; color:white; font-weight:600;}
+.stApp{{background:{BG}!important;}}
+[data-testid="stSidebar"]{{background:#171717!important; border-right:3px solid #7c3aed!important;}}
+[data-testid="stSidebar"] *{{color:#d4d4d4!important;}}
+header[data-testid="stHeader"]{{background:{BG}!important;}}
+.block-container{{max-width:1000px!important; padding-top:0.5rem!important;}}
+#MainMenu,footer{{visibility:hidden;}}
+div[data-testid="stButton"]>button{{background:#2a2a2a!important; color:#e8e8e8!important; border:1px solid #3a3a3a!important; border-radius:10px!important; font-weight:500!important; font-size:13px!important; text-align:left!important; min-height:38px!important;}}
+div[data-testid="stButton"]>button:hover{{background:#3a3a3a!important;}}
+.tool-btn button{{background:{CARD}!important; color:{TEXT}!important; border:2px solid #7c3aed!important; border-radius:12px!important; font-weight:600!important; font-size:12px!important; text-align:center!important; min-height:68px!important;}}
+.tool-btn button:hover{{background:#2a2250!important;}}
+div[data-testid="stLinkButton"]>a{{background:{GRAD_BEA}!important; color:white!important; border-radius:12px!important; font-weight:600!important; border:none!important;}}
+div[data-testid="stChatMessage"]{{background:{CARD}!important; border:2px solid #7c3aed!important; border-radius:18px!important; padding:16px!important;}}
+div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!important; line-height:1.7!important;}}
+div[data-testid="stChatInput"]{{background:{CARD}!important; border:2px solid #7c3aed!important; border-radius:24px!important;}}
+.header-gradient{{background:{GRAD_BEA}!important; border-radius:20px; padding:22px 28px; margin:15px 0 25px 0;}}
+.claude-title{{font-size:34px; font-weight:700; color:{TEXT}; text-align:center; margin:50px 0 10px 0;}}
+.claude-sub{{font-size:15px; color:{"#c4b5fd" if is_dark else "#6b6b6b"}; text-align:center; max-width:620px; margin:0 auto 36px auto; line-height:1.6;}}
+.sidebar-logo{{font-size:21px; font-weight:600; color:#f5f5f5!important; margin-bottom:22px;}}
+.sidebar-section{{font-size:10px; color:#8a8a8a!important; text-transform:uppercase; letter-spacing:0.8px; margin:22px 0 8px 0; font-weight:600;}}
+.timeline{{background:#111118; border-radius:12px; padding:12px; border:1px solid #2a2a3f; margin:12px 0;}}
+.timeline-track{{background:#1e1e2e; height:44px; border-radius:8px; margin:6px 0; display:flex; align-items:center; padding:0 8px;}}
+.track-block{{background:linear-gradient(135deg,#7c3aed,#c026d3); height:32px; border-radius:6px; min-width:70px; margin-right:6px; display:flex; align-items:center; justify-content:center; font-size:10px; color:white; font-weight:600;}}
 </style>
 """, unsafe_allow_html=True)
 
-# SIDEBAR CLAUDE
+# SIDEBAR CLAUDE SANS ARTEFACTS + BOUTONS DEGRADE VIOLET + SOMBRE/CLAIR + LANGUE
 with st.sidebar:
     st.markdown('<div class="sidebar-logo">Bea</div>', unsafe_allow_html=True)
 
-    if st.button("Nouveau", key="new_side", use_container_width=True):
+    # BOUTONS SOMBRE / CLAIR ET LANGUE AVEC ICONES - DEGRADE VIOLET DU DEBUT
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        if st.button("🌙 Sombre" if st.session_state.theme == "light" else "☀️ Clair", key="btn_theme", use_container_width=True):
+            toggle_theme()
+            st.rerun()
+    with col_t2:
+        if st.button(f"🌐 {st.session_state.lang}", key="btn_lang", use_container_width=True):
+            toggle_lang()
+            st.rerun()
+
+    st.divider()
+
+    if st.button("✨ Nouveau", key="new_side", use_container_width=True):
         st.session_state.messages = []
         st.session_state.action_message = ""
         st.session_state.current_tool = ""
         st.session_state.history.append(f"Chat {len(st.session_state.history)+1}")
         st.rerun()
 
-    if st.button("Projets", key="proj_side", use_container_width=True):
+    if st.button("📁 Projets", key="proj_side", use_container_width=True):
         st.toast("Projets ouverts")
         st.session_state.current_tool = "Projets"
 
-    if st.button("Artefacts", key="art_side", use_container_width=True):
-        st.toast("Artefacts ouverts")
-        st.session_state.current_tool = "Artefacts"
-
-    if st.button("Code", key="code_side", use_container_width=True):
+    if st.button("💻 Code", key="code_side", use_container_width=True):
         st.toast("Editeur code ouvert")
         st.session_state.current_tool = "Code"
 
-    if st.button("Personnalisation", key="perso_side", use_container_width=True):
+    if st.button("🎨 Personnalisation", key="perso_side", use_container_width=True):
         st.session_state.show_persona = not st.session_state.show_persona
         st.rerun()
 
     st.markdown('<div class="sidebar-section">Formats et options</div>', unsafe_allow_html=True)
 
-    if st.button("Importer la memoire", key="import_mem"):
+    if st.button("🧠 Importer la memoire", key="import_mem", use_container_width=True):
         st.toast("Memoire importee")
         st.session_state.action_message = "Memoire importee"
+        st.rerun()
 
-    if st.button("Personnaliser Bea pour vous", key="custom_bea"):
+    if st.button("👤 Personnaliser Bea pour vous", key="custom_bea", use_container_width=True):
         st.session_state.show_persona = True
         st.rerun()
 
-    if st.button("Bea - 14,90", key="side_bea"):
+    if st.button("Bea - 14,90", key="side_bea", use_container_width=True):
         st.session_state.selected_format = "bea"
         st.toast("Format Bea selectionne")
         st.rerun()
 
-    if st.button("Bea Pro - 21", key="side_pro"):
+    if st.button("Bea Pro - 21", key="side_pro", use_container_width=True):
         st.session_state.selected_format = "pro"
-        st.toast("Format Bea Pro selectionne - montage pro inclus")
+        st.toast("Format Bea Pro selectionne")
         st.rerun()
 
-    if st.button("Bea Ultra - 29,90", key="side_ultra"):
+    if st.button("Bea Ultra - 29,90", key="side_ultra", use_container_width=True):
         st.session_state.selected_format = "ultra"
-        st.toast("Format Bea Ultra selectionne - app incluse")
+        st.toast("Format Bea Ultra selectionne")
         st.rerun()
 
     st.markdown('<div class="sidebar-section">Recents</div>', unsafe_allow_html=True)
     for h in st.session_state.history[-6:]:
-        if st.button(h[:26], key=f"hist_{h}_{len(st.session_state.history)}"):
+        if st.button(h[:26], key=f"hist_{h}_{len(st.session_state.history)}", use_container_width=True):
             st.toast(f"Ouverture {h}")
 
-    st.markdown("<div style='height:50px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
 
     if st.session_state.logged and "user" in st.session_state:
         st.caption(f"{st.session_state.user.email}")
-        if st.button("Deconnexion", key="deco_side"):
+        if st.button("🚪 Deconnexion", key="deco_side", use_container_width=True):
             supabase.auth.sign_out()
             st.session_state.logged = False
             if "user" in st.session_state:
@@ -216,7 +232,16 @@ with st.sidebar:
     else:
         st.caption("Non connecte")
 
-# PAGE CONNEXION
+# HEADER DEGRADE VIOLET DU DEBUT
+c1, c2 = st.columns([0.9, 5.1])
+with c1:
+    ml = LOGOS.get("main") or LOGOS.get("bea")
+    if ml and os.path.exists(ml):
+        st.image(ml, width=68)
+with c2:
+    st.markdown(f'<div class="header-gradient"><h2 style="color:white;margin:0;font-size:22px;">Bea</h2><p style="color:white;margin:4px 0 0 0;font-size:13px;">Les IA comportementales pour votre reussite</p></div>', unsafe_allow_html=True)
+
+# CONNEXION CLAUDE STYLE
 if not st.session_state.logged and not licence_key:
     st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
     st.markdown('<div class="claude-sub">Bea transforme une intention en projet concret. Elle structure votre demarche, produit des videos pretes a diffuser avec sous-titres stylises et cree votre application en un prompt. Connectez-vous pour acceder a votre format.</div>', unsafe_allow_html=True)
@@ -238,37 +263,25 @@ if not st.session_state.logged and not licence_key:
             st.caption("Acces avec licence Bea, Bea Pro ou Bea Ultra")
 
     st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
-
     c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
         with st.container(border=True):
             if LOGOS["bea"] and os.path.exists(LOGOS["bea"]):
                 st.image(LOGOS["bea"], width=48)
-            st.markdown("### Bea")
-            st.caption("14,90 / mois")
-            st.markdown("**De l'idee au projet structure**")
-            st.markdown("- Blocage exact et levier\n- Scripts doux et directs\n- Chiffrage gain\n- Exemple prenom age ville")
+            st.markdown("### Bea\n14,90 / mois\nDe l'idee au projet structure")
             st.link_button("Choisir Bea", STRIPE_BEA, use_container_width=True)
     with c2:
         with st.container(border=True):
-            st.markdown("### Bea Pro")
-            st.caption("21 / mois")
-            st.markdown("**Bea + Studio montage video professionnel complet**")
-            st.markdown("- Tout Bea\n- Sous-titres stylises synchronises parole\n- Suppression arriere-plan, decoupe silences, nettoyage audio\n- Modeles, effets, transitions, animations\n- Export optimise vertical horizontal carre\n- Visuels 1280x720")
+            st.markdown("### Bea Pro\n21 / mois\nBea + Studio montage pro complet")
             st.link_button("Choisir Bea Pro", STRIPE_PRO, use_container_width=True)
     with c3:
         with st.container(border=True):
-            st.markdown("### Bea Ultra")
-            st.caption("29,90 / mois")
-            st.markdown("**Bea Pro + Application complete en un prompt**")
-            st.markdown("- Tout Bea Pro\n- 1 prompt = 1 application\n- Ecrans + base + paiement\n- Icone 512x512 + captures + description\n- Export fichier pret a publier")
+            st.markdown("### Bea Ultra\n29,90 / mois\nBea Pro + App complete en un prompt")
             st.link_button("Choisir Bea Ultra", STRIPE_ULTRA, use_container_width=True)
-
     st.stop()
 
 if licence_key and not st.session_state.logged:
     st.markdown('<div class="claude-title">Bea</div>', unsafe_allow_html=True)
-    st.markdown('<div class="claude-sub">Connectez-vous pour acceder a votre Bea avec votre licence.</div>', unsafe_allow_html=True)
     with st.container(border=True):
         email = st.text_input("email_lic", label_visibility="collapsed", placeholder="Adresse e-mail")
         pwd = st.text_input("pwd_lic", label_visibility="collapsed", type="password", placeholder="Mot de passe")
@@ -299,11 +312,11 @@ else:
 if len(st.session_state.messages) == 0:
     fmt = st.session_state.selected_format
     if fmt == "ultra":
-        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea Ultra. Je fais analyse comportementale, montage video pro complet avec sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, nettoyage audio, modeles effets transitions, et creation d'application en un prompt. Dites-moi ce que vous voulez creer."})
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea Ultra. Montage pro complet + creation app en un prompt."})
     elif fmt == "pro":
-        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea Pro. Je combine analyse comportementale et studio montage pro. Sous-titres stylises synchronises, suppression arriere-plan, decoupe silences, bibliotheque modeles effets transitions animations, export optimise. Que souhaitez-vous monter?"})
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea Pro. Montage video pro complet avec sous-titres stylises."})
     else:
-        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea. Decrivez votre situation, je vous donne blocage exact, levier et scripts."})
+        st.session_state.messages.append({"role": "assistant", "content": "Bonjour, je suis Bea."})
 
 if st.session_state.show_persona:
     with st.container(border=True):
@@ -311,21 +324,20 @@ if st.session_state.show_persona:
         nom = st.text_input("Comment Bea doit vous appeler?", key="perso_nom")
         style = st.selectbox("Style", ["Direct", "Doux", "Detaille"], key="perso_style")
         if st.button("Enregistrer", key="save_perso"):
-            st.toast(f"Bea vous appellera {nom} en style {style}")
+            st.toast(f"Bea vous appellera {nom}")
             st.session_state.show_persona = False
             st.rerun()
 
-# BARRE OUTILS MONTAGE COMPLETE - TOUS LES OUTILS CAPCUT
+# OUTILS MONTAGE COMPLETS
 st.markdown("### Montage video professionnel")
-st.markdown(f"<div style='color:#6b6b6b; font-size:12px; margin-bottom:12px;'>Format: {st.session_state.format_export} | Style: {st.session_state.style_sub} | Outil actif: {st.session_state.current_tool or 'Aucun'} | {st.session_state.action_message}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='color:#8a8ab0; font-size:12px; margin-bottom:12px;'>Format: {st.session_state.format_export} | Style: {st.session_state.style_sub} | Outil: {st.session_state.current_tool} | {st.session_state.action_message}</div>", unsafe_allow_html=True)
 
-# Ligne 1 - Import et texte
 col_a, col_b = st.columns([0.35, 0.65])
 with col_a:
     up = st.file_uploader("Video brute", type=["mp4", "mov", "webm", "avi"], label_visibility="collapsed", key="up_video")
     if up:
         st.session_state.uploaded_video = up
-        st.success(f"{up.name} - {up.size//1024} Ko")
+        st.success(f"{up.name}")
         st.video(up)
         if st.button("Supprimer video", key="del_vid"):
             st.session_state.uploaded_video = None
@@ -334,7 +346,7 @@ with col_a:
         st.caption("200MB max - MP4 MOV WEBM AVI")
 
 with col_b:
-    txt = st.text_area("Script / paroles pour sous-titres", height=130, placeholder="Collez votre script ici pour generer les sous-titres synchronises...", key="script_area")
+    txt = st.text_area("Script / paroles pour sous-titres", height=130, placeholder="Collez votre script ici...", key="script_area")
     if txt:
         st.session_state.script_text = txt
 
@@ -353,15 +365,14 @@ with c_speed:
     spd = st.select_slider("Vitesse", options=[0.5, 0.75, 1.0, 1.25, 1.5, 2.0], value=1.0, key="speed_sel")
     st.session_state.speed = spd
 
-# TOUS LES OUTILS - LIGNE 1
 st.markdown("**Outils principaux**")
 r1_c1, r1_c2, r1_c3, r1_c4, r1_c5, r1_c6 = st.columns(6)
 with r1_c1:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Couper\nDecouper", key="t_cut", use_container_width=True):
         st.session_state.current_tool = "Couper"
-        st.session_state.action_message = "Mode Couper active - decoupe clip active"
-        st.toast("Couper active")
+        st.session_state.action_message = "Decoupe active"
+        st.toast("Couper")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r1_c2:
@@ -373,53 +384,50 @@ with r1_c2:
             srt = ""
             for i in range(0, len(mots), 5):
                 srt += f"{i//5+1}\n00:00:{i//3:02d},000 --> 00:00:{i//3+2:02d},000\n{' '.join(mots[i:i+5])}\n\n"
-            st.session_state.action_message = f"{len(mots)} mots en sous-titres"
-            st.toast(f"{len(mots)} sous-titres generes")
+            st.session_state.action_message = f"{len(mots)} sous-titres"
+            st.toast(f"{len(mots)} sous-titres")
             st.download_button("Telecharger SRT", srt, file_name="sous_titres.srt", key="dl_srt_now")
         else:
-            st.toast("Ajoutez un script d'abord")
+            st.toast("Ajoutez script")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r1_c3:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Supprimer\nFond", key="t_bg", use_container_width=True):
         st.session_state.current_tool = "Supprimer fond"
-        st.session_state.action_message = "Suppression arriere-plan active"
-        st.toast("Fond supprime")
+        st.session_state.action_message = "Fond supprime"
+        st.toast("Fond")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r1_c4:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Decoupe\nSilences", key="t_sil", use_container_width=True):
         st.session_state.current_tool = "Decoupe silences"
-        st.session_state.action_message = "Silences detectes et coupes"
-        st.toast("Silences coupes")
+        st.session_state.action_message = "Silences coupes"
+        st.toast("Silences")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r1_c5:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Nettoyage\nAudio", key="t_audio", use_container_width=True):
         st.session_state.current_tool = "Nettoyage audio"
-        st.session_state.action_message = "Bruit reduit, voix nettoyee"
-        st.toast("Audio nettoye")
+        st.session_state.action_message = "Audio nettoye"
+        st.toast("Audio")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r1_c6:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Modeles\nBibliotheque", key="t_model", use_container_width=True):
         st.session_state.current_tool = "Modeles"
-        st.session_state.action_message = "Bibliotheque modeles ouverte"
         st.toast("Modeles")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# LIGNE 2
 r2_c1, r2_c2, r2_c3, r2_c4, r2_c5, r2_c6 = st.columns(6)
 with r2_c1:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Effets\nVideo", key="t_eff", use_container_width=True):
         st.session_state.current_tool = "Effets"
-        st.session_state.action_message = "Effets video appliques"
         st.toast("Effets")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -427,7 +435,6 @@ with r2_c2:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Transitions\nAnimees", key="t_trans", use_container_width=True):
         st.session_state.current_tool = "Transitions"
-        st.session_state.action_message = "Transitions ajoutees"
         st.toast("Transitions")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -435,15 +442,13 @@ with r2_c3:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Animations\nTexte", key="t_anim", use_container_width=True):
         st.session_state.current_tool = "Animations texte"
-        st.session_state.action_message = "Animations texte actives"
-        st.toast("Animations texte")
+        st.toast("Animations")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r2_c4:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Filtres\nCouleur", key="t_filt", use_container_width=True):
-        filtres = ["Aucun", "Cinema", "Vintage", "Vivid", "Noir & Blanc", "Chaud", "Froid"]
-        f = st.selectbox("Filtre", filtres, key="filtre_sel", label_visibility="collapsed")
+        f = st.selectbox("Filtre", ["Aucun", "Cinema", "Vintage", "Vivid"], key="filtre_sel", label_visibility="collapsed")
         st.session_state.filter = f
         st.session_state.current_tool = f"Filtre {f}"
         st.toast(f"Filtre {f}")
@@ -453,7 +458,6 @@ with r2_c5:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Vitesse\nRalenti", key="t_speed", use_container_width=True):
         st.session_state.current_tool = f"Vitesse {st.session_state.speed}x"
-        st.session_state.action_message = f"Vitesse {st.session_state.speed}x appliquee"
         st.toast(f"Vitesse {st.session_state.speed}x")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -465,72 +469,67 @@ with r2_c6:
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# LIGNE 3 - AVANCE
 r3_c1, r3_c2, r3_c3, r3_c4, r3_c5, r3_c6 = st.columns(6)
 with r3_c1:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Musique\nBibliotheque", key="t_music", use_container_width=True):
         st.session_state.current_tool = "Musique"
-        st.toast("Musique ajoutee")
+        st.toast("Musique")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r3_c2:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Recadrer\nZoom", key="t_crop", use_container_width=True):
         st.session_state.current_tool = "Recadrer"
-        st.toast("Recadrage")
+        st.toast("Recadrer")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r3_c3:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Stabiliser\nVideo", key="t_stab", use_container_width=True):
         st.session_state.current_tool = "Stabiliser"
-        st.toast("Video stabilisee")
+        st.toast("Stabilisee")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r3_c4:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Voix Off\nIA", key="t_voice", use_container_width=True):
         st.session_state.current_tool = "Voix Off"
-        st.toast("Voix Off generee")
+        st.toast("Voix Off")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r3_c5:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Miniature\n1280x720", key="t_thumb", use_container_width=True):
-        img = generer_visuel(st.session_state.script_text or "Bea - miniature", st.session_state.style_sub)
+        img = generer_visuel(st.session_state.script_text or "Bea", st.session_state.style_sub)
         st.image(img, use_container_width=True)
-        st.session_state.current_tool = "Miniature 1280x720 generee"
-        st.toast("Miniature generee")
+        st.toast("Miniature")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 with r3_c6:
     st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
     if st.button("Creer App\nEn 1 prompt", key="t_app", use_container_width=True):
         st.session_state.current_tool = "Creation app"
-        st.session_state.messages.append({"role": "user", "content": "Creer une application en un prompt avec ecrans base paiement"})
-        st.toast("Mode creation app")
+        st.session_state.messages.append({"role": "user", "content": "Creer une application en un prompt"})
+        st.toast("App")
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# TIMELINE STYLE MONTAGE
-st.markdown('<div class="timeline"><div style="color:#8a8ab0; font-size:11px; margin-bottom:6px;">TIMELINE - Glisser pour editer</div><div class="timeline-track"><div class="track-block">Intro 0:03</div><div class="track-block" style="min-width:120px; background:linear-gradient(135deg,#db2777,#f97316);">Principal 0:12 - Sous-titres Viral pop</div><div class="track-block">Outro 0:02</div><div class="track-block" style="background:#2a2a4a;">Audio nettoye</div></div><div class="timeline-track"><div class="track-block" style="background:#1e3a5f; min-width:200px;">Musique - Volume -12db</div><div class="track-block" style="background:#3a2a5f;">Effet Zoom</div></div></div>', unsafe_allow_html=True)
+st.markdown('<div class="timeline"><div style="color:#8a8ab0; font-size:11px; margin-bottom:6px;">TIMELINE</div><div class="timeline-track"><div class="track-block">Intro 0:03</div><div class="track-block" style="min-width:120px; background:linear-gradient(135deg,#db2777,#f97316);">Principal - Viral pop</div><div class="track-block">Outro 0:02</div></div></div>', unsafe_allow_html=True)
 
 if st.session_state.action_message:
-    st.info(f"Outil actif: {st.session_state.current_tool} | {st.session_state.action_message}")
+    st.info(f"Outil: {st.session_state.current_tool} | {st.session_state.action_message}")
 
-# BOUTONS ACTION FINALE - TOUS MARCHENT
 c_act1, c_act2, c_act3, c_act4 = st.columns(4)
 with c_act1:
     if st.button("Generer montage complet", key="gen_full", use_container_width=True):
         check_rate()
-        prompt = st.session_state.script_text or "Generer montage video pro complet"
-        st.session_state.messages.append({"role": "user", "content": f"{prompt} Format {st.session_state.format_export} Style {st.session_state.style_sub} Vitesse {st.session_state.speed}x Filtre {st.session_state.filter}"})
+        prompt = st.session_state.script_text or "Generer montage pro"
+        st.session_state.messages.append({"role": "user", "content": f"{prompt} Format {st.session_state.format_export} Style {st.session_state.style_sub}"})
         msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
-        fmt = st.session_state.selected_format
-        sys_prompt = SYSTEM_ULTRA if fmt == "ultra" else SYSTEM_PRO if fmt == "pro" else SYSTEM_BEA
+        sys_prompt = SYSTEM_ULTRA if st.session_state.selected_format == "ultra" else SYSTEM_PRO if st.session_state.selected_format == "pro" else SYSTEM_BEA
         try:
-            with st.spinner("Generation en cours..."):
+            with st.spinner("Generation..."):
                 reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-12:])
                 img = generer_visuel(prompt, st.session_state.style_sub)
                 st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse), "image": img})
@@ -540,24 +539,14 @@ with c_act1:
             st.rerun()
         except Exception as e:
             st.error(f"Erreur : {str(e)[:300]}")
-
 with c_act2:
     if st.button("Nouvelle discussion", key="new_chat_main", use_container_width=True):
         st.session_state.messages = []
-        st.session_state.action_message = ""
-        st.session_state.current_tool = ""
         st.rerun()
-
 with c_act3:
     if st.button("Exporter video", key="export_vid", use_container_width=True):
-        if st.session_state.uploaded_video or st.session_state.script_text:
-            st.success(f"Export {st.session_state.format_export} lance - {st.session_state.style_sub}")
-            st.toast(f"Export {st.session_state.format_export}")
-            img = generer_visuel(f"Export {st.session_state.format_export}", st.session_state.style_sub)
-            st.image(img, use_container_width=True)
-        else:
-            st.warning("Ajoutez video ou script d'abord")
-
+        st.success(f"Export {st.session_state.format_export} lance")
+        st.toast(f"Export {st.session_state.format_export}")
 with c_act4:
     if st.button("Deconnexion", key="deco_main", use_container_width=True):
         supabase.auth.sign_out()
@@ -568,7 +557,6 @@ with c_act4:
 
 st.divider()
 
-# CHAT
 for m in st.session_state.messages:
     if m.get("role") == "system":
         continue
@@ -587,8 +575,7 @@ if prompt_raw:
     prompt_clean = sanitize_user(prompt_raw)
     st.session_state.messages.append({"role": "user", "content": prompt_clean})
     msgs = [{"role": mm["role"], "content": sanitize_user(mm["content"])} for mm in st.session_state.messages if mm.get("role")!= "system" and "image" not in mm]
-    fmt = st.session_state.selected_format
-    sys_prompt = SYSTEM_ULTRA if fmt == "ultra" else SYSTEM_PRO if fmt == "pro" else SYSTEM_BEA
+    sys_prompt = SYSTEM_ULTRA if st.session_state.selected_format == "ultra" else SYSTEM_PRO if st.session_state.selected_format == "pro" else SYSTEM_BEA
     try:
         reponse, _ = call_groq([{"role": "system", "content": sys_prompt}] + msgs[-15:])
         st.session_state.messages.append({"role": "assistant", "content": sanitize_assistant(reponse)})
@@ -597,5 +584,3 @@ if prompt_raw:
         st.rerun()
     except Exception as e:
         st.error(f"Erreur : {str(e)[:300]}")
-
-st.markdown("<div style='text-align:center; color:#a0a0a0; font-size:11px; margin-top:30px;'>Bea peut faire des erreurs. Verifiez ses reponses.</div>", unsafe_allow_html=True)
