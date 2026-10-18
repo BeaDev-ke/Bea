@@ -101,6 +101,13 @@ def get_modeles():
     except Exception:
         return {"rapide": pref_fast[:1], "puissant": pref_power[:1]}
 
+DEV_MODELES = {
+    "Rapide (gratuit) - Llama 3.1 8B": "llama-3.1-8b-instant",
+    "Puissant (gratuit) - Llama 3.3 70B": "llama-3.3-70b-versatile",
+    "Codeur (gratuit) - GPT OSS 20B": "openai/gpt-oss-20b",
+    "Ultra (gratuit) - GPT OSS 120B": "openai/gpt-oss-120b",
+}
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -111,7 +118,8 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
     "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "Média", "memories": None, "profile_type": "createur",
-    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False,
+    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Rapide (gratuit) - Llama 3.1 8B",
+    "dev_full_original": "", "dev_backup_name": "",
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -197,8 +205,11 @@ def system_behavior():
         extra.append("Mémoire sur l'utilisateur : " + "; ".join([m.get('content','')[:120] for m in mems[:5]]))
     return SYSTEM_BEHAVIOR_BASE + ("\n\n" + "\n".join(extra) if extra else "")
 
-def stream_groq(messages, max_tokens=2600):
-    models = get_modeles().get(st.session_state.model_choice, get_modeles()["rapide"])
+def stream_groq(messages, max_tokens=2600, model_override=None):
+    if model_override:
+        models = [model_override]
+    else:
+        models = get_modeles().get(st.session_state.model_choice, get_modeles()["rapide"])
     last, started = None, False
     for mid in models:
         try:
@@ -252,19 +263,15 @@ def check_admin():
         is_db_admin = sb().rpc("is_admin", {}).execute().data is True
     except Exception:
         is_db_admin = False
-    
     is_email_admin = False
     if st.session_state.user:
         try:
             email_lower = st.session_state.user.email.lower().strip()
             dev_email_lower = DEV_EMAIL.lower().strip() if DEV_EMAIL else "saydoukebe31@gmail.com"
-            # Ton email perso + email dans secrets
             is_email_admin = email_lower == "saydoukebe31@gmail.com" or email_lower == dev_email_lower
         except Exception:
             is_email_admin = False
-    
     is_key_admin = st.session_state.get("dev_key_ok", False) is True
-    
     st.session_state.is_admin = is_db_admin or is_email_admin or is_key_admin
 
 def dev_set_plan(plan):
@@ -610,7 +617,7 @@ def page_dev_portal():
     with c2:
         with st.container(border=True):
             st.markdown("#### 🧪 Labo Dev IA - Modifs par Groq (Gratuit)")
-            st.caption("Tu tapes une consigne, Groq modifie le code direct. Utilise ton quota Groq gratuit. Sauvegarde auto dans Projets.")
+            st.caption("Tu tapes une consigne en langage naturel, Groq connaît ton code et modifie. 0€, intelligent, rien oublié.")
             if st.button("Ouvrir le labo Dev IA", key="go_lab", use_container_width=True):
                 st.session_state.dev_mode = "lab"
                 st.session_state.page = "dev_lab"
@@ -628,82 +635,132 @@ def page_dev_portal():
         st.rerun()
 
 def page_dev_lab():
-    st.markdown("### 🧪 Labo Dev IA - Bea se code elle-même (Gratuit avec Groq)")
-    st.caption("Tape ce que tu veux modifier, Groq utilise ta clé Groq actuelle (gratuit). Sauvegarde auto dans Supabase avant chaque modif.")
+    st.markdown("### 🧪 Labo Dev IA - Intelligent (0€) - Connaît tout ton code")
+    st.caption("Tu dis 'retire le bouton Déconnexion' et il sait où il est. Auto-sauvegarde, rien n'est oublié.")
     q = st.session_state.quota.get('code') or {}
-    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")}</div>', unsafe_allow_html=True)
-    consigne = st.text_area("Que veux-tu que Groq modifie ?", height=120, placeholder="Ex: Ajoute un bouton bleu Export PDF sous chaque réponse, ou Mets le studio créateur en plein écran type CapCut, ou Ajoute un mode sombre", key="dev_consigne")
-    col_a,col_b = st.columns([1,3])
-    with col_a:
-        cible = st.selectbox("Cible de la modif", ["Fichier complet app.py", "Seulement page_chat", "Seulement render_sidebar", "Seulement page_studio", "Editeur de code (code_area)"], key="dev_cible")
-    with col_b:
-        st.text_input("Nom de la sauvegarde auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
-    full_code = ""
+    st.markdown(f'<div class="limit-badge">Modèle choisi: {st.session_state.dev_model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")} · 0€</div>', unsafe_allow_html=True)
+    
+    col_m1, col_m2 = st.columns([2,1])
+    with col_m1:
+        st.selectbox("Choisis le cerveau (tous gratuits)", list(DEV_MODELES.keys()), key="dev_model_choice", help="Rapide = instantané, Puissant = intelligent, Codeur = spécialiste code, Ultra = le plus fort")
+    with col_m2:
+        st.text_input("Nom sauvegarde auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
+    
+    consigne = st.text_area("Que veux-tu modifier ? (parle comme à Claude)", height=130, placeholder="Exemples:\n- retire le bouton Déconnexion du bas\n- ajoute un bouton Export PDF bleu sous chaque réponse\n- mets le studio en plein écran type CapCut\n- change la couleur violette en bleu", key="dev_consigne")
+    cible = st.selectbox("Où Groq doit chercher ?", ["Fichier complet app.py (recommandé - intelligent)", "Seulement render_sidebar", "Seulement page_chat", "Seulement page_studio"], key="dev_cible")
+    
     try:
         with open(__file__, 'r', encoding='utf-8') as fh:
             full_code = fh.read()
     except Exception:
-        full_code = st.session_state.get('code_area','')
+        full_code = ""
+    
     if cible == "Seulement page_chat":
         mm = re.search(r'def page_chat\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
-        code_cible = mm.group(0)[:9000] if mm else full_code[:9000]
+        code_cible = mm.group(0)[:12000] if mm else full_code[:12000]
     elif cible == "Seulement render_sidebar":
         mm = re.search(r'def render_sidebar\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
-        code_cible = mm.group(0)[:9000] if mm else full_code[:9000]
+        code_cible = mm.group(0)[:15000] if mm else full_code[:12000]
     elif cible == "Seulement page_studio":
         mm = re.search(r'def page_studio\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
-        code_cible = mm.group(0)[:9000] if mm else full_code[:9000]
-    elif cible == "Editeur de code (code_area)":
-        code_cible = st.session_state.get('code_area','')[:9000]
+        code_cible = mm.group(0)[:15000] if mm else full_code[:12000]
     else:
-        code_cible = full_code[:12000]
+        code_cible = full_code[:18000]
 
-    if st.button("🤖 Demander à Groq de modifier", key="dev_go", use_container_width=True, type="primary") and consigne.strip():
+    if st.button("🤖 Groq modifie tout seul (0€)", key="dev_go", use_container_width=True, type="primary") and consigne.strip():
         if not rate_ok() or not quota_ok("code"):
             st.stop()
         try:
             sb().table("code_projects").insert({"user_id": uid(), "name": st.session_state.dev_backup_name, "language": "python", "content": full_code}).execute()
-            st.toast(f"Sauvegarde {st.session_state.dev_backup_name} créée")
+            st.toast(f"Sauvegarde {st.session_state.dev_backup_name} créée - rien ne sera oublié")
         except Exception:
             pass
-        SYSTEM_DEV = "Tu es un expert Python Streamlit. Tu modifies UNIQUEMENT ce qu'on te demande, sans raccourcir ni supprimer le reste. Retourne le code complet modifié dans un bloc ```python. Pas d'explication hors code. Si c'est une fonction seule, retourne seulement cette fonction corrigée."
-        with st.spinner("Groq modifie le code en cours... (gratuit)"):
+        model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "llama-3.1-8b-instant")
+        SYSTEM_DEV = """Tu es l'IA architecte de Bea, tu connais tout le code par coeur. Tu es ultra intelligent et tu ne supprimes JAMAIS rien par erreur.
+Tu connais les positions exactes:
+- Bouton Déconnexion principal: dans render_sidebar() -> if st.button("🚪 Déconnexion", key="nav_logout")
+- Bouton Déconnexion portail: dans page_dev_portal() -> if st.button("🚪 Déconnexion", key="logout_portal")
+- Nouvelle discussion: key="nav_new"
+- Historique: get_convs()
+- Offres: render_offers()
+- Tous les SYSTEM_ : SYSTEM_BEHAVIOR_BASE, SYSTEM_CODE, SYSTEM_MONTAGE, SYSTEM_APP
+
+RÈGLE D'OR: Tu ne retires QUE ce qu'on te demande, tu gardes tout le reste à l'identique, sans raccourcir.
+Si on dit "retire le bouton Déconnexion", tu retires UNIQUEMENT le bouton avec key="nav_logout" dans render_sidebar, tu laisses tout le reste, même les autres fonctions de déconnexion.
+Retourne le code modifié COMPLET de la cible demandée dans un bloc ```python. Pas d'explication hors code."""
+        with st.spinner(f"Groq {model_id} analyse ton code complet et modifie intelligemment..."):
             try:
-                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE CIBLE:\n{code_cible}\n\nCONSIGNE: {consigne}\n\nRetourne le code modifié complet."}], 6000))
+                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE CIBLE (il connait tout, il ne doit rien oublier):\n{code_cible}\n\nCONSIGNE PRÉCISE: {consigne}\n\nRetourne le code modifié complet sans rien oublier."}], 8000, model_override=model_id))
                 mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
                 new_code = mm.group(1).strip() if mm else raw.strip()
                 st.session_state.dev_result = new_code
                 st.session_state.dev_raw = raw
+                st.session_state.dev_full_original = full_code
                 quota_consume("code")
             except Exception as e:
                 st.error(f"Echec Groq: {e}")
                 st.session_state.dev_result = None
         st.rerun()
+
     if st.session_state.get('dev_result'):
         st.divider()
-        st.markdown("#### ✅ Code proposé par Groq (gratuit)")
-        st.code(st.session_state.dev_result[:8000], language="python")
-        c1,c2,c3 = st.columns(3)
+        st.markdown(f"#### ✅ Proposition intelligente de {st.session_state.dev_model_choice} - Rien oublié")
+        st.code(st.session_state.dev_result[:9000], language="python")
+        c1,c2,c3,c4 = st.columns(4)
         with c1:
-            if st.button("💾 Appliquer à l'éditeur Code", key="apply_to_editor", use_container_width=True):
+            if st.button("💾 Vers éditeur", key="apply_to_editor", use_container_width=True):
                 st.session_state.code_area = st.session_state.dev_result
-                st.toast("Appliqué à l'éditeur Code - va voir dans Code > Enregistrer")
+                st.toast("Appliqué à l'éditeur Code - tu peux vérifier avant")
         with c2:
-            st.download_button("⬇️ Télécharger le nouveau app.py", st.session_state.dev_result, file_name="app_modifie_par_groq.py", mime="text/x-python", use_container_width=True, key="dl_dev")
+            st.download_button("⬇️ Télécharger nouveau app.py", st.session_state.dev_result, file_name="app_modifie_intelligent.py", mime="text/x-python", use_container_width=True, key="dl_dev")
         with c3:
-            if st.button("↩️ Annuler / Restaurer backup", key="cancel_dev", use_container_width=True):
+            if st.button("🚀 Appliquer direct sur l'app (auto)", key="apply_direct", use_container_width=True, type="primary"):
+                try:
+                    original = st.session_state.get('dev_full_original','')
+                    new_part = st.session_state.dev_result
+                    
+                    if cible != "Fichier complet app.py (recommandé - intelligent)" and ("def " in new_part):
+                        if "render_sidebar" in cible:
+                            pattern = r'def render_sidebar\(\):.*?(?=\n\ndef )'
+                        elif "page_chat" in cible:
+                            pattern = r'def page_chat\(\):.*?(?=\n\ndef )'
+                        elif "page_studio" in cible:
+                            pattern = r'def page_studio\(\):.*?(?=\n\ndef )'
+                        else:
+                            pattern = None
+                        
+                        if pattern and re.search(pattern, original, re.DOTALL):
+                            final_code = re.sub(pattern, new_part + "\n\n", original, count=1, flags=re.DOTALL)
+                        else:
+                            final_code = new_part
+                    else:
+                        final_code = new_part if len(new_part) > len(original)*0.8 else original
+
+                    with open(__file__, 'w', encoding='utf-8') as f:
+                        f.write(final_code)
+                    st.success("✅ Fichier réécrit intelligemment ! Redémarrage en cours...")
+                    time.sleep(2)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Ecriture directe bloquée par Streamlit Cloud: {e}")
+                    st.info("Clique sur Télécharger, puis va sur GitHub > app.py > Edit > colle > Commit. GitHub redéploiera tout seul.")
+        with c4:
+            if st.button("↩️ Annuler", key="cancel_dev", use_container_width=True):
                 st.session_state.dev_result = None
-                st.toast("Modif annulée - reprends un backup dans Projets")
-        with st.expander("Voir la réponse brute de Groq"):
-            st.code(st.session_state.get('dev_raw','')[:10000])
+                st.toast("Annulé - backup conservé dans Projets")
+        with st.expander("Voir réponse brute complète de Groq (intelligent)"):
+            st.code(st.session_state.get('dev_raw','')[:12000])
     st.divider()
-    if st.button("← Retour au portail dev", key="back_portal", use_container_width=True):
-        st.session_state.page = "dev_portal"
-        st.rerun()
-    if st.button("🌐 Aller au site fonctionnel", key="to_prod_from_lab", use_container_width=True):
-        st.session_state.dev_mode = "prod"
-        st.session_state.page = "chat"
-        st.rerun()
+    col_back1, col_back2 = st.columns(2)
+    with col_back1:
+        if st.button("← Retour portail dev", key="back_portal", use_container_width=True):
+            st.session_state.page = "dev_portal"
+            st.rerun()
+    with col_back2:
+        if st.button("🌐 Aller au site fonctionnel", key="to_prod_from_lab", use_container_width=True):
+            st.session_state.dev_mode = "prod"
+            st.session_state.page = "chat"
+            st.rerun()
 
 def page_vitrine():
     if LOGO:
@@ -879,7 +936,7 @@ def render_sidebar():
                         if k.strip() == DEV_ACCESS_KEY.strip():
                             st.session_state.dev_key_ok = True
                             check_admin()
-                            st.toast("Accès déverrouillé")
+                            st.toast("Accès déverrouillé - intelligent")
                             st.rerun()
                         else:
                             st.error("Clé incorrecte")
@@ -889,7 +946,7 @@ def render_sidebar():
                     st.session_state.dev_mode = None
                     st.session_state.page = "dev_portal"
                     st.rerun()
-                if st.button("🧪 Labo IA Gratuit", key="nav_dev_lab", use_container_width=True):
+                if st.button("🧪 Labo IA Intelligent", key="nav_dev_lab", use_container_width=True):
                     st.session_state.dev_mode = "lab"
                     st.session_state.page = "dev_lab"
                     st.rerun()
