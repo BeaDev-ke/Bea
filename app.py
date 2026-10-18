@@ -2,6 +2,7 @@ import html
 import io
 import json
 import os
+import re
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -108,6 +109,7 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
     "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "Média", "memories": None, "profile_type": "createur",
+    "dev_mode": None, "dev_result": None, "dev_raw": None,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -575,6 +577,117 @@ def render_offers():
                         st.markdown("**Tout Bea Pro, plus :**\n- Génération d'app web complète (HTML unique)\n- Quotas très larges\n- Studio complet")
                 st.link_button(label, url, use_container_width=True)
 
+def page_dev_portal():
+    st.markdown("### 🛠️ Portail Développeur - Bea")
+    st.success(f"Développeur reconnu : {st.session_state.user.email}")
+    st.info("Choisis où tu veux aller. Le site fonctionnel reste intact, le labo te permet de faire modifier le code par Groq gratuitement.")
+    c1,c2 = st.columns(2, gap="large")
+    with c1:
+        with st.container(border=True):
+            st.markdown("#### 🌐 Site Fonctionnel (Prod)")
+            st.caption("Le vrai site que voient les utilisateurs. Chat, Code, Studio, Mémoire, offres. Aucun risque.")
+            if st.button("Ouvrir le site fonctionnel", key="go_prod", use_container_width=True, type="primary"):
+                st.session_state.dev_mode = "prod"
+                st.session_state.page = "chat"
+                st.rerun()
+    with c2:
+        with st.container(border=True):
+            st.markdown("#### 🧪 Labo Dev IA - Modifs par Groq (Gratuit)")
+            st.caption("Tu tapes une consigne, Groq modifie le code direct. Utilise ton quota Groq gratuit. Sauvegarde auto dans Projets.")
+            if st.button("Ouvrir le labo Dev IA", key="go_lab", use_container_width=True):
+                st.session_state.dev_mode = "lab"
+                st.session_state.page = "dev_lab"
+                st.rerun()
+    st.divider()
+    if st.button("🚪 Déconnexion", key="logout_portal"):
+        try:
+            sb().auth.sign_out()
+        except Exception:
+            pass
+        for k in ("sb","user","conv_id","convs","projects","sub_result","plan_result","app_result","thumb_png"):
+            st.session_state[k]=None
+        st.session_state.messages, st.session_state.code_messages, st.session_state.quota, st.session_state.prefs = [],[],{},{}
+        st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free","chat",False,None
+        st.rerun()
+
+def page_dev_lab():
+    st.markdown("### 🧪 Labo Dev IA - Bea se code elle-même (Gratuit avec Groq)")
+    st.caption("Tape ce que tu veux modifier, Groq utilise ta clé Groq actuelle (gratuit). Sauvegarde auto dans Supabase avant chaque modif.")
+    q = st.session_state.quota.get('code') or {}
+    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")}</div>', unsafe_allow_html=True)
+    consigne = st.text_area("Que veux-tu que Groq modifie ?", height=120, placeholder="Ex: Ajoute un bouton bleu Export PDF sous chaque réponse, ou Mets le studio créateur en plein écran type CapCut, ou Ajoute un mode sombre", key="dev_consigne")
+    col_a,col_b = st.columns([1,3])
+    with col_a:
+        cible = st.selectbox("Cible de la modif", ["Fichier complet app.py", "Seulement page_chat", "Seulement render_sidebar", "Seulement page_studio", "Editeur de code (code_area)"], key="dev_cible")
+    with col_b:
+        st.text_input("Nom de la sauvegarde auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
+    full_code = ""
+    try:
+        with open(__file__, 'r', encoding='utf-8') as fh:
+            full_code = fh.read()
+    except Exception:
+        full_code = st.session_state.get('code_area','')
+    if cible == "Seulement page_chat":
+        mm = re.search(r'def page_chat\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
+        code_cible = mm.group(0)[:9000] if mm else full_code[:9000]
+    elif cible == "Seulement render_sidebar":
+        mm = re.search(r'def render_sidebar\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
+        code_cible = mm.group(0)[:9000] if mm else full_code[:9000]
+    elif cible == "Seulement page_studio":
+        mm = re.search(r'def page_studio\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
+        code_cible = mm.group(0)[:9000] if mm else full_code[:9000]
+    elif cible == "Editeur de code (code_area)":
+        code_cible = st.session_state.get('code_area','')[:9000]
+    else:
+        code_cible = full_code[:12000]
+
+    if st.button("🤖 Demander à Groq de modifier", key="dev_go", use_container_width=True, type="primary") and consigne.strip():
+        if not rate_ok() or not quota_ok("code"):
+            st.stop()
+        try:
+            sb().table("code_projects").insert({"user_id": uid(), "name": st.session_state.dev_backup_name, "language": "python", "content": full_code}).execute()
+            st.toast(f"Sauvegarde {st.session_state.dev_backup_name} créée")
+        except Exception:
+            pass
+        SYSTEM_DEV = "Tu es un expert Python Streamlit. Tu modifies UNIQUEMENT ce qu'on te demande, sans raccourcir ni supprimer le reste. Retourne le code complet modifié dans un bloc ```python. Pas d'explication hors code. Si c'est une fonction seule, retourne seulement cette fonction corrigée."
+        with st.spinner("Groq modifie le code en cours... (gratuit)"):
+            try:
+                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE CIBLE:\n{code_cible}\n\nCONSIGNE: {consigne}\n\nRetourne le code modifié complet."}], 6000))
+                mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
+                new_code = mm.group(1).strip() if mm else raw.strip()
+                st.session_state.dev_result = new_code
+                st.session_state.dev_raw = raw
+                quota_consume("code")
+            except Exception as e:
+                st.error(f"Echec Groq: {e}")
+                st.session_state.dev_result = None
+        st.rerun()
+    if st.session_state.get('dev_result'):
+        st.divider()
+        st.markdown("#### ✅ Code proposé par Groq (gratuit)")
+        st.code(st.session_state.dev_result[:8000], language="python")
+        c1,c2,c3 = st.columns(3)
+        with c1:
+            if st.button("💾 Appliquer à l'éditeur Code", key="apply_to_editor", use_container_width=True):
+                st.session_state.code_area = st.session_state.dev_result
+                st.toast("Appliqué à l'éditeur Code - va voir dans Code > Enregistrer")
+        with c2:
+            st.download_button("⬇️ Télécharger le nouveau app.py", st.session_state.dev_result, file_name="app_modifie_par_groq.py", mime="text/x-python", use_container_width=True, key="dl_dev")
+        with c3:
+            if st.button("↩️ Annuler / Restaurer backup", key="cancel_dev", use_container_width=True):
+                st.session_state.dev_result = None
+                st.toast("Modif annulée - reprends un backup dans Projets")
+        with st.expander("Voir la réponse brute de Groq"):
+            st.code(st.session_state.get('dev_raw','')[:10000])
+    st.divider()
+    if st.button("← Retour au portail dev", key="back_portal", use_container_width=True):
+        st.session_state.page = "dev_portal"
+        st.rerun()
+    if st.button("🌐 Aller au site fonctionnel", key="to_prod_from_lab", use_container_width=True):
+        st.session_state.dev_mode = "prod"
+        st.session_state.page = "chat"
+        st.rerun()
+
 def page_vitrine():
     if LOGO:
         _, c, _ = st.columns([1, 0.3, 1])
@@ -728,6 +841,13 @@ def render_sidebar():
             if st.button(label, key=f"nav_{pg}", use_container_width=True):
                 st.session_state.page = pg
                 st.rerun()
+        if st.session_state.is_admin:
+            if st.button("🛠️ Portail Dev", key="nav_dev_portal", use_container_width=True):
+                st.session_state.page = "dev_portal"
+                st.rerun()
+            if st.button("🧪 Labo IA Gratuit", key="nav_dev_lab", use_container_width=True):
+                st.session_state.page = "dev_lab"
+                st.rerun()
         st.text_input("🔍 Rechercher historique", key="search_q", placeholder="mot clé...")
         convs = get_convs()
         if st.session_state.search_q:
@@ -776,7 +896,7 @@ def render_sidebar():
             for k in ("sb", "user", "conv_id", "convs", "projects", "sub_result", "plan_result", "app_result", "thumb_png"):
                 st.session_state[k] = None
             st.session_state.messages, st.session_state.code_messages, st.session_state.quota, st.session_state.prefs = [], [], {}, {}
-            st.session_state.plan, st.session_state.page, st.session_state.is_admin = "free", "chat", False
+            st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free", "chat", False, None
             st.rerun()
 
 def page_chat():
@@ -1196,8 +1316,19 @@ if not logged_in():
     page_vitrine()
     st.stop()
 
+if st.session_state.is_admin and st.session_state.dev_mode is None:
+    st.session_state.page = "dev_portal"
+
+if st.session_state.page == "dev_portal":
+    page_dev_portal()
+    st.stop()
+if st.session_state.page == "dev_lab":
+    page_dev_lab()
+    st.stop()
+
 render_sidebar()
 {
     "chat": page_chat, "code": page_code, "app": page_app, "studio": page_studio,
     "projets": page_projets, "perso": page_perso, "compte": page_compte, "memoire": page_memoire,
+    "dev_portal": page_dev_portal, "dev_lab": page_dev_lab,
 }.get(st.session_state.page, page_chat)()
