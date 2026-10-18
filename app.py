@@ -51,7 +51,7 @@ try:
     if not SUPA_KEY:
         raise KeyError("SUPABASE_ANON_KEY")
     DEV_ACCESS_KEY = st.secrets.get("DEV_ACCESS_KEY", "")
-    DEV_EMAIL = st.secrets.get("DEV_EMAIL", "")
+    DEV_EMAIL = st.secrets.get("DEV_EMAIL", "saydoukebe31@gmail.com")
 except Exception:
     st.error("Configuration manquante : GROQ_API_KEY, SUPABASE_URL et SUPABASE_ANON_KEY doivent être définis dans les secrets.")
     st.stop()
@@ -111,7 +111,7 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
     "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "Média", "memories": None, "profile_type": "createur",
-    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "show_dev_login": False,
+    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -254,9 +254,12 @@ def check_admin():
         is_db_admin = False
     
     is_email_admin = False
-    if DEV_EMAIL and st.session_state.user:
+    if st.session_state.user:
         try:
-            is_email_admin = st.session_state.user.email.lower().strip() == DEV_EMAIL.lower().strip()
+            email_lower = st.session_state.user.email.lower().strip()
+            dev_email_lower = DEV_EMAIL.lower().strip() if DEV_EMAIL else "saydoukebe31@gmail.com"
+            # Ton email perso + email dans secrets
+            is_email_admin = email_lower == "saydoukebe31@gmail.com" or email_lower == dev_email_lower
         except Exception:
             is_email_admin = False
     
@@ -624,28 +627,6 @@ def page_dev_portal():
         st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free","chat",False,None
         st.rerun()
 
-def page_dev_login():
-    st.markdown("### 🔒 Accès développeur sécurisé")
-    st.caption("Cette zone est protégée par une clé longue. Entre ta clé DEV_ACCESS_KEY définie dans les Secrets Streamlit.")
-    st.info("Si tu es le développeur, entre ta clé. Sinon, retourne au site.")
-    with st.form("dev_key_form"):
-        key_in = st.text_input("Clé développeur", type="password", placeholder="Colle ta clé de 64 caractères")
-        ok = st.form_submit_button("Déverrouiller", use_container_width=True, type="primary")
-    if ok:
-        if DEV_ACCESS_KEY and key_in.strip() == DEV_ACCESS_KEY.strip():
-            st.session_state.dev_key_ok = True
-            st.session_state.is_admin = True
-            st.session_state.dev_mode = None
-            st.session_state.page = "dev_portal"
-            st.toast("Accès développeur déverrouillé")
-            st.rerun()
-        else:
-            st.error("Clé incorrecte. Vérifie DEV_ACCESS_KEY dans tes secrets Streamlit.")
-    if st.button("← Retour au site", use_container_width=True):
-        st.session_state.show_dev_login = False
-        st.session_state.page = "chat"
-        st.rerun()
-
 def page_dev_lab():
     st.markdown("### 🧪 Labo Dev IA - Bea se code elle-même (Gratuit avec Groq)")
     st.caption("Tape ce que tu veux modifier, Groq utilise ta clé Groq actuelle (gratuit). Sauvegarde auto dans Supabase avant chaque modif.")
@@ -837,22 +818,6 @@ def page_vitrine():
                     except Exception:
                         pass
                     st.success("Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé.")
-            if DEV_ACCESS_KEY:
-                st.divider()
-                if st.button("🛠️ Accès développeur", key="show_dev_access", use_container_width=True):
-                    st.session_state.show_dev_login = True
-                    st.rerun()
-                if st.session_state.get("show_dev_login"):
-                    with st.form("dev_key_vitrine"):
-                        k = st.text_input("Clé développeur", type="password", key="dev_key_vitrine_input")
-                        go_dev = st.form_submit_button("Déverrouiller portail dev", use_container_width=True)
-                    if go_dev and k.strip() == DEV_ACCESS_KEY.strip():
-                        st.session_state.dev_key_ok = True
-                        st.session_state.show_dev_login = False
-                        st.toast("Clé OK - connecte-toi maintenant")
-                        st.rerun()
-                    elif go_dev:
-                        st.error("Clé incorrecte")
     st.markdown("<div style='height:36px;'></div>", unsafe_allow_html=True)
     render_offers()
 
@@ -893,13 +858,42 @@ def render_sidebar():
             if st.button(label, key=f"nav_{pg}", use_container_width=True):
                 st.session_state.page = pg
                 st.rerun()
-        if st.session_state.is_admin:
-            if st.button("🛠️ Portail Dev", key="nav_dev_portal", use_container_width=True):
-                st.session_state.page = "dev_portal"
-                st.rerun()
-            if st.button("🧪 Labo IA Gratuit", key="nav_dev_lab", use_container_width=True):
-                st.session_state.page = "dev_lab"
-                st.rerun()
+        
+        current_email = ""
+        try:
+            current_email = st.session_state.user.email.lower().strip() if st.session_state.user else ""
+        except:
+            current_email = ""
+        
+        is_you = current_email == "saydoukebe31@gmail.com" or (DEV_EMAIL and current_email == DEV_EMAIL.lower().strip())
+        
+        if is_you:
+            st.divider()
+            st.markdown('<div style="font-size:10px; color:#a855f7; font-weight:800; margin-bottom:8px;">ZONE DEV PRIVÉE - TOI SEUL</div>', unsafe_allow_html=True)
+            if not st.session_state.is_admin and DEV_ACCESS_KEY:
+                with st.expander("🔒 Entrer clé dev (1 fois)", expanded=True):
+                    with st.form("dev_key_sidebar_final"):
+                        k = st.text_input("Clé dev", type="password", key="dev_key_sidebar_final_input", placeholder="64 caractères")
+                        go_dev = st.form_submit_button("Déverrouiller accès", use_container_width=True, type="primary")
+                    if go_dev:
+                        if k.strip() == DEV_ACCESS_KEY.strip():
+                            st.session_state.dev_key_ok = True
+                            check_admin()
+                            st.toast("Accès déverrouillé")
+                            st.rerun()
+                        else:
+                            st.error("Clé incorrecte")
+            
+            if st.session_state.is_admin:
+                if st.button("🛠️ Portail Dev (2 liens)", key="nav_dev_portal", use_container_width=True):
+                    st.session_state.dev_mode = None
+                    st.session_state.page = "dev_portal"
+                    st.rerun()
+                if st.button("🧪 Labo IA Gratuit", key="nav_dev_lab", use_container_width=True):
+                    st.session_state.dev_mode = "lab"
+                    st.session_state.page = "dev_lab"
+                    st.rerun()
+
         st.text_input("🔍 Rechercher historique", key="search_q", placeholder="mot clé...")
         convs = get_convs()
         if st.session_state.search_q:
@@ -923,7 +917,7 @@ def render_sidebar():
                         rename_conv(c["id"], new_t)
                         st.session_state[f"renaming_{c['id']}"] = False
                         st.rerun()
-        if st.session_state.is_admin:
+        if st.session_state.is_admin and is_you:
             with st.expander("🛠️ Mode développeur"):
                 st.caption("Visible uniquement par toi. Choisis une offre pour tester ses fonctions.")
                 cols = st.columns(2)
@@ -1368,10 +1362,6 @@ if not logged_in():
     page_vitrine()
     st.stop()
 
-if st.session_state.get("show_dev_login") and not st.session_state.is_admin:
-    page_dev_login()
-    st.stop()
-
 if st.session_state.is_admin and st.session_state.dev_mode is None:
     st.session_state.page = "dev_portal"
 
@@ -1381,13 +1371,10 @@ if st.session_state.page == "dev_portal":
 if st.session_state.page == "dev_lab":
     page_dev_lab()
     st.stop()
-if st.session_state.page == "dev_login":
-    page_dev_login()
-    st.stop()
 
 render_sidebar()
 {
     "chat": page_chat, "code": page_code, "app": page_app, "studio": page_studio,
     "projets": page_projets, "perso": page_perso, "compte": page_compte, "memoire": page_memoire,
-    "dev_portal": page_dev_portal, "dev_lab": page_dev_lab, "dev_login": page_dev_login,
+    "dev_portal": page_dev_portal, "dev_lab": page_dev_lab,
 }.get(st.session_state.page, page_chat)()
