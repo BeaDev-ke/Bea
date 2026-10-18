@@ -3,3 +3,5 @@ groq
 supabase
 pillow
 pypdf
+fpdf2
+python-docx
