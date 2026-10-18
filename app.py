@@ -76,7 +76,6 @@ STARTER_CARDS = {
         "Je procrastine sur la prospection clients",
         "Je n'arrive pas à fixer mes prix sans culpabiliser",
         "J'alterne hyper-productif et à plat, comment stabiliser ?",
-        "Je n'arrive pas à publier tous les jours",
     ],
     "createur": [
         "Je n'arrive pas à publier tous les jours, je bloque",
@@ -103,7 +102,7 @@ def get_modeles():
         return {"rapide": pref_fast[:1], "puissant": pref_power[:1]}
 
 DEV_MODELES = {
-    "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]": "openai/gpt-oss-120b",
+    "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ]": "openai/gpt-oss-120b",
     "Puissant (gratuit) - Llama 3.3 70B": "llama-3.3-70b-versatile",
     "Codeur (gratuit) - GPT OSS 20B": "openai/gpt-oss-20b",
     "Rapide (gratuit) - Llama 3.1 8B": "llama-3.1-8b-instant",
@@ -119,15 +118,14 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
     "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "Média", "memories": None, "profile_type": "createur",
-    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
-    "dev_full_original": "", "transcribed_text": "",
+    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ]",
+    "dev_full_original": "", "dev_backup_name": "",
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
 if "code_area" not in st.session_state:
     st.session_state["code_area"] = DEFAULT_CODE
 
-# STYLE CLAUDE / CHATGPT POUR LE CHAT
 GRAD = "linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
 BORDER, BG, CARD, TEXT = "#7c3aed", "#0f0a1e", "#1a1535", "#f5f3ff"
 st.markdown(f"""
@@ -136,31 +134,27 @@ st.markdown(f"""
 [data-testid="stSidebar"]{{background:#0d0d14!important; border-right:3px solid {BORDER}!important;}}
 [data-testid="stSidebar"] *{{color:#e2d6ff!important;}}
 header[data-testid="stHeader"]{{background:transparent!important;}}
-.block-container{{max-width:1150px!important; padding-top:1rem!important; padding-bottom:6rem!important;}}
+.block-container{{max-width:1150px!important; padding-top:2.8rem!important; padding-bottom:4rem!important;}}
 #MainMenu,footer{{visibility:hidden;}}
 div[data-testid="stButton"]>button{{background:#15112a!important; color:#e8e0ff!important; border:2px solid {BORDER}!important; border-radius:12px!important; font-weight:600!important; font-size:13px!important; min-height:44px!important;}}
 div[data-testid="stButton"]>button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 10px rgba(124,58,237,0.4)!important;}}
 div[data-testid="stLinkButton"]>a{{background:{GRAD}!important; color:white!important; border-radius:12px!important; font-weight:700!important; border:2px solid {BORDER}!important; padding:12px!important;}}
-/* STYLE CHAT CLAUDE */
-div[data-testid="stChatMessage"]{{background:transparent!important; border:none!important; border-radius:0px!important; padding:18px 0px!important; max-width:800px!important; margin:0 auto!important;}}
-div[data-testid="stChatMessage"] [data-testid="stChatMessageAvatar"]{{background:{GRAD}!important;}}
-div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatarIcon-user"]){{background:rgba(26,21,53,0.6)!important; border-radius:16px!important; border:1px solid #2a1a4a!important; margin:8px auto!important; padding:16px!important;}}
-div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15.5px!important; line-height:1.75!important; font-family: 'Inter', -apple-system, sans-serif!important;}}
+div[data-testid="stChatMessage"]{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:16px!important; padding:14px!important;}}
+div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!important; line-height:1.6!important;}}
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
 div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
 div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
-/* CHAT INPUT STYLE CLAUDE */
-div[data-testid="stChatInput"]{{background:#1e1938!important; border:2px solid {BORDER}!important; border-radius:28px!important; max-width:780px!important; margin:0 auto!important; box-shadow:0 4px 20px rgba(0,0,0,0.3)!important;}}
-div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important; font-size:15px!important;}}
-div[data-testid="stBottom"], div[data-testid="stBottom"]>div{{background:linear-gradient(to top, {BG} 80%, transparent)!important; padding-top:20px!important;}}
-.claude-title{{font-size:36px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0; letter-spacing:-0.5px;}}
+div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important;}}
+div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
+div[data-testid="stBottom"], div[data-testid="stBottom"]>div{{background:transparent!important;}}
+.claude-title{{font-size:34px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0;}}
 .claude-sub{{font-size:12px; color:#d8ccff!important; text-align:center; font-weight:700; letter-spacing:0.8px; margin-bottom:16px;}}
-.desc-main{{font-size:14.5px; color:#c4b5fd; text-align:center; max-width:720px; margin:16px auto 32px auto; line-height:1.7;}}
+.desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
-/* MICRO BOUTON */
-div[data-testid="stAudioInput"]{{background:#1e1938!important; border:2px solid {BORDER}!important; border-radius:24px!important;}}
-.chat-container{{max-width:800px; margin:0 auto;}}
+/* Micro à côté de la flèche d'envoi - style WhatsApp - ton point vert */
+div[data-testid="stAudioInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:20px!important;}}
+div[data-testid="stAudioInput"] button{{background:{GRAD}!important; border-radius:50%!important;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -465,7 +459,7 @@ def render_message(m, idx):
                 if m.get("attachment_name"):
                     st.caption(f"📎 {m['attachment_name']}")
                 if m.get("id"):
-                    if st.button("✏️", key=f"btn_edit_{idx}", help="Modifier"):
+                    if st.button("✏️ Modifier", key=f"btn_edit_{idx}"):
                         st.session_state.editing_msg_id = m.get("id")
                         st.rerun()
     else:
@@ -491,7 +485,7 @@ def render_message(m, idx):
                     except Exception:
                         pass
             with c4:
-                if st.button("📄", key=f"pdf_{idx}", help="PDF"):
+                if st.button("📄 PDF", key=f"pdf_{idx}"):
                     st.session_state[f"export_pdf_{idx}"] = True
                     st.rerun()
             with c5:
@@ -508,9 +502,9 @@ def render_message(m, idx):
                     for line in m["content"].split("\n"):
                         pdf.multi_cell(0, 7, line.encode('latin-1','replace').decode('latin-1'))
                     out = pdf.output(dest='S').encode('latin-1')
-                    st.download_button("⬇️ PDF", out, file_name=f"bea_{idx}.pdf", mime="application/pdf", key=f"dl_pdf_{idx}")
+                    st.download_button("⬇️ Télécharger PDF", out, file_name=f"bea_{idx}.pdf", mime="application/pdf", key=f"dl_pdf_{idx}")
                 except Exception:
-                    st.error("Ajoute fpdf2")
+                    st.error("Ajoute fpdf2 dans requirements.txt")
             if st.session_state.get(f"export_word_{idx}"):
                 try:
                     from docx import Document
@@ -518,9 +512,9 @@ def render_message(m, idx):
                     doc.add_paragraph(m["content"])
                     bio = io.BytesIO()
                     doc.save(bio)
-                    st.download_button("⬇️ Word", bio.getvalue(), file_name=f"bea_{idx}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_word_{idx}")
+                    st.download_button("⬇️ Télécharger Word", bio.getvalue(), file_name=f"bea_{idx}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"dl_word_{idx}")
                 except Exception:
-                    st.error("Ajoute python-docx")
+                    st.error("Ajoute python-docx dans requirements.txt")
 
 def generate_reply():
     with st.chat_message("assistant", avatar=AVATAR):
@@ -581,7 +575,7 @@ def privacy_md():
             "- Tes discussions, fichiers joints et projets de code sont enregistrés dans ton compte pour afficher ton historique. Seul ton compte y a accès.\n"
             "- Le contenu de tes messages est envoyé à Groq pour générer les réponses.\n"
             "- Tu peux supprimer ton historique à tout moment depuis la page Compte."
-                        + (f"\n- Pour supprimer ton compte ou exercer tes droits : {CONTACT_EMAIL}." if CONTACT_EMAIL else ""))
+            + (f"\n- Pour supprimer ton compte ou exercer tes droits : {CONTACT_EMAIL}." if CONTACT_EMAIL else ""))
 
 def render_offers():
     st.markdown("## Découvrir les offres")
@@ -617,15 +611,15 @@ def page_dev_portal():
     with c1:
         with st.container(border=True):
             st.markdown("#### 🌐 Site Fonctionnel (Prod)")
-            st.caption("Le vrai site que voient les utilisateurs. Style Claude, chat centré.")
+            st.caption("Le vrai site que voient les utilisateurs.")
             if st.button("Ouvrir le site fonctionnel", key="go_prod", use_container_width=True, type="primary"):
                 st.session_state.dev_mode = "prod"
                 st.session_state.page = "chat"
                 st.rerun()
     with c2:
         with st.container(border=True):
-            st.markdown("#### 🧪 Labo Dev IA - 1 clic direct")
-            st.caption("Tape, clique, le site change tout seul. Bouton Appliquer direct inclus.")
+            st.markdown("#### 🧪 Labo Dev IA - 1 clic = modif directe")
+            st.caption("Tape, clique, le site change tout seul. 0€, Ultra ne casse rien.")
             if st.button("Ouvrir le labo Dev IA", key="go_lab", use_container_width=True):
                 st.session_state.dev_mode = "lab"
                 st.session_state.page = "dev_lab"
@@ -643,19 +637,19 @@ def page_dev_portal():
         st.rerun()
 
 def page_dev_lab():
-    st.markdown("### 🧪 Labo Dev IA - Intelligent (0€) - Appliquer direct remis")
-    st.caption("1 clic = modif + application directe. Rien oublié, sauvegarde auto.")
+    st.markdown("### 🧪 Labo Dev IA - 1 clic = site modifié direct (0€)")
+    st.caption("Tu tapes, tu cliques, le site change tout seul. Modèle Ultra par défaut pour ne rien casser.")
     q = st.session_state.quota.get('code') or {}
-    st.markdown(f'<div class="limit-badge">Modèle choisi: {st.session_state.dev_model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")} · 0€</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota: {q.get("used","?")}/{q.get("limit","?")}</div>', unsafe_allow_html=True)
     
     col_m1, col_m2 = st.columns([2,1])
     with col_m1:
-        st.selectbox("Choisis le cerveau (Ultra = ne casse rien)", list(DEV_MODELES.keys()), key="dev_model_choice")
+        st.selectbox("Cerveau (Ultra = ne casse rien)", list(DEV_MODELES.keys()), key="dev_model_choice")
     with col_m2:
-        st.text_input("Nom sauvegarde auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
+        st.text_input("Nom backup auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
     
-    consigne = st.text_area("Que veux-tu modifier ? (parle comme à Claude)", height=130, placeholder="Ex: Mets la case de dictée vocale en petit bouton avec un micro dans la case où on peut écrire", key="dev_consigne")
-    cible = st.selectbox("Où Groq doit chercher ?", ["Fichier complet app.py (recommandé - intelligent)", "Seulement render_sidebar", "Seulement page_chat", "Seulement page_studio"], key="dev_cible")
+    consigne = st.text_area("Que veux-tu modifier ?", height=120, placeholder="Ex: retire le bouton Déconnexion, ou mets le micro dans la zone d'écriture", key="dev_consigne")
+    cible = st.selectbox("Cible", ["Fichier complet app.py (recommandé)", "Seulement render_sidebar", "Seulement page_chat", "Seulement page_studio"], key="dev_cible")
     
     try:
         with open(__file__, 'r', encoding='utf-8') as fh:
@@ -670,120 +664,56 @@ def page_dev_lab():
     elif cible == "Seulement render_sidebar":
         mm = re.search(r'def render_sidebar\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
         code_cible = mm.group(0)[:15000] if mm else full_code[:12000]
-    elif cible == "Seulement page_studio":
-        mm = re.search(r'def page_studio\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
-        code_cible = mm.group(0)[:15000] if mm else full_code[:12000]
 
-    # BOUTON 1 : GENERER + APPLIQUER DIRECT EN 1 CLIC
-    if st.button("🚀 GROQ MODIFIE + APPLIQUE DIRECT SUR LE SITE (1 clic)", key="dev_go_direct", use_container_width=True, type="primary") and consigne.strip():
+    if st.button("🤖 GROQ MODIFIE LE SITE DIRECTEMENT (1 clic)", key="dev_go", use_container_width=True, type="primary") and consigne.strip():
         if not rate_ok() or not quota_ok("code"):
             st.stop()
         try:
             sb().table("code_projects").insert({"user_id": uid(), "name": st.session_state.dev_backup_name, "language": "python", "content": full_code}).execute()
-            st.toast(f"Sauvegarde {st.session_state.dev_backup_name} créée")
         except Exception:
             pass
         model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-        SYSTEM_DEV = """Tu es l'architecte de Bea, tu connais tout le code par coeur. Tu ne supprimes JAMAIS rien par erreur.
-Tu connais les positions:
-- Bouton Déconnexion = key="nav_logout" dans render_sidebar()
-- Chat = page_chat() - doit rester style Claude centré
-- Micro = doit être petit bouton avec audio_input à côté du chat_input
-- Tu gardes tout le reste à l'identique
-Retourne le code modifié COMPLET dans un bloc ```python. Pas d'explication hors code. Rien oublié."""
-        with st.spinner(f"Groq {model_id} modifie intelligemment et applique direct..."):
+        SYSTEM_DEV = """Tu es l'architecte de Bea. Tu modifies sans rien casser, sans rien oublier.
+Règles: 
+- Tu gardes tout le reste identique.
+- Si consigne = retire bouton Déconnexion, retire seulement le bouton avec key="nav_logout".
+- Si consigne = micro dans zone d'écriture, tu dois mettre un petit bouton audio_input à côté du chat_input.
+Retourne le code complet modifié dans ```python."""
+        with st.spinner(f"Groq {model_id} modifie + applique direct..."):
             try:
-                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE CIBLE:\n{code_cible}\n\nCONSIGNE: {consigne}\n\nRetourne le code modifié complet sans rien oublier."}], 8000, model_override=model_id))
+                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE:\n{code_cible}\n\nCONSIGNE: {consigne}"}], 8000, model_override=model_id))
                 mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
                 new_code = mm.group(1).strip() if mm else raw.strip()
                 
-                if cible != "Fichier complet app.py (recommandé - intelligent)" and "def " in new_code:
-                    pattern = r'def render_sidebar\(\):.*?(?=\n\ndef )' if "render_sidebar" in cible else (r'def page_chat\(\):.*?(?=\n\ndef )' if "page_chat" in cible else r'def page_studio\(\):.*?(?=\n\ndef )')
-                    if re.search(pattern, full_code, re.DOTALL):
+                if cible != "Fichier complet app.py (recommandé)" and "def " in new_code:
+                    pattern = r'def render_sidebar\(\):.*?(?=\n\ndef )' if "render_sidebar" in cible else (r'def page_chat\(\):.*?(?=\n\ndef )' if "page_chat" in cible else None)
+                    if pattern and re.search(pattern, full_code, re.DOTALL):
                         final_code = re.sub(pattern, new_code + "\n\n", full_code, count=1, flags=re.DOTALL)
                     else:
                         final_code = new_code
                 else:
                     final_code = new_code
-
+                
                 if len(final_code) < len(full_code)*0.7:
-                    st.error("Groq a oublié des parties, annulé. Réessaie en Ultra.")
-                    st.session_state.dev_result = new_code
-                    st.session_state.dev_raw = raw
+                    st.error("Groq a oublié des parties, on garde l'ancien. Réessaie en Ultra.")
                 else:
                     with open(__file__, 'w', encoding='utf-8') as f:
                         f.write(final_code)
                     quota_consume("code")
-                    st.success("✅ SITE MODIFIÉ DIRECTEMENT ! Redémarrage dans 2s...")
+                    st.success("✅ SITE MODIFIÉ DIRECTEMENT ! Redémarrage...")
                     time.sleep(2)
                     st.rerun()
             except Exception as e:
                 st.error(f"Echec: {e}")
-
-    # BOUTON 2 : GENERER SANS APPLIQUER (POUR VERIFIER AVANT)
-    if st.button("🤖 Générer proposition seulement (vérifier avant)", key="dev_go_preview", use_container_width=True) and consigne.strip():
-        if not rate_ok() or not quota_ok("code"):
-            st.stop()
-        model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-        SYSTEM_DEV = """Tu es l'architecte de Bea. Tu modifies sans rien casser. Retourne le code modifié COMPLET dans ```python."""
-        with st.spinner(f"Groq {model_id} génère proposition..."):
-            try:
-                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE:\n{code_cible}\n\nCONSIGNE: {consigne}"}], 8000, model_override=model_id))
-                mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
-                new_code = mm.group(1).strip() if mm else raw.strip()
-                st.session_state.dev_result = new_code
-                st.session_state.dev_raw = raw
-                st.session_state.dev_full_original = full_code
-                quota_consume("code")
-            except Exception as e:
-                st.error(f"Echec: {e}")
-        st.rerun()
-
-    if st.session_state.get('dev_result'):
-        st.divider()
-        st.markdown(f"#### ✅ Proposition de {st.session_state.dev_model_choice} - Vérifie avant d'appliquer")
-        st.code(st.session_state.dev_result[:9000], language="python")
-        c1,c2,c3,c4 = st.columns(4)
-        with c1:
-            if st.button("💾 Vers éditeur Code", key="apply_to_editor", use_container_width=True):
-                st.session_state.code_area = st.session_state.dev_result
-                st.toast("Mis dans l'éditeur Code")
-        with c2:
-            st.download_button("⬇️ Télécharger app.py", st.session_state.dev_result, file_name="app_modifie.py", mime="text/x-python", use_container_width=True, key="dl_dev")
-        with c3:
-            if st.button("🚀 Appliquer direct MAINTENANT", key="apply_direct_now", use_container_width=True, type="primary"):
-                try:
-                    original = st.session_state.get('dev_full_original','')
-                    new_part = st.session_state.dev_result
-                    if cible != "Fichier complet app.py (recommandé - intelligent)" and "def " in new_part:
-                        pattern = r'def render_sidebar\(\):.*?(?=\n\ndef )' if "render_sidebar" in cible else (r'def page_chat\(\):.*?(?=\n\ndef )' if "page_chat" in cible else r'def page_studio\(\):.*?(?=\n\ndef )')
-                        final_code = re.sub(pattern, new_part + "\n\n", original, count=1, flags=re.DOTALL) if re.search(pattern, original, re.DOTALL) else new_part
-                    else:
-                        final_code = new_part
-                    with open(__file__, 'w', encoding='utf-8') as f:
-                        f.write(final_code)
-                    st.success("✅ Appliqué direct ! Redémarrage...")
-                    time.sleep(2)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Ecriture bloquée: {e}")
-        with c4:
-            if st.button("↩️ Annuler", key="cancel_dev", use_container_width=True):
-                st.session_state.dev_result = None
-        with st.expander("Voir réponse brute"):
-            st.code(st.session_state.get('dev_raw','')[:12000])
     
     st.divider()
-    col_back1, col_back2 = st.columns(2)
-    with col_back1:
-        if st.button("← Retour portail dev", key="back_portal", use_container_width=True):
-            st.session_state.page = "dev_portal"
-            st.rerun()
-    with col_back2:
-        if st.button("🌐 Aller au site fonctionnel", key="to_prod_from_lab", use_container_width=True):
-            st.session_state.dev_mode = "prod"
-            st.session_state.page = "chat"
-            st.rerun()
+    if st.button("← Retour portail", key="back_portal", use_container_width=True):
+        st.session_state.page = "dev_portal"
+        st.rerun()
+    if st.button("🌐 Site fonctionnel", key="to_prod_from_lab", use_container_width=True):
+        st.session_state.dev_mode = "prod"
+        st.session_state.page = "chat"
+        st.rerun()
 
 def page_vitrine():
     if LOGO:
@@ -920,7 +850,6 @@ def render_sidebar():
                         st.session_state.studio_menu = m
                         st.rerun()
             return
-
         if LOGO:
             _, c, _ = st.columns([1, 1, 1])
             with c:
@@ -938,15 +867,12 @@ def render_sidebar():
             if st.button(label, key=f"nav_{pg}", use_container_width=True):
                 st.session_state.page = pg
                 st.rerun()
-        
         current_email = ""
         try:
             current_email = st.session_state.user.email.lower().strip() if st.session_state.user else ""
         except:
             current_email = ""
-        
         is_you = current_email == "saydoukebe31@gmail.com" or (DEV_EMAIL and current_email == DEV_EMAIL.lower().strip())
-        
         if is_you:
             st.divider()
             st.markdown('<div style="font-size:10px; color:#a855f7; font-weight:800; margin-bottom:8px;">ZONE DEV PRIVÉE - TOI SEUL</div>', unsafe_allow_html=True)
@@ -963,17 +889,15 @@ def render_sidebar():
                             st.rerun()
                         else:
                             st.error("Clé incorrecte")
-            
             if st.session_state.is_admin:
-                if st.button("🛠️ Portail Dev (2 liens)", key="nav_dev_portal", use_container_width=True):
+                if st.button("🛠️ Portail Dev", key="nav_dev_portal", use_container_width=True):
                     st.session_state.dev_mode = None
                     st.session_state.page = "dev_portal"
                     st.rerun()
-                if st.button("🧪 Labo IA - 1 clic direct", key="nav_dev_lab", use_container_width=True):
+                if st.button("🧪 Labo IA 1 clic", key="nav_dev_lab", use_container_width=True):
                     st.session_state.dev_mode = "lab"
                     st.session_state.page = "dev_lab"
                     st.rerun()
-
         st.text_input("🔍 Rechercher historique", key="search_q", placeholder="mot clé...")
         convs = get_convs()
         if st.session_state.search_q:
@@ -999,7 +923,6 @@ def render_sidebar():
                         st.rerun()
         if st.session_state.is_admin and is_you:
             with st.expander("🛠️ Mode développeur"):
-                st.caption("Visible uniquement par toi. Choisis une offre pour tester ses fonctions.")
                 cols = st.columns(2)
                 for i, p in enumerate(PLANS):
                     with cols[i % 2]:
@@ -1026,23 +949,18 @@ def render_sidebar():
             st.rerun()
 
 def page_chat():
-    # STYLE CLAUDE : CONTENEUR CENTRE
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     st.markdown("### 💬 Discussion avec Bea")
     if not st.session_state.messages:
-        st.markdown('<div style="text-align:center; padding:40px 20px;">', unsafe_allow_html=True)
         st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et je t'aide à repérer ce qui te freine, puis à construire un plan d'action mesurable.")
-        st.markdown('</div>', unsafe_allow_html=True)
-        pt = st.radio("Ton profil", ["entreprise","independant","createur"], horizontal=True, key="profile_type", format_func=lambda x: {"entreprise":"🏢 Entreprise","independant":"💼 Indépendant","createur":"🎬 Créateur"}[x])
-        cols = st.columns(2)
-        for i, q in enumerate(STARTER_CARDS[pt][:4]):
-            with cols[i % 2]:
+        pt = st.radio("Profil", ["entreprise","independant","createur"], horizontal=True, key="profile_type", format_func=lambda x: {"entreprise":"🏢 Entreprise","independant":"💼 Indépendant","createur":"🎬 Créateur"}[x])
+        cols = st.columns(3)
+        for i, q in enumerate(STARTER_CARDS[pt]):
+            with cols[i % 3]:
                 if st.button(q, key=f"starter_{pt}_{i}", use_container_width=True):
                     handle_send(q, None, None)
     else:
         for idx, m in enumerate(st.session_state.messages):
             render_message(m, idx)
-        st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
         c1,c2,c3,c4 = st.columns(4)
         with c1:
             if st.button("🔄 Régénérer", key="regen", use_container_width=True):
@@ -1066,39 +984,36 @@ def page_chat():
                         if generate_reply():
                             st.rerun()
         with c3:
-            st.download_button("⬇️ Exporter", export_markdown(), file_name="discussion_bea.md", key="dl_conv", use_container_width=True)
+            st.download_button("⬇️ Exporter (.md)", export_markdown(), file_name="discussion_bea.md", key="dl_conv", use_container_width=True)
         with c4:
-            if st.session_state.conv_id and st.button("🗑️ Supprimer", key="del_conv", use_container_width=True):
+            if st.session_state.conv_id and st.button("🗑️ Supprimer la discussion", key="del_conv", use_container_width=True):
                 delete_conv(st.session_state.conv_id)
                 st.rerun()
     if st.session_state.pop("regen_flag", False):
         if generate_reply():
             st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- ZONE D'ECRITURE STYLE CLAUDE / CHATGPT AVEC MICRO INTEGRE ---
-    st.markdown('<div style="height:24px;"></div>', unsafe_allow_html=True)
-    with st.container():
-        col_main, col_mic = st.columns([5, 1])
-        with col_main:
-            up = st.file_uploader("📎 Joindre fichier (txt, pdf)", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}", label_visibility="collapsed")
+    # --- ZONE D'ECRITURE AVEC MICRO INTEGRE - COMME WHATSAPP - POINT VERT ---
+    st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<div style="font-size:12px; color:#c4b5fd; font-weight:700; margin-bottom:8px;">📎 Fichier + 🎤 Vocal (micro à côté de la flèche d\'envoi - comme WhatsApp)</div>', unsafe_allow_html=True)
+        col_up, col_mic = st.columns([3, 1])
+        with col_up:
+            up = st.file_uploader("Joindre fichier", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}", label_visibility="collapsed")
         with col_mic:
-            audio_mic = st.audio_input("🎤", key=f"mic_{st.session_state.up_key}", label_visibility="collapsed")
+            audio_mic = st.audio_input("🎤 Micro", key=f"mic_{st.session_state.up_key}", label_visibility="collapsed")
             if audio_mic is not None:
-                with st.spinner("🎤 Transcription en cours..."):
+                with st.spinner("Transcription micro..."):
                     try:
                         res = get_groq().audio.transcriptions.create(file=("mic.wav", audio_mic.getvalue()), model=WHISPER_MODEL, response_format="text")
                         txt = res if isinstance(res, str) else getattr(res, 'text', str(res))
                         st.session_state["transcribed_text"] = txt
-                        st.toast(f"🎤 Transcrit: {txt[:100]}")
+                        st.toast(f"🎤 Transcrit: {txt[:100]}...")
                     except Exception as e:
                         st.error(f"Echec micro: {e}")
 
     default_prompt = st.session_state.pop("transcribed_text", "") if "transcribed_text" in st.session_state else ""
-    if default_prompt:
-        st.info(f"🎤 Transcrit: {default_prompt}")
-    
-    prompt = st.chat_input("Écris ton message à Bea...  (🎤 = micro à droite, 📎 = fichier)" if not default_prompt else f"Envoyer : {default_prompt[:80]}")
+    prompt = st.chat_input("Écris ton message à Bea... (micro 🎤 à côté de la flèche ↑ - point vert)" if not default_prompt else f"🎤 Transcrit : {default_prompt} - Envoie")
     to_send = prompt or default_prompt
     if to_send:
         handle_send(to_send, up if 'up' in locals() else None, None)
@@ -1226,7 +1141,7 @@ def page_projets():
 
 def page_memoire():
     st.markdown("### 🧠 Mémoire de Bea")
-    st.caption("Bea retient des infos utiles sur toi pour mieux t'aider. Tu peux tout voir et supprimer à tout moment.")
+    st.caption("Bea retient des infos utiles sur toi pour mieux t'aider. Tu peux tout voir et supprimer à tout moment. Ex : ton activité, ton objectif du mois.")
     mems = st.session_state.memories or []
     new_mem = st.text_input("Ajouter une info à retenir", placeholder="Ex : Je lance une chaîne TikTok sur la productivité", key="new_mem_input")
     if st.button("Mémoriser", use_container_width=True) and clean_text(new_mem,200):
@@ -1236,9 +1151,9 @@ def page_memoire():
             st.toast("Mémorisé")
             st.rerun()
         except Exception:
-            st.error("Table memories manquante.")
+            st.error("Table memories manquante. Vérifie que tu as bien exécuté le SQL.")
     if not mems:
-        st.info("Aucun souvenir pour l'instant.")
+        st.info("Aucun souvenir pour l'instant. Ajoute ta première info ci-dessus.")
     else:
         for m in mems:
             with st.container(border=True):
