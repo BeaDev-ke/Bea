@@ -153,12 +153,14 @@ div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
-#mic-point-vert{{position:absolute!important; right:60px!important; bottom:10px!important; z-index:9999!important; width:42px!important; height:42px!important;}}
-#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:42px!important; min-width:42px!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:42px!important; height:42px!important; min-height:42px!important; padding:0!important; display:flex!important; align-items:center!important; justify-content:center!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 12px rgba(124,58,237,0.5)!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] svg{{width:18px!important; height:18px!important;}}
+#mic-point-vert{{position:absolute!important; right:58px!important; bottom:8px!important; z-index:9999!important; width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:44px!important; min-width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] label{{display:none!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:44px!important; height:44px!important; min-height:44px!important; padding:0!important; margin:0!important; display:flex!important; align-items:center!important; justify-content:center!important; box-shadow:0 2px 6px rgba(0,0,0,0.3)!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 14px rgba(124,58,237,0.55)!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] svg{{width:20px!important; height:20px!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] [data-baseweb="file-uploader"]{{background:transparent!important; border:none!important;}}
 .studio-step{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:14px!important; padding:18px!important; margin-bottom:14px!important;}}
 .studio-step h4{{color:{TEXT}!important; margin:0 0 6px 0!important; font-size:17px!important;}}
 .studio-step p{{color:#c4b5fd!important; font-size:13px!important; margin:0 0 12px 0!important; line-height:1.5!important;}}
@@ -1030,19 +1032,32 @@ def page_chat():
 
     components.html("""
     <script>
-    setTimeout(() => {
+    (function(){
         const doc = window.parent.document;
-        const mic = doc.getElementById('mic-point-vert');
-        const chat = doc.querySelector('div[data-testid="stChatInput"]');
-        if(mic && chat && !chat.contains(mic)){
-            chat.style.position = 'relative';
-            mic.style.position = 'absolute';
-            mic.style.right = '60px';
-            mic.style.bottom = '10px';
-            mic.style.zIndex = '9999';
-            chat.appendChild(mic);
+        let tries = 0;
+        function placeMic(){
+            const mic = doc.getElementById('mic-point-vert');
+            const chat = doc.querySelector('div[data-testid="stChatInput"]');
+            if(mic && chat){
+                if(!chat.contains(mic)){
+                    chat.style.position = 'relative';
+                    mic.style.position = 'absolute';
+                    mic.style.right = '58px';
+                    mic.style.bottom = '8px';
+                    mic.style.zIndex = '9999';
+                    chat.appendChild(mic);
+                }
+                return true;
+            }
+            return false;
         }
-    }, 300);
+        function loop(){
+            if(placeMic() || tries > 40) return;
+            tries++;
+            setTimeout(loop, 150);
+        }
+        loop();
+    })();
     </script>
     """, height=0)
 
