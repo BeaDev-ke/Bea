@@ -102,7 +102,7 @@ def get_modeles():
         return {"rapide": pref_fast[:1], "puissant": pref_power[:1]}
 
 DEV_MODELES = {
-    "Ultra (gratuit) - GPT OSS 120B": "openai/gpt-oss-120b",
+    "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]": "openai/gpt-oss-120b",
     "Puissant (gratuit) - Llama 3.3 70B": "llama-3.3-70b-versatile",
     "Codeur (gratuit) - GPT OSS 20B": "openai/gpt-oss-20b",
     "Rapide (gratuit) - Llama 3.1 8B": "llama-3.1-8b-instant",
@@ -118,7 +118,7 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
     "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "Média", "memories": None, "profile_type": "createur",
-    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B",
+    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
 }.items():
     if k not in st.session_state:
@@ -144,18 +144,17 @@ div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!impor
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
 div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
 div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
-div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:92px!important;}}
+div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:90px!important;}}
 div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
-div[data-testid="stBottom"]{{background:transparent!important;}}
+div[data-testid="stBottom"]{{background:transparent!important; position:relative!important;}}
 div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .claude-title{{font-size:34px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0;}}
 .claude-sub{{font-size:12px; color:#d8ccff!important; text-align:center; font-weight:700; letter-spacing:0.8px; margin-bottom:16px;}}
 .desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
-/* Micro à l'endroit exact du point vert - à gauche de la flèche */
-#mic-point-vert{{position:absolute!important; right:52px!important; bottom:14px!important; z-index:9999!important; width:38px!important;}}
-#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:38px!important;}}
+#mic-point-vert{{position:absolute!important; right:52px!important; bottom:12px!important; z-index:9999!important; width:38px!important;}}
+#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:38px!important; min-width:38px!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:38px!important; height:38px!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important;}}
 </style>
@@ -608,19 +607,19 @@ def render_offers():
                 st.link_button(label, url, use_container_width=True)
 
 def page_dev_portal():
-    st.markdown("### 🛠️ Portail Développeur")
-    st.success(f"Développeur : {st.session_state.user.email}")
+    st.markdown("### 🛠️ Portail Développeur - Bea")
+    st.success(f"Développeur reconnu : {st.session_state.user.email}")
     c1,c2 = st.columns(2, gap="large")
     with c1:
         with st.container(border=True):
-            st.markdown("#### 🌐 Site Fonctionnel")
+            st.markdown("#### 🌐 Site Fonctionnel (Prod)")
             if st.button("Ouvrir le site fonctionnel", key="go_prod", use_container_width=True, type="primary"):
                 st.session_state.dev_mode = "prod"
                 st.session_state.page = "chat"
                 st.rerun()
     with c2:
         with st.container(border=True):
-            st.markdown("#### 🧪 Labo Dev IA")
+            st.markdown("#### 🧪 Labo Dev IA - 1 clic = modif directe")
             if st.button("Ouvrir le labo Dev IA", key="go_lab", use_container_width=True):
                 st.session_state.dev_mode = "lab"
                 st.session_state.page = "dev_lab"
@@ -638,14 +637,14 @@ def page_dev_portal():
         st.rerun()
 
 def page_dev_lab():
-    st.markdown("### 🧪 Labo Dev IA - 1 clic = site modifié direct")
+    st.markdown("### 🧪 Labo Dev IA - 1 clic = site modifié direct (0€)")
     q = st.session_state.quota.get('code') or {}
     st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota: {q.get("used","?")}/{q.get("limit","?")}</div>', unsafe_allow_html=True)
     col_m1, col_m2 = st.columns([2,1])
     with col_m1:
-        st.selectbox("Cerveau", list(DEV_MODELES.keys()), key="dev_model_choice")
+        st.selectbox("Cerveau (Ultra = ne casse rien)", list(DEV_MODELES.keys()), key="dev_model_choice")
     with col_m2:
-        st.text_input("Nom backup", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
+        st.text_input("Nom sauvegarde auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
     consigne = st.text_area("Que veux-tu modifier ?", height=120, placeholder="Ex: retire le bouton Déconnexion", key="dev_consigne")
     cible = st.selectbox("Cible", ["Fichier complet app.py (recommandé)", "Seulement render_sidebar", "Seulement page_chat", "Seulement page_studio"], key="dev_cible")
     try:
@@ -669,7 +668,7 @@ def page_dev_lab():
             pass
         model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
         SYSTEM_DEV = """Tu es l'architecte de Bea. Tu modifies sans rien casser, sans rien oublier. Retourne le code complet modifié dans ```python."""
-        with st.spinner(f"Groq {model_id} modifie..."):
+        with st.spinner(f"Groq {model_id} modifie + applique..."):
             try:
                 raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE:\n{code_cible}\n\nCONSIGNE: {consigne}"}], 8000, model_override=model_id))
                 mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
@@ -683,7 +682,7 @@ def page_dev_lab():
                 else:
                     final_code = new_code
                 if len(final_code) < len(full_code)*0.7:
-                    st.error("Code incomplet, annulé.")
+                    st.error("Code incomplet, annulé. Réessaie en Ultra.")
                 else:
                     with open(__file__, 'w', encoding='utf-8') as f:
                         f.write(final_code)
@@ -718,7 +717,7 @@ def page_vitrine():
             with t_in:
                 pend = st.session_state.pending_login
                 if pend:
-                    st.info(f"Un code de vérification vient d'être envoyé à {pend['email']}.")
+                    st.info(f"Un code de vérification vient d'être envoyé à {pend['email']}. Saisis-le pour terminer la connexion.")
                     with st.form("form_code"):
                         code = st.text_input("Code reçu par e-mail", key="li_code", max_chars=10)
                         go_code = st.form_submit_button("Valider le code", use_container_width=True)
@@ -733,6 +732,18 @@ def page_vitrine():
                             st.rerun()
                         except Exception:
                             st.error("Code invalide ou expiré.")
+                    c_a, c_b = st.columns(2)
+                    with c_a:
+                        if st.button("Renvoyer le code", key="resend_code", use_container_width=True):
+                            try:
+                                new_client().auth.sign_in_with_otp({"email": pend["email"], "options": {"should_create_user": False}})
+                                st.success("Nouveau code envoyé.")
+                            except Exception:
+                                st.error("Envoi impossible pour le moment.")
+                    with c_b:
+                        if st.button("Annuler", key="cancel_code", use_container_width=True):
+                            st.session_state.pending_login = None
+                            st.rerun()
                 else:
                     with st.form("form_login"):
                         email = st.text_input("Adresse e-mail", key="li_email")
@@ -755,7 +766,17 @@ def page_vitrine():
                             load_account()
                             st.rerun()
                         except Exception as e:
-                            st.error("Adresse e-mail à confirmer." if "confirm" in str(e).lower() else "Identifiants invalides.")
+                            st.error("Adresse e-mail à confirmer : vérifie ta boîte mail." if "confirm" in str(e).lower() else "Identifiants invalides.")
+                    with st.expander("Je n'ai pas reçu l'e-mail de confirmation"):
+                        with st.form("form_resend"):
+                            email_r = st.text_input("Adresse e-mail", key="rc_email")
+                            go_r = st.form_submit_button("Renvoyer l'e-mail de confirmation", use_container_width=True)
+                        if go_r:
+                            try:
+                                new_client().auth.resend({"type": "signup", "email": email_r.strip()})
+                            except Exception:
+                                pass
+                            st.success("Si ce compte existe et n'est pas encore confirmé, un nouvel e-mail vient d'être envoyé.")
             with t_up:
                 with st.form("form_signup"):
                     email2 = st.text_input("Adresse e-mail", key="su_email")
@@ -766,7 +787,7 @@ def page_vitrine():
                     go2 = st.form_submit_button("Créer mon compte", use_container_width=True)
                 if go2:
                     if len(pwd2) < 8 or "@" not in email2:
-                        st.error("Adresse e-mail invalide ou mot de passe trop court.")
+                        st.error("Adresse e-mail invalide ou mot de passe trop court (8 caractères minimum).")
                     elif not ok_cgu:
                         st.error("Coche la case pour continuer.")
                     else:
@@ -778,9 +799,9 @@ def page_vitrine():
                                 load_account()
                                 st.rerun()
                             else:
-                                st.success("Compte créé. Confirme ton adresse e-mail.")
+                                st.success("Compte créé. Confirme ton adresse e-mail via le message reçu, puis connecte-toi.")
                         except Exception:
-                            st.error("Création impossible.")
+                            st.error("Création impossible (adresse déjà utilisée ou mot de passe refusé).")
             with t_rst:
                 with st.form("form_reset"):
                     email3 = st.text_input("Adresse e-mail", key="rs_email")
@@ -792,7 +813,7 @@ def page_vitrine():
                         fn(email3.strip())
                     except Exception:
                         pass
-                    st.success("Si ce compte existe, un e-mail vient d'être envoyé.")
+                    st.success("Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé.")
     st.markdown("<div style='height:36px;'></div>", unsafe_allow_html=True)
     render_offers()
 
@@ -810,11 +831,12 @@ def render_sidebar():
                 label = f"{m} 🔒" if is_locked else m
                 if st.button(label, key=f"studio_menu_{m}", use_container_width=True):
                     if is_locked:
-                        st.toast("Réservé Pro/Ultra")
+                        st.toast("Réservé Pro/Ultra - Voir offres")
                     else:
                         st.session_state.studio_menu = m
                         st.rerun()
             return
+
         if LOGO:
             _, c, _ = st.columns([1, 1, 1])
             with c:
@@ -824,7 +846,7 @@ def render_sidebar():
         def fmt(x):
             return f"{x['used']}/{x['limit']}" if x else "?"
         st.markdown(f'<div class="limit-badge">{PLAN_LABEL[st.session_state.plan]} · Chat {fmt(q.get("chat"))} · Code {fmt(q.get("code"))} · {st.session_state.model_choice}</div>', unsafe_allow_html=True)
-        st.selectbox("Modèle", ["rapide","puissant"], key="model_choice")
+        st.selectbox("Modèle", ["rapide","puissant"], key="model_choice", help="Rapide = réponse instantanée, Puissant = raisonnement plus profond")
         if st.button("✨ Nouvelle discussion", key="nav_new", use_container_width=True):
             new_chat()
             st.rerun()
@@ -832,40 +854,47 @@ def render_sidebar():
             if st.button(label, key=f"nav_{pg}", use_container_width=True):
                 st.session_state.page = pg
                 st.rerun()
+        
         current_email = ""
         try:
             current_email = st.session_state.user.email.lower().strip() if st.session_state.user else ""
         except:
             current_email = ""
+        
         is_you = current_email == "saydoukebe31@gmail.com" or (DEV_EMAIL and current_email == DEV_EMAIL.lower().strip())
+        
         if is_you:
             st.divider()
+            st.markdown('<div style="font-size:10px; color:#a855f7; font-weight:800; margin-bottom:8px;">ZONE DEV PRIVÉE - TOI SEUL</div>', unsafe_allow_html=True)
             if not st.session_state.is_admin and DEV_ACCESS_KEY:
-                with st.expander("🔒 Clé dev", expanded=True):
+                with st.expander("🔒 Entrer clé dev (1 fois)", expanded=True):
                     with st.form("dev_key_sidebar_final"):
-                        k = st.text_input("Clé dev", type="password", key="dev_key_sidebar_final_input")
-                        go_dev = st.form_submit_button("Déverrouiller", use_container_width=True, type="primary")
+                        k = st.text_input("Clé dev", type="password", key="dev_key_sidebar_final_input", placeholder="64 caractères")
+                        go_dev = st.form_submit_button("Déverrouiller accès", use_container_width=True, type="primary")
                     if go_dev:
                         if k.strip() == DEV_ACCESS_KEY.strip():
                             st.session_state.dev_key_ok = True
                             check_admin()
+                            st.toast("Accès déverrouillé")
                             st.rerun()
                         else:
                             st.error("Clé incorrecte")
+            
             if st.session_state.is_admin:
-                if st.button("🛠️ Portail Dev", key="nav_dev_portal", use_container_width=True):
+                if st.button("🛠️ Portail Dev (2 liens)", key="nav_dev_portal", use_container_width=True):
                     st.session_state.dev_mode = None
                     st.session_state.page = "dev_portal"
                     st.rerun()
-                if st.button("🧪 Labo IA", key="nav_dev_lab", use_container_width=True):
+                if st.button("🧪 Labo IA - 1 clic direct", key="nav_dev_lab", use_container_width=True):
                     st.session_state.dev_mode = "lab"
                     st.session_state.page = "dev_lab"
                     st.rerun()
-        st.text_input("🔍 Rechercher", key="search_q", placeholder="mot clé...")
+
+        st.text_input("🔍 Rechercher historique", key="search_q", placeholder="mot clé...")
         convs = get_convs()
         if st.session_state.search_q:
             qlow = st.session_state.search_q.lower()
-            convs = [c for c in convs if qlow in c["title"].lower()]
+            convs = [c for c in convs if qlow in c["title"].lower() or qlow in c.get("updated_at","").lower()]
         if convs:
             st.markdown('<div style="font-size:10px; text-transform:uppercase; margin:14px 0 6px 0; font-weight:700;">Historique</div>', unsafe_allow_html=True)
             for c in convs[:15]:
@@ -886,6 +915,7 @@ def render_sidebar():
                         st.rerun()
         if st.session_state.is_admin and is_you:
             with st.expander("🛠️ Mode développeur"):
+                st.caption("Visible uniquement par toi. Choisis une offre pour tester ses fonctions.")
                 cols = st.columns(2)
                 for i, p in enumerate(PLANS):
                     with cols[i % 2]:
@@ -914,7 +944,7 @@ def render_sidebar():
 def page_chat():
     st.markdown("### 💬 Discussion avec Bea")
     if not st.session_state.messages:
-        st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et je t'aide à repérer ce qui te freine, puis à construire un plan d'action mesurable.")
+        st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et je t'aide à repérer ce qui te freine, puis à construire un plan d'action mesurable. Choisis ton profil pour démarrer plus vite :")
         pt = st.radio("Profil", ["entreprise","independant","createur"], horizontal=True, key="profile_type", format_func=lambda x: {"entreprise":"🏢 Entreprise","independant":"💼 Indépendant","createur":"🎬 Créateur"}[x])
         cols = st.columns(3)
         for i, q in enumerate(STARTER_CARDS[pt]):
@@ -932,8 +962,8 @@ def page_chat():
                     if last.get("id"):
                         try:
                             sb().table("messages").delete().eq("id", last["id"]).execute()
-                        except Exception:
-                            db_error()
+                        except Exception as e:
+                            db_error(e)
                     st.session_state.messages.pop()
                 if rate_ok() and quota_ok("chat"):
                     st.session_state.regen_flag = True
@@ -958,9 +988,30 @@ def page_chat():
 
     up = st.file_uploader("Joindre un fichier", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}", label_visibility="collapsed")
 
+    default = st.session_state.transcribed_text if st.session_state.get("transcribed_text") else ""
+    prompt = st.chat_input("Écris ton message à Bea..." if not default else default)
+
     st.markdown('<div id="mic-point-vert">', unsafe_allow_html=True)
     audio = st.audio_input("mic", key=f"mic_{st.session_state.up_key}", label_visibility="collapsed")
     st.markdown('</div>', unsafe_allow_html=True)
+
+    components.html("""
+    <script>
+    setTimeout(() => {
+        const doc = window.parent.document;
+        const mic = doc.getElementById('mic-point-vert');
+        const chat = doc.querySelector('div[data-testid="stChatInput"]');
+        if(mic && chat && !chat.contains(mic)){
+            chat.style.position = 'relative';
+            mic.style.position = 'absolute';
+            mic.style.right = '52px';
+            mic.style.bottom = '8px';
+            mic.style.zIndex = '9999';
+            chat.appendChild(mic);
+        }
+    }, 300);
+    </script>
+    """, height=0)
 
     if audio is not None:
         with st.spinner("Transcription..."):
@@ -968,11 +1019,10 @@ def page_chat():
                 res = get_groq().audio.transcriptions.create(file=("vocal.wav", audio.getvalue()), model=WHISPER_MODEL, response_format="text")
                 txt = res if isinstance(res, str) else getattr(res, 'text', str(res))
                 st.session_state.transcribed_text = txt
+                st.rerun()
             except Exception as e:
                 st.error(f"Echec: {e}")
 
-    default = st.session_state.transcribed_text if st.session_state.get("transcribed_text") else ""
-    prompt = st.chat_input("Écris ton message à Bea..." if not default else default)
     to_send = prompt or default
     if to_send:
         handle_send(to_send, up)
@@ -1135,8 +1185,8 @@ def page_app():
     if st.session_state.plan != "abo":
         locked("Cette fonction est incluse dans Bea Ultra.")
         return
-    st.caption("Génère une application web d'une seule page (HTML, CSS, JavaScript).")
-    idea = st.text_area("Décris ton application", height=140, placeholder="Ex : un suivi d'habitudes avec calendrier", key="app_idea")
+    st.caption("Génère une application web d'une seule page (HTML, CSS, JavaScript). Pas d'APK ni de base de données : les données restent dans le navigateur.")
+    idea = st.text_area("Décris ton application", height=140, placeholder="Ex : un suivi d'habitudes avec calendrier et série de jours consécutifs", key="app_idea")
     if st.button("Générer l'application", key="app_go", use_container_width=True) and clean_text(idea, 3000):
         if rate_ok() and quota_ok("code"):
             with st.spinner("Génération en cours..."):
@@ -1150,7 +1200,7 @@ def page_app():
                 quota_consume("code")
                 st.rerun()
             else:
-                st.error("La génération a échoué.")
+                st.error("La génération a échoué. Réessaie en reformulant ta demande.")
     if st.session_state.app_result:
         st.download_button("⬇️ Télécharger le fichier HTML", st.session_state.app_result, file_name="mon_app.html", mime="text/html", key="app_dl")
         components.html(st.session_state.app_result, height=650, scrolling=True)
@@ -1178,8 +1228,8 @@ def page_studio():
             st.info("Importe d'abord une vidéo dans Média")
         else:
             st.info("Commande FFmpeg réelle : ffmpeg -i input.mp4 -vn -q:a 0 output.mp3")
-            if st.button("Extraire l'audio", key="audio_extract", use_container_width=True):
-                st.success("Commande exécutée via subprocess sur le serveur.")
+            if st.button("Extraire l'audio (simulation locale)", key="audio_ex", use_container_width=True):
+                st.success("Sur Streamlit Cloud, cette commande sera exécutée via subprocess.")
     elif menu == "Texte":
         st.caption("Texte incrusté (taille, couleur, position, moment) - Réel via FFmpeg drawtext")
         st.text_input("Texte à incruster", key="text_overlay")
@@ -1277,7 +1327,7 @@ def page_studio():
 def page_perso():
     st.markdown("### 🎨 Personnaliser Bea")
     if st.session_state.pop("perso_saved", False):
-        st.success("Personnalisation enregistrée.")
+        st.success("Personnalisation enregistrée : Bea l'utilisera dans toutes tes discussions.")
     p = st.session_state.prefs or {}
     styles = list(STYLE_HINT)
     with st.form("form_perso"):
@@ -1306,10 +1356,12 @@ def page_compte():
     for k, label in (("chat", "Requêtes de chat"), ("code", "Requêtes IA code")):
         if q.get(k):
             st.progress(min(q[k]["used"] / max(q[k]["limit"], 1), 1.0), text=f"{label} ce mois-ci : {q[k]['used']}/{q[k]['limit']}")
+    st.caption("Après un paiement, ton offre est activée sur ton compte (si ce n'est pas le cas, contacte le support).")
     render_offers()
     st.divider()
     st.markdown("#### 🔒 Confidentialité")
     st.markdown(privacy_md())
+    st.caption("Texte indicatif : à faire valider et compléter (mentions légales, CGU, politique de confidentialité complète) avant l'ouverture au public.")
     confirm = st.checkbox("Je confirme vouloir supprimer toutes mes discussions et tous mes projets de code", key="del_all_ok")
     if st.button("Supprimer mon historique", key="del_all", disabled=not confirm):
         try:
