@@ -117,7 +117,7 @@ for k, v in {
     "code_messages": [], "code_project_id": None, "code_name_in": "", "code_lang_in": "python",
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
     "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
-    "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "Média", "memories": None, "profile_type": "createur",
+    "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
     "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
 }.items():
@@ -153,10 +153,19 @@ div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
-#mic-point-vert{{position:absolute!important; right:52px!important; bottom:12px!important; z-index:9999!important; width:38px!important;}}
-#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:38px!important; min-width:38px!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:38px!important; height:38px!important;}}
+#mic-point-vert{{position:absolute!important; right:60px!important; bottom:10px!important; z-index:9999!important; width:42px!important; height:42px!important;}}
+#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:42px!important; min-width:42px!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:42px!important; height:42px!important; min-height:42px!important; padding:0!important; display:flex!important; align-items:center!important; justify-content:center!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 12px rgba(124,58,237,0.5)!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] svg{{width:18px!important; height:18px!important;}}
+.studio-step{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:14px!important; padding:18px!important; margin-bottom:14px!important;}}
+.studio-step h4{{color:{TEXT}!important; margin:0 0 6px 0!important; font-size:17px!important;}}
+.studio-step p{{color:#c4b5fd!important; font-size:13px!important; margin:0 0 12px 0!important; line-height:1.5!important;}}
+.studio-nav-btn>button{{text-align:left!important; padding:10px 14px!important;}}
+.studio-badge{{display:inline-block; background:#2a1a4a; color:#c4b5fd; border:1px solid {BORDER}; border-radius:6px; padding:2px 8px; font-size:10px; font-weight:700; margin-left:6px;}}
+.studio-badge-free{{background:#3a2a1a; color:#fbbf24; border-color:#f59e0b;}}
+.studio-badge-pro{{background:#1a2a3a; color:#60a5fa; border-color:#3b82f6;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -817,23 +826,47 @@ def page_vitrine():
     st.markdown("<div style='height:36px;'></div>", unsafe_allow_html=True)
     render_offers()
 
+STUDIO_SECTIONS = [
+    ("importer", "📂 Importer un média", "Ajoute ta vidéo, audio ou image", "free"),
+    ("sous_titres", "💬 Sous-titres automatiques", "Transcription IA en SRT/VTT", "pro"),
+    ("miniature", "🖼️ Miniature 1280×720", "Génère une miniature accrocheuse", "free"),
+    ("plan_ia", "🎬 Plan de montage IA", "Reçois un plan de montage complet", "free"),
+    ("audio", "🎵 Audio", "Extraire et ajuster le son", "pro"),
+    ("texte", "✍️ Texte incrusté", "Ajoute du texte sur la vidéo", "pro"),
+    ("effets", "✨ Effets vidéo", "Flou, ralenti, accéléré...", "pro"),
+    ("transitions", "🔀 Transitions", "Fondus, glissements, zooms", "pro"),
+    ("filtres", "🎨 Filtres couleur", "Contraste, saturation, teinte", "pro"),
+    ("ajustement", "📐 Ajustement", "Recadrage, rotation, vitesse", "pro"),
+    ("autocollants", "😀 Autocollants", "Emojis et images par-dessus", "pro"),
+    ("modeles", "📐 Formats prédéfinis", "TikTok, Reels, Shorts, YouTube", "pro"),
+]
+
+def studio_section_label(key):
+    for k, title, desc, plan in STUDIO_SECTIONS:
+        if k == key:
+            return title
+    return key
+
 def render_sidebar():
     with st.sidebar:
         if st.session_state.page == "studio":
             st.markdown('<div style="text-align:center; font-size:18px; font-weight:800;">🎬 Studio créateur</div>', unsafe_allow_html=True)
+            st.caption("Choisis une action ci-dessous")
             if st.button("← Retour à Bea", key="back_bea", use_container_width=True):
                 st.session_state.page = "chat"
                 st.rerun()
             st.divider()
-            menus = ["Média","Audio","Texte","Sous-titres","Autocollants","Effets","Transitions","Filtres","Ajustement","Modèles","Miniature et Plan IA"]
-            for m in menus:
-                is_locked = m not in ["Média","Miniature et Plan IA","Sous-titres"] and st.session_state.plan == "free"
-                label = f"{m} 🔒" if is_locked else m
-                if st.button(label, key=f"studio_menu_{m}", use_container_width=True):
+            current = st.session_state.studio_menu
+            for key, title, desc, req_plan in STUDIO_SECTIONS:
+                is_locked = req_plan != "free" and st.session_state.plan == "free"
+                badge = '<span class="studio-badge studio-badge-pro">PRO</span>' if is_locked else ""
+                active = "✅ " if key == current else "   "
+                label = f"{active}{title}"
+                if st.button(label, key=f"studio_menu_{key}", use_container_width=True, help=desc):
                     if is_locked:
                         st.toast("Réservé Pro/Ultra - Voir offres")
                     else:
-                        st.session_state.studio_menu = m
+                        st.session_state.studio_menu = key
                         st.rerun()
             return
 
@@ -1004,8 +1037,8 @@ def page_chat():
         if(mic && chat && !chat.contains(mic)){
             chat.style.position = 'relative';
             mic.style.position = 'absolute';
-            mic.style.right = '52px';
-            mic.style.bottom = '8px';
+            mic.style.right = '60px';
+            mic.style.bottom = '10px';
             mic.style.zIndex = '9999';
             chat.appendChild(mic);
         }
@@ -1207,14 +1240,22 @@ def page_app():
         with st.expander("Voir le code"):
             st.code(st.session_state.app_result, language="html")
 
+def studio_step_card(num, title, desc):
+    st.markdown(
+        f'<div class="studio-step"><h4>{num}. {title}</h4><p>{desc}</p></div>',
+        unsafe_allow_html=True
+    )
+
 def page_studio():
-    st.markdown(f"### 🎬 Studio créateur - {st.session_state.studio_menu}")
     menu = st.session_state.studio_menu
-    if menu == "Média":
-        st.caption("Importer vidéo, audio, image ; aperçu ; durée et taille - Réel")
-        up = st.file_uploader("Importer", type=["mp4","mp3","wav","png","jpg","jpeg","webm","mov","m4a","ogg"], key="media_up")
+    st.markdown(f"### 🎬 Studio créateur — {studio_section_label(menu)}")
+    st.caption("Suis les étapes ci-dessous. Les actions avec un cadenas 🔒 nécessitent une offre Pro ou Ultra.")
+
+    if menu == "importer":
+        studio_step_card(1, "Importer ton média", "Ajoute une vidéo, un audio ou une image. Tu pourras ensuite l'utiliser dans les autres étapes du studio.")
+        up = st.file_uploader("Choisis un fichier", type=["mp4","mp3","wav","png","jpg","jpeg","webm","mov","m4a","ogg"], key="media_up")
         if up:
-            st.success(f"{up.name} - {up.size/1024/1024:.2f} Mo")
+            st.success(f"✅ {up.name} importé — {up.size/1024/1024:.2f} Mo")
             if up.type.startswith("video"):
                 st.video(up)
             elif up.type.startswith("image"):
@@ -1222,28 +1263,21 @@ def page_studio():
             elif up.type.startswith("audio"):
                 st.audio(up)
             st.session_state["current_media"] = up
-    elif menu == "Audio":
-        st.caption("Extraire l'audio, volume, réduire le bruit, couper les silences - Réel avec FFmpeg")
-        if "current_media" not in st.session_state:
-            st.info("Importe d'abord une vidéo dans Média")
+            st.info("Ton média est prêt. Choisis une autre action dans le menu de gauche pour le modifier.")
         else:
-            st.info("Commande FFmpeg réelle : ffmpeg -i input.mp4 -vn -q:a 0 output.mp3")
-            if st.button("Extraire l'audio (simulation locale)", key="audio_ex", use_container_width=True):
-                st.success("Sur Streamlit Cloud, cette commande sera exécutée via subprocess.")
-    elif menu == "Texte":
-        st.caption("Texte incrusté (taille, couleur, position, moment) - Réel via FFmpeg drawtext")
-        st.text_input("Texte à incruster", key="text_overlay")
-        st.slider("Taille", 10, 100, 40, key="text_size")
-        st.color_picker("Couleur", "#FFFFFF", key="text_color")
-    elif menu == "Sous-titres":
+            st.info("Aucun média importé pour le moment.")
+
+    elif menu == "sous_titres":
         LANGS = {"Détection automatique": None, "Français": "fr", "English": "en"}
         if st.session_state.plan not in ("pro", "abo"):
-            locked("La transcription automatique est incluse dans Bea Pro et Bea Ultra.")
+            studio_step_card(1, "Sous-titres automatiques", "Transcription par IA au format SRT et VTT, prêts à importer dans ton logiciel de montage.")
+            st.warning("🔒 Cette fonction est incluse dans Bea Pro et Bea Ultra.")
+            st.button("Voir les offres", key="locked_sub", on_click=goto, args=("compte",))
         else:
-            st.caption("Transcription par IA (Whisper) avec horodatage. Audio ou vidéo, 25 Mo maximum.")
+            studio_step_card(1, "Génère des sous-titres automatiques", "Transcription par IA (Whisper) avec horodatage. Audio ou vidéo, 25 Mo maximum. Tu récupères les fichiers SRT et VTT.")
             up = st.file_uploader("Fichier audio ou vidéo", type=["mp3", "mp4", "m4a", "wav", "webm", "ogg", "flac", "mpeg", "mpga"], key="sub_up")
             lang_label = st.selectbox("Langue parlée", list(LANGS), key="sub_lang")
-            if up and st.button("Générer les sous-titres", key="sub_go", use_container_width=True):
+            if up and st.button("Générer les sous-titres", key="sub_go", use_container_width=True, type="primary"):
                 if up.size > MAX_AUDIO_BYTES:
                     st.error("Fichier trop lourd : 25 Mo maximum.")
                 elif rate_ok() and quota_ok("chat"):
@@ -1262,67 +1296,94 @@ def page_studio():
                         st.rerun()
             r = st.session_state.get("sub_result")
             if r:
+                st.markdown("#### Tes sous-titres sont prêts")
                 a, b = st.columns(2)
                 with a:
                     st.download_button("⬇️ Télécharger SRT", r["srt"], file_name="sous_titres.srt", key="dl_srt", use_container_width=True)
                 with b:
                     st.download_button("⬇️ Télécharger VTT", r["vtt"], file_name="sous_titres.vtt", key="dl_vtt", use_container_width=True)
                 st.text_area("Aperçu (SRT)", r["srt"], height=260, key="srt_prev")
-    elif menu == "Autocollants":
-        st.caption("Autocollants, emojis, images par-dessus la vidéo - Réel via FFmpeg overlay")
-        st.file_uploader("Image autocollant", type=["png","jpg","webp"], key="sticker_up")
-    elif menu == "Effets":
-        st.caption("Effets vidéo : flou, netteté, vignette, ralenti, accéléré - Réel via FFmpeg")
-        st.slider("Flou", 0, 10, 0, key="eff_blur")
-    elif menu == "Transitions":
-        st.caption("Transitions entre clips : fondu, slide, zoom - Réel via FFmpeg xfade")
-        st.selectbox("Transition", ["Fondu", "Slide", "Zoom", "Wipe"], key="trans_type")
-    elif menu == "Filtres":
-        st.caption("Filtres couleur : contraste, saturation, teinte - Réel via FFmpeg")
-        st.slider("Contraste", 0.5, 2.0, 1.0, key="filt_contrast")
-    elif menu == "Ajustement":
-        st.caption("Ajustement : recadrage, rotation, vitesse - Réel")
-        st.slider("Vitesse", 0.25, 2.0, 1.0, key="adj_speed")
-    elif menu == "Modèles":
-        st.caption("Modèles TikTok, Reels, Shorts prédéfinis - 9:16, 1:1, 16:9")
-        st.selectbox("Modèle", ["TikTok 9:16", "Reels 9:16", "Shorts 9:16", "YouTube 16:9"], key="model_tpl")
-    elif menu == "Miniature et Plan IA":
-        t1,t2 = st.tabs(["Miniature 1280x720","Plan de montage IA"])
-        with t1:
-            title = st.text_input("Titre (80 caractères max)", max_chars=80, key="th_title", placeholder="Ex : J'ai arrêté de procrastiner en 7 jours")
-            subtitle = st.text_input("Sous-titre (optionnel)", max_chars=90, key="th_sub")
-            style = st.selectbox("Style", list(PALETTES), key="th_style")
-            bg = st.file_uploader("Image de fond (optionnel)", type=["png", "jpg", "jpeg", "webp"], key="th_bg")
-            if st.button("Générer la miniature", key="th_go", use_container_width=True):
+
+    elif menu == "miniature":
+        studio_step_card(1, "Crée une miniature 1280×720", "Génère une miniature accrocheuse pour ta vidéo. Choisis un titre, un style et optionnellement une image de fond.")
+        title = st.text_input("Titre (80 caractères max)", max_chars=80, key="th_title", placeholder="Ex : J'ai arrêté de procrastiner en 7 jours")
+        subtitle = st.text_input("Sous-titre (optionnel)", max_chars=90, key="th_sub")
+        style = st.selectbox("Style visuel", list(PALETTES), key="th_style")
+        bg = st.file_uploader("Image de fond (optionnel)", type=["png", "jpg", "jpeg", "webp"], key="th_bg")
+        if st.button("Générer la miniature", key="th_go", use_container_width=True, type="primary"):
+            try:
+                st.session_state.thumb_png = image_to_png_bytes(make_thumbnail(title, subtitle, style, bg.getvalue() if bg else None))
+            except Exception:
+                st.error("Impossible de générer la miniature.")
+        if st.session_state.thumb_png:
+            st.image(st.session_state.thumb_png)
+            st.download_button("⬇️ Télécharger (PNG 1280×720)", st.session_state.thumb_png, file_name="miniature.png", mime="image/png", key="th_dl", use_container_width=True)
+
+    elif menu == "plan_ia":
+        studio_step_card(1, "Reçois un plan de montage complet", "Décris le sujet de ta vidéo et choisis la plateforme. L'IA te donne un plan détaillé : hook, séquences, sous-titres, musique, appel à l'action, titres et idée de miniature.")
+        sujet = st.text_area("Sujet ou script de la vidéo", height=140, key="pm_sujet", placeholder="Ex : 3 astuces pour rester concentré toute la journée")
+        c1, c2 = st.columns(2)
+        with c1:
+            plateforme = st.selectbox("Plateforme", ["TikTok", "Instagram Reels", "YouTube Shorts", "YouTube (long)", "LinkedIn"], key="pm_plat")
+        with c2:
+            duree = st.selectbox("Durée visée", ["15 s", "30 s", "60 s", "3 min", "8-10 min"], key="pm_dur")
+        if st.button("Générer le plan de montage", key="pm_go", use_container_width=True, type="primary") and clean_text(sujet, 6000):
+            if rate_ok() and quota_ok("chat"):
+                prompt = f"Plateforme : {plateforme}\nDurée : {duree}\nSujet / script :\n{clean_text(sujet, 6000)}"
                 try:
-                    st.session_state.thumb_png = image_to_png_bytes(make_thumbnail(title, subtitle, style, bg.getvalue() if bg else None))
+                    text = st.write_stream(stream_groq([{"role": "system", "content": SYSTEM_MONTAGE}, {"role": "user", "content": prompt}]))
                 except Exception:
-                    st.error("Impossible de générer la miniature.")
-            if st.session_state.thumb_png:
-                st.image(st.session_state.thumb_png)
-                st.download_button("⬇️ Télécharger (PNG 1280×720)", st.session_state.thumb_png, file_name="miniature.png", mime="image/png", key="th_dl")
-        with t2:
-            sujet = st.text_area("Sujet ou script de la vidéo", height=140, key="pm_sujet")
-            c1, c2 = st.columns(2)
-            with c1:
-                plateforme = st.selectbox("Plateforme", ["TikTok", "Instagram Reels", "YouTube Shorts", "YouTube (long)", "LinkedIn"], key="pm_plat")
-            with c2:
-                duree = st.selectbox("Durée visée", ["15 s", "30 s", "60 s", "3 min", "8-10 min"], key="pm_dur")
-            if st.button("Générer le plan de montage", key="pm_go", use_container_width=True) and clean_text(sujet, 6000):
-                if rate_ok() and quota_ok("chat"):
-                    prompt = f"Plateforme : {plateforme}\nDurée : {duree}\nSujet / script :\n{clean_text(sujet, 6000)}"
-                    try:
-                        text = st.write_stream(stream_groq([{"role": "system", "content": SYSTEM_MONTAGE}, {"role": "user", "content": prompt}]))
-                    except Exception:
-                        text = ""
-                        st.error("L'IA est indisponible.")
-                    if text.strip():
-                        st.session_state.plan_result = text
-                        quota_consume("chat")
-                        st.rerun()
-            if st.session_state.get("plan_result"):
-                st.markdown(st.session_state.plan_result)
-                st.download_button("⬇️ Télécharger (.md)", st.session_state.plan_result, file_name="plan_montage.md", key="pm_dl")
+                    text = ""
+                    st.error("L'IA est indisponible.")
+                if text.strip():
+                    st.session_state.plan_result = text
+                    quota_consume("chat")
+                    st.rerun()
+        if st.session_state.get("plan_result"):
+            st.markdown("#### Ton plan de montage")
+            st.markdown(st.session_state.plan_result)
+            st.download_button("⬇️ Télécharger (.md)", st.session_state.plan_result, file_name="plan_montage.md", key="pm_dl", use_container_width=True)
+
+    elif menu == "audio":
+        studio_step_card(1, "Audio", "Extrais l'audio d'une vidéo, ajuste le volume, réduis le bruit ou coupe les silences. Nécessite FFmpeg.")
+        if "current_media" not in st.session_state:
+            st.info("Importe d'abord une vidéo dans « Importer un média ».")
+        else:
+            st.code("ffmpeg -i input.mp4 -vn -q:a 0 output.mp3", language="bash")
+            if st.button("Extraire l'audio", key="audio_ex", use_container_width=True):
+                st.success("Commande prête. Sur Streamlit Cloud, elle sera exécutée via subprocess.")
+
+    elif menu == "texte":
+        studio_step_card(1, "Texte incrusté", "Ajoute du texte par-dessus ta vidéo. Choisis la taille, la couleur et la position.")
+        st.text_input("Texte à incruster", key="text_overlay", placeholder="Ex : Nouvelle vidéo !")
+        st.slider("Taille du texte", 10, 100, 40, key="text_size")
+        st.color_picker("Couleur du texte", "#FFFFFF", key="text_color")
+
+    elif menu == "effets":
+        studio_step_card(1, "Effets vidéo", "Applique des effets : flou, netteté, vignette, ralenti, accéléré.")
+        st.slider("Intensité du flou", 0, 10, 0, key="eff_blur")
+        st.caption("D'autres effets seront disponibles dans une prochaine version.")
+
+    elif menu == "transitions":
+        studio_step_card(1, "Transitions", "Choisis une transition entre tes clips : fondu, glissement, zoom, wipe.")
+        st.selectbox("Type de transition", ["Fondu", "Slide", "Zoom", "Wipe"], key="trans_type")
+
+    elif menu == "filtres":
+        studio_step_card(1, "Filtres couleur", "Ajuste le rendu couleur de ta vidéo : contraste, saturation, teinte.")
+        st.slider("Contraste", 0.5, 2.0, 1.0, key="filt_contrast")
+
+    elif menu == "ajustement":
+        studio_step_card(1, "Ajustement", "Recadre, pivote ou change la vitesse de ta vidéo.")
+        st.slider("Vitesse de lecture", 0.25, 2.0, 1.0, key="adj_speed")
+
+    elif menu == "autocollants":
+        studio_step_card(1, "Autocollants", "Ajoute des emojis ou des images par-dessus ta vidéo.")
+        st.file_uploader("Image autocollant (PNG recommandé)", type=["png","jpg","webp"], key="sticker_up")
+
+    elif menu == "modeles":
+        studio_step_card(1, "Formats prédéfinis", "Choisis un format selon la plateforme de destination.")
+        st.selectbox("Modèle", ["TikTok 9:16", "Reels 9:16", "Shorts 9:16", "YouTube 16:9"], key="model_tpl")
+        st.caption("Le format sera appliqué à ton export vidéo.")
 
 def page_perso():
     st.markdown("### 🎨 Personnaliser Bea")
