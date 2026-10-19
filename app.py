@@ -120,6 +120,7 @@ for k, v in {
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
     "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
+    "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "",
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -144,7 +145,7 @@ div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!impor
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
 div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
 div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
-div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:90px!important;}}
+div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:104px!important;}}
 div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
 div[data-testid="stBottom"]{{background:transparent!important; position:relative!important;}}
 div[data-testid="stBottom"]>div{{background:transparent!important;}}
@@ -153,7 +154,7 @@ div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
-#mic-point-vert{{position:absolute!important; right:58px!important; bottom:8px!important; z-index:9999!important; width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert{{position:absolute!important; right:54px!important; bottom:7px!important; z-index:9999!important; width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:44px!important; min-width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] label{{display:none!important;}}
@@ -429,6 +430,14 @@ def rate_ok():
     return True
 
 def db_error(e=None):
+    if e is not None:
+        detail = str(e).lower()
+        if "row-level security" in detail or "permission" in detail:
+            st.error("Ton compte est bien connecté, mais l'enregistrement du profil a été refusé. Recharge la page et réessaie.")
+            return
+        if "column" in detail or "schema cache" in detail:
+            st.error("La configuration du profil n'est pas encore synchronisée. Recharge la page et réessaie.")
+            return
     st.error("Erreur d'accès aux données. Réessaie dans un instant.")
 
 def get_convs():
@@ -1098,7 +1107,7 @@ PLAN_ALLOWED_USE_CASES = {
     "free": ("general",),
     "bea": ("general",),
     "pro": ("clients", "contenu", "scolaire", "general"),
-    "abo": ("clients", "contenu", "scolaire", "general"),
+    "abo": ("clients", "contenu", "site", "code", "scolaire", "general"),
 }
 
 USE_CASE_LABEL = {
@@ -1110,20 +1119,74 @@ USE_CASE_LABEL = {
     "general": "Général (projets & habitudes)",
 }
 
-def save_onboarding(profile_type, use_case, display_name, school_country=None):
+PROMPT_OFFER_RECOMMENDATIONS = {
+    "clients": {
+        "plan": "pro", "title": "Bea Pro", "reason": "son prompt Analyse clients correspond à ton besoin",
+        "description": "Analyse des messages clients, émotions, objections et biais cognitifs d'achat, avec réponses prêtes à envoyer.",
+        "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €",
+    },
+    "contenu": {
+        "plan": "pro", "title": "Bea Pro", "reason": "son prompt Stratégie contenu correspond à ton besoin",
+        "description": "Hooks qui arrêtent le scroll, biais d'attention, titres, miniatures et plans de contenu adaptés à la plateforme.",
+        "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €",
+    },
+    "scolaire": {
+        "plan": "pro", "title": "Bea Pro", "reason": "son accompagnement scolaire correspond à ton besoin",
+        "description": "Méthodes de révision, aide aux devoirs, explications progressives et adaptation au programme du pays choisi.",
+        "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €",
+    },
+    "general": {
+        "plan": "bea", "title": "Bea", "reason": "son accompagnement comportemental général correspond à ton besoin",
+        "description": "Une IA comportementale pour clarifier tes blocages et construire des plans d'action concrets.",
+        "url": STRIPE_BEA_9, "label": "Choisir Bea - 9 €",
+    },
+    "site": {
+        "plan": "abo", "title": "Bea Ultra", "reason": "son bâtisseur de site et sa génération d'app correspondent à ton besoin",
+        "description": "Psychologie de conversion, structure de page et génération d'app web complète en HTML.",
+        "url": STRIPE_ABO_16, "label": "Choisir Bea Ultra - 16 €",
+    },
+    "code": {
+        "plan": "abo", "title": "Bea Ultra", "reason": "son Coach code et ses outils avancés correspondent à ton besoin",
+        "description": "Coach code, éditeur de projets, génération d'applications et usage sans limite de messages.",
+        "url": STRIPE_ABO_16, "label": "Choisir Bea Ultra - 16 €",
+    },
+}
+
+SCHOOL_COUNTRIES = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
+
+
+def recommend_use_case(goal, custom_goal):
+    if goal != "custom":
+        return goal
+    text = clean_text(custom_goal, 300).lower()
+    keywords = {
+        "clients": ("client", "prospect", "vente", "commercial", "email", "prospection"),
+        "contenu": ("contenu", "tiktok", "reels", "vidéo", "video", "youtube", "réseaux", "scroll"),
+        "site": ("site", "landing", "page web", "application", "app", "conversion"),
+        "code": ("code", "program", "python", "javascript", "bug", "développe"),
+        "scolaire": ("devoir", "cours", "révision", "réviser", "école", "lycée", "collège", "examen"),
+    }
+    for use_case, terms in keywords.items():
+        if any(term in text for term in terms):
+            return use_case
+    return "general"
+
+
+def save_onboarding(profile_type, use_case, display_name, goal, school_country=None):
     row = {
         "user_id": uid(),
         "profile_type": profile_type,
         "use_case": use_case,
         "display_name": clean_text(display_name, 40),
+        "goal": clean_text(goal, 300),
         "style": "Expert comportemental",
         "updated_at": now_iso(),
     }
     if school_country:
         row["school_country"] = school_country
     try:
-        sb().table("preferences").upsert(row).execute()
-        st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "profile_type", "use_case", "school_country")}
+        sb().table("preferences").upsert(row, on_conflict="user_id").execute()
+        st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country")}
         st.session_state.profile_type = profile_type
         st.session_state.onboarding_done = True
     except Exception as e:
@@ -1131,29 +1194,85 @@ def save_onboarding(profile_type, use_case, display_name, school_country=None):
         return False
     return True
 
+
 def page_onboarding():
-    st.markdown("### Bienvenue chez Bea")
-    st.caption("Trois petites questions pour que Bea s'adapte à toi dès le premier message.")
-    prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k,_ in PROFILE_OPTIONS],
-                    format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onb_profile", horizontal=False)
-    nom = st.text_input("Comment veux-tu que Bea t'appelle ?", key="onb_name", placeholder="Ton prénom ou pseudo (optionnel)", max_chars=40)
-    plan = st.session_state.plan
-    allowed = PLAN_ALLOWED_USE_CASES.get(plan, ("general",))
-    available = [(k, v) for k, v in USE_CASE_OPTIONS if k in allowed]
-    if len(available) > 1:
-        uc = st.radio("Quel est ton but avec Bea ?", [k for k,_ in available],
-                      format_func=lambda x: dict(USE_CASE_OPTIONS)[x], key="onb_usecase", horizontal=False)
-    else:
-        uc = available[0][0]
-        st.info(f"Ton but avec Bea : {dict(USE_CASE_OPTIONS)[uc]}. (Les autres prompts spécialisés se débloquent avec Bea Pro et Bea Ultra.)")
-    school_country = None
-    if uc == "scolaire":
-        pays_liste = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
-        school_country = st.selectbox("Pays du programme scolaire", pays_liste, key="onb_country")
-    if st.button("C'est parti", key="onb_go", use_container_width=True, type="primary"):
-        if save_onboarding(prof, uc, nom, school_country):
-            st.session_state.page = "chat"
+    step = int(st.session_state.get("onboarding_step", 1))
+    if step == 1:
+        st.markdown("### Bienvenue chez Bea")
+        st.caption("Étape 1 sur 4 — quelques réponses pour adapter Bea à ton profil.")
+        prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k, _ in PROFILE_OPTIONS],
+                        format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onboarding_profile", horizontal=False)
+        if st.button("Valider", key="onboarding_profile_next", use_container_width=True, type="primary"):
+            st.session_state.onboarding_profile = prof
+            st.session_state.onboarding_step = 2
             st.rerun()
+        return
+
+    if step == 2:
+        st.markdown("### Ton but avec Bea")
+        st.caption("Étape 2 sur 4 — choisis un prompt ou décris ton besoin librement.")
+        choices = [("clients", "Analyse clients / prospects"), ("contenu", "Stratégie contenu et réseaux sociaux"),
+                   ("site", "Créer un site ou une application"), ("code", "Coach code"),
+                   ("scolaire", "Accompagnement scolaire"), ("general", "Projets, habitudes et comportement"),
+                   ("custom", "J'ai un autre besoin")]
+        goal = st.selectbox("Quel est ton but ?", [key for key, _ in choices],
+                            format_func=lambda key: dict(choices)[key], key="onboarding_goal_choice")
+        custom_goal = ""
+        if goal == "custom":
+            custom_goal = st.text_area("Décris ton besoin", key="onboarding_goal_text", max_chars=300,
+                                       placeholder="Ex : Je veux attirer plus de clients avec mes vidéos.")
+        if goal == "scolaire":
+            st.selectbox("Pays du programme scolaire", SCHOOL_COUNTRIES, key="onboarding_country")
+        c_back, c_next = st.columns(2)
+        with c_back:
+            if st.button("Retour", key="onboarding_goal_back", use_container_width=True):
+                st.session_state.onboarding_step = 1
+                st.rerun()
+        with c_next:
+            if st.button("Valider", key="onboarding_goal_next", use_container_width=True, type="primary"):
+                if goal == "custom" and not clean_text(custom_goal, 300):
+                    st.warning("Décris ton besoin pour que Bea puisse te recommander la bonne offre.")
+                else:
+                    st.session_state.onboarding_goal = goal
+                    st.session_state.onboarding_recommended_use_case = recommend_use_case(goal, custom_goal)
+                    st.session_state.onboarding_step = 3
+                    st.rerun()
+        return
+
+    use_case = st.session_state.get("onboarding_recommended_use_case", "general")
+    recommendation = PROMPT_OFFER_RECOMMENDATIONS[use_case]
+    if step == 3:
+        st.markdown("### Analyse de ton profil")
+        with st.spinner("Analyse de ton profil et recherche de l'offre la plus adaptée..."):
+            time.sleep(1)
+        st.success(f"L'offre la plus adaptée est {recommendation['title']} : {recommendation['reason']}.")
+        with st.container(border=True):
+            st.markdown(f"#### {recommendation['title']}")
+            st.markdown(recommendation["description"])
+            st.link_button(recommendation["label"], recommendation["url"], use_container_width=True)
+        if st.button("Continuer", key="onboarding_offer_next", use_container_width=True, type="primary"):
+            st.session_state.onboarding_step = 4
+            st.rerun()
+        return
+
+    st.markdown("### Comment veux-tu que Bea t'appelle ?")
+    st.caption("Étape 4 sur 4 — tu pourras modifier ce nom plus tard.")
+    nom = st.text_input("Prénom ou pseudo", key="onboarding_name", max_chars=40)
+    goal = st.session_state.get("onboarding_goal", "general")
+    custom_goal = st.session_state.get("onboarding_goal_text", "")
+    use_case = st.session_state.get("onboarding_recommended_use_case", "general")
+    saved_goal = custom_goal if goal == "custom" else dict(USE_CASE_OPTIONS).get(goal, goal)
+    school_country = st.session_state.get("onboarding_country") if use_case == "scolaire" else None
+    c_back, c_finish = st.columns(2)
+    with c_back:
+        if st.button("Retour", key="onboarding_name_back", use_container_width=True):
+            st.session_state.onboarding_step = 3
+            st.rerun()
+    with c_finish:
+        if st.button("Valider et entrer dans Bea", key="onboarding_finish", use_container_width=True, type="primary"):
+            if save_onboarding(st.session_state.get("onboarding_profile", "autre"), use_case, nom, saved_goal, school_country):
+                st.session_state.page = "chat"
+                st.rerun()
 
 def page_chat():
     st.markdown("### 💬 Discussion avec Bea")
@@ -1223,8 +1342,8 @@ def page_chat():
                 if(!chat.contains(mic)){
                     chat.style.position = 'relative';
                     mic.style.position = 'absolute';
-                    mic.style.right = '58px';
-                    mic.style.bottom = '8px';
+                    mic.style.right = '54px';
+                    mic.style.bottom = '7px';
                     mic.style.zIndex = '9999';
                     chat.appendChild(mic);
                 }
