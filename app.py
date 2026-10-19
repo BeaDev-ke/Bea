@@ -236,6 +236,18 @@ SYSTEM_USE_CASES = {
         "Tu aides à comprendre, déboguer et améliorer du code. Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code, puis explique brièvement les changements. Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer. Réponds dans la langue de l'utilisateur, avec les commentaires de code en français."
     ),
     "general": None,
+    "scolaire": (
+        "MODE ACCOMPAGNEMENT SCOLAIRE.\n"
+        "L'utilisateur vient pour être accompagné dans sa scolarité : devoirs, révisions, méthodologie, préparation aux contrôles, compréhension des cours.\n"
+        "MÉTHODE : tu suis le programme officiel du pays sélectionné par l'utilisateur (présent dans ses préférences : school_country). Tu adaptes les explications au niveau (collège, lycée, supérieur) et au programme du pays. Tu mobilises des méthodes d'apprentissage validées : active recall, espacement, élaboration, interrogation élaborée, méthode Feynman, blocs de temps-pomodoro.\n"
+        "FORMAT DE RÉPONSE :\n"
+        "1. **Compréhension** : reformule la consigne ou la notion en une phrase simple.\n"
+        "2. **Résolution / explication** : étape par étape, avec les notions du programme liées.\n"
+        "3. **Vérification** : un contrôle rapide pour s'assurer que l'élève a compris.\n"
+        "4. **Astuce mémorisation** : une méthode pour retenir (mnémotechnique, schéma, analogie).\n"
+        "5. **Pour aller plus loin** : une question ou un exercice facultatif lié au programme.\n"
+        "RÈGLES : tu ne fais JAMAIS le devoir à la place de l'élève si l'objectif déclaré est un devoir noté : tu guides, tu expliques, tu vérifies la compréhension. Pour un exercice d'entraînement, tu peux donner la correction complète avec les étapes. Réponds dans la langue de l'utilisateur. Si le pays n'est pas défini, demande-le une seule fois puis adapte-toi."
+    ),
 }
 
 SYSTEM_CODE = ("Tu es l'IA code de Bea. Tu aides à comprendre, déboguer et améliorer du code. Réponds en français sauf demande contraire. "
@@ -267,7 +279,11 @@ def system_behavior():
     if mems:
         extra.append("Mémoire sur l'utilisateur : " + "; ".join([m.get('content','')[:120] for m in mems[:5]]))
     base = SYSTEM_BEHAVIOR_BASE
+    plan = st.session_state.plan
+    allowed = PLAN_ALLOWED_USE_CASES.get(plan, ("general",))
     use_case = p.get("use_case")
+    if use_case not in allowed:
+        use_case = "general"
     spec = SYSTEM_USE_CASES.get(use_case) if use_case else None
     if spec:
         base = base + "\n\n" + spec
@@ -361,7 +377,7 @@ def dev_reset_usage():
 def load_account():
     check_admin()
     try:
-        rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case").eq("user_id", uid()).execute().data
+        rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case,school_country").eq("user_id", uid()).execute().data
         st.session_state.prefs = rows[0] if rows else {}
     except Exception:
         st.session_state.prefs = {}
@@ -646,9 +662,9 @@ def render_offers():
     st.markdown("## Découvrir les offres")
     c1, c2, c3 = st.columns(3, gap="medium")
     cards = [
-        ("bea", c1, "Bea : 9 € par mois", "25 requêtes de chat / mois", STRIPE_BEA_9, "Choisir Bea - 9 €"),
-        ("pro", c2, "Bea Pro : 14,90 € par mois", "60 requêtes de chat + 30 de code / mois", STRIPE_PRO_1490, "Choisir Bea Pro - 14,90 €"),
-        ("abo", c3, "Bea Ultra : 16 € par mois", "Usage très large (usage équitable)", STRIPE_ABO_16, "S'abonner - 16 €"),
+        ("bea", c1, "Bea : 9 € par mois", "L'IA de base, sans personnalisation", STRIPE_BEA_9, "Choisir Bea - 9 €"),
+        ("pro", c2, "Bea Pro : 14,90 € par mois", "Bea + prompts spécialisés + outils créateurs", STRIPE_PRO_1490, "Choisir Bea Pro - 14,90 €"),
+        ("abo", c3, "Bea Ultra : 16 € par mois", "Tout illimité : app, studio, code, aucun plafond", STRIPE_ABO_16, "S'abonner - 16 €"),
     ]
     for key, col, title, caption, url, label in cards:
         with col:
@@ -661,12 +677,42 @@ def render_offers():
                     st.rerun()
                 if opened:
                     if key == "bea":
-                        st.markdown("**L'analyse des comportements quotidiens qui déterminent la réussite sur le long terme.**\n- Repérage des schémas qui freinent\n- Comportements de remplacement\n- Routines de discipline\n- Historique, fichiers, personnalisation, mémoire")
+                        st.markdown(
+                            "**L'IA comportementale de base, sans personnalisation.**\n"
+                            "- Chat avec l'ancienne limite de messages (25 / mois)\n"
+                            "- Analyse des comportements, plans d'action\n"
+                            "- Historique et fichiers joints\n"
+                            "- Mémoire et dictée vocale\n"
+                            "- ❌ Aucun prompt personnalisé (pas d'analyse clients, stratégie contenu, scolaire…)\n"
+                            "- ❌ Pas de studio créateur ni de génération d'app web"
+                        )
                     elif key == "pro":
-                        st.markdown("**Tout Bea, plus outils créateurs :**\n- Sous-titres automatiques (SRT/VTT)\n- Miniatures 1280×720\n- Plans de montage IA\n- Quotas plus élevés\n- Export PDF/Word\n- Dictée vocale")
+                        st.markdown(
+                            "**Tout Bea, plus les prompts spécialisés et les outils créateurs.**\n"
+                            "- 60 requêtes chat + 30 requêtes code / mois\n"
+                            "- **Prompts personnalisés activés :**\n"
+                            "  • Analyse clients (biais cognitifs d'achat)\n"
+                            "  • Stratégie contenu (hooks, biais d'attention)\n"
+                            "  • Accompagnement scolaire (programme du pays sélectionné)\n"
+                            "  • Général (projets & habitudes)\n"
+                            "- Sous-titres automatiques (SRT/VTT)\n"
+                            "- Miniatures 1280×720\n"
+                            "- Plans de montage IA\n"
+                            "- Montage style Canva avec modèles\n"
+                            "- Export PDF/Word, dictée vocale\n"
+                            "- ❌ Génération d'app web réservée à Bea Ultra"
+                        )
                         st.markdown('<div class="soon">Studio complet avec FFmpeg : audio, texte, effets, filtres, transitions.</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown("**Tout Bea Pro, plus :**\n- Génération d'app web complète (HTML unique)\n- Quotas très larges\n- Studio complet")
+                        st.markdown(
+                            "**Tout Bea Pro, sans aucune limite.**\n"
+                            "- Aucune limite de messages (usage équitable)\n"
+                            "- Génération d'app web complète (HTML unique)\n"
+                            "- Tous les prompts spécialisés + Coach code\n"
+                            "- Studio créateur complet\n"
+                            "- Montage style Canva avec modèles\n"
+                            "- Quotas très larges"
+                        )
                 st.link_button(label, url, use_container_width=True)
 
 def page_dev_portal():
@@ -934,6 +980,9 @@ def render_sidebar():
             return f"{x['used']}/{x['limit']}" if x else "?"
         st.markdown(f'<div class="limit-badge">{PLAN_LABEL[st.session_state.plan]} · Chat {fmt(q.get("chat"))} · Code {fmt(q.get("code"))} · {st.session_state.model_choice}</div>', unsafe_allow_html=True)
         st.selectbox("Modèle", ["rapide","puissant"], key="model_choice", help="Rapide = réponse instantanée, Puissant = raisonnement plus profond")
+        nom_perso = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
+        if nom_perso:
+            st.markdown(f'<div style="font-size:12px; color:#c4b5fd; margin-top:-4px; margin-bottom:6px;">👤 {html.escape(nom_perso)}</div>', unsafe_allow_html=True)
         if st.button("✨ Nouvelle discussion", key="nav_new", use_container_width=True):
             new_chat()
             st.rerun()
@@ -1041,10 +1090,27 @@ USE_CASE_OPTIONS = [
     ("contenu", "Créer et publier du contenu plus vite"),
     ("site", "Créer un site ou une page de présentation"),
     ("code", "Écrire, corriger ou améliorer du code"),
+    ("scolaire", "Accompagnement scolaire (devoirs, révisions, méthodo)"),
     ("general", "Me débloquer sur mes projets et mes habitudes"),
 ]
 
-def save_onboarding(profile_type, use_case, display_name):
+PLAN_ALLOWED_USE_CASES = {
+    "free": ("general",),
+    "bea": ("general",),
+    "pro": ("clients", "contenu", "scolaire", "general"),
+    "abo": ("clients", "contenu", "scolaire", "general"),
+}
+
+USE_CASE_LABEL = {
+    "clients": "Analyse clients",
+    "contenu": "Stratégie contenu",
+    "site": "Bâtisseur de site",
+    "code": "Coach code",
+    "scolaire": "Accompagnement scolaire",
+    "general": "Général (projets & habitudes)",
+}
+
+def save_onboarding(profile_type, use_case, display_name, school_country=None):
     row = {
         "user_id": uid(),
         "profile_type": profile_type,
@@ -1053,9 +1119,11 @@ def save_onboarding(profile_type, use_case, display_name):
         "style": "Expert comportemental",
         "updated_at": now_iso(),
     }
+    if school_country:
+        row["school_country"] = school_country
     try:
         sb().table("preferences").upsert(row).execute()
-        st.session_state.prefs = {k: row[k] for k in ("display_name", "style", "profile_type", "use_case")}
+        st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "profile_type", "use_case", "school_country")}
         st.session_state.profile_type = profile_type
         st.session_state.onboarding_done = True
     except Exception as e:
@@ -1069,10 +1137,21 @@ def page_onboarding():
     prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k,_ in PROFILE_OPTIONS],
                     format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onb_profile", horizontal=False)
     nom = st.text_input("Comment veux-tu que Bea t'appelle ?", key="onb_name", placeholder="Ton prénom ou pseudo (optionnel)", max_chars=40)
-    uc = st.radio("Quel est ton but avec Bea ?", [k for k,_ in USE_CASE_OPTIONS],
-                  format_func=lambda x: dict(USE_CASE_OPTIONS)[x], key="onb_usecase", horizontal=False)
+    plan = st.session_state.plan
+    allowed = PLAN_ALLOWED_USE_CASES.get(plan, ("general",))
+    available = [(k, v) for k, v in USE_CASE_OPTIONS if k in allowed]
+    if len(available) > 1:
+        uc = st.radio("Quel est ton but avec Bea ?", [k for k,_ in available],
+                      format_func=lambda x: dict(USE_CASE_OPTIONS)[x], key="onb_usecase", horizontal=False)
+    else:
+        uc = available[0][0]
+        st.info(f"Ton but avec Bea : {dict(USE_CASE_OPTIONS)[uc]}. (Les autres prompts spécialisés se débloquent avec Bea Pro et Bea Ultra.)")
+    school_country = None
+    if uc == "scolaire":
+        pays_liste = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
+        school_country = st.selectbox("Pays du programme scolaire", pays_liste, key="onb_country")
     if st.button("C'est parti", key="onb_go", use_container_width=True, type="primary"):
-        if save_onboarding(prof, uc, nom):
+        if save_onboarding(prof, uc, nom, school_country):
             st.session_state.page = "chat"
             st.rerun()
 
@@ -1509,7 +1588,11 @@ def page_perso():
     p = st.session_state.prefs or {}
     styles = list(STYLE_HINT)
     profs = [k for k,_ in PROFILE_OPTIONS]
-    ucs = [k for k,_ in USE_CASE_OPTIONS]
+    plan = st.session_state.plan
+    allowed = PLAN_ALLOWED_USE_CASES.get(plan, ("general",))
+    ucs = [k for k,_ in USE_CASE_OPTIONS if k in allowed]
+    if not ucs:
+        ucs = ["general"]
     with st.form("form_perso"):
         nom = st.text_input("Comment Bea doit-elle t'appeler ?", value=p.get("display_name") or "", max_chars=40)
         style = st.selectbox("Style de réponse", styles, index=styles.index(p["style"]) if p.get("style") in styles else 0)
@@ -1517,14 +1600,22 @@ def page_perso():
         prof = st.selectbox("Profil", profs, index=profs.index(p["profile_type"]) if p.get("profile_type") in profs else 0,
                             format_func=lambda x: dict(PROFILE_OPTIONS)[x])
         uc = st.selectbox("Ton but avec Bea", ucs, index=ucs.index(p["use_case"]) if p.get("use_case") in ucs else len(ucs)-1,
-                          format_func=lambda x: dict(USE_CASE_OPTIONS)[x])
+                          format_func=lambda x: USE_CASE_LABEL.get(x, x))
+        school_country = None
+        if uc == "scolaire":
+            pays_liste = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
+            cur_pays = p.get("school_country")
+            school_country = st.selectbox("Pays du programme scolaire", pays_liste,
+                                          index=pays_liste.index(cur_pays) if cur_pays in pays_liste else 0)
         ok = st.form_submit_button("Enregistrer", use_container_width=True)
     if ok:
         row = {"user_id": uid(), "display_name": clean_text(nom, 40), "style": style, "goal": clean_text(objectif, 160),
                "profile_type": prof, "use_case": uc, "updated_at": now_iso()}
+        if uc == "scolaire" and school_country:
+            row["school_country"] = school_country
         try:
             sb().table("preferences").upsert(row).execute()
-            st.session_state.prefs = {k: row[k] for k in ("display_name", "style", "goal", "profile_type", "use_case")}
+            st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country")}
             st.session_state.profile_type = prof
             st.session_state.perso_saved = True
         except Exception as e:
