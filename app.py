@@ -4,13 +4,14 @@ import json
 import os
 import re
 import time
+import zipfile
 from collections import deque
 from datetime import datetime, timezone
 
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from supabase import create_client
 
 from bea_utils import (
@@ -146,11 +147,12 @@ for k, v in {
     "conv_id": None, "messages": [], "convs": None, "projects": None,
     "code_messages": [], "code_project_id": None, "code_name_in": "", "code_lang_in": "python",
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
-    "sub_result": None, "plan_result": None, "app_result": None, "thumb_png": None, "pending_login": None, "is_admin": False,
+    "sub_result": None, "plan_result": None, "app_result": None, "app_versions": [], "app_generation_count": 0, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
     "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
     "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_profile_choice": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "", "onboarding_study_country": "France", "onboarding_study_level": "Collège - 6e",
+    "canvas_png": None, "canvas_zip": None,
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -289,9 +291,11 @@ SYSTEM_MONTAGE = ("Tu es monteur vidéo et stratège de contenu. À partir du su
                   "hook des 3 premières secondes, découpage en séquences avec durées, rythme et coupes, style des sous-titres, idées de musique et d'effets sonores, "
                   "appel à l'action, 3 idées de titres et 1 idée de miniature. Adapte-toi à la plateforme et à la durée demandées. N'invente aucune statistique.")
 
-SYSTEM_APP = ("Tu génères une application web complète dans UN SEUL fichier HTML (HTML + CSS + JavaScript vanilla). Contraintes : aucune ressource externe "
-              "(pas de CDN, pas d'appel réseau), données gardées en mémoire dans la page, design moderne et responsive, thème sombre violet par défaut, "
-              "interface en français. Réponds uniquement avec le code dans un bloc ```html.")
+SYSTEM_APP = ("Tu es un product builder senior. Tu génères une application web complète et réellement utilisable dans UN SEUL fichier HTML autonome (HTML + CSS + JavaScript vanilla). "
+              "Commence par transformer le brief en une expérience claire : navigation, état vide, données de démonstration réalistes, actions principales, validations, messages de succès et d'erreur, responsive mobile/desktop et accessibilité clavier. "
+              "Contraintes : aucune ressource externe, aucun CDN, aucun appel réseau, aucune dépendance ; les données restent dans la page et peuvent être conservées avec localStorage ; pas de fausse fonctionnalité ni de bouton sans action. "
+              "Utilise une direction visuelle premium adaptée au projet, avec contraste lisible, hiérarchie nette, micro-interactions discrètes et code maintenable. Interface en français sauf demande contraire. "
+              "Réponds uniquement avec le fichier HTML complet dans un bloc ```html, sans explication avant ou après.")
 
 def system_behavior():
     p = st.session_state.prefs or {}
@@ -470,7 +474,7 @@ def db_error(e=None):
             st.error("Ton compte est bien connecté, mais l'enregistrement du profil a été refusé. Recharge la page et réessaie.")
             return
         if "column" in detail or "schema cache" in detail:
-            st.error("La configuration du profil n'est pas encore synchronisée. Recharge la page et réessaie.")
+            st.error("Le service de profil est momentanément indisponible. Ce problème n'est pas lié à ton offre payante. Recharge la page et réessaie.")
             return
     st.error("Erreur d'accès aux données. Réessaie dans un instant.")
 
@@ -970,6 +974,7 @@ def page_vitrine():
     render_offers()
 
 STUDIO_SECTIONS = [
+    ("composer", "🎨 Composer", "Canvas central, modèles, photos et formats sociaux", "abo"),
     ("importer", "📂 Importer un média", "Ajoute ta vidéo, audio ou image", "free"),
     ("sous_titres", "💬 Sous-titres automatiques", "Transcription IA en SRT/VTT", "pro"),
     ("miniature", "🖼️ Miniature 1280×720", "Génère une miniature accrocheuse", "free"),
@@ -1223,18 +1228,34 @@ def save_onboarding(profile_type, use_case, display_name, goal, school_country=N
         "style": "Expert comportemental",
         "updated_at": now_iso(),
     }
+    optional = {}
     if school_country:
-        row["school_country"] = school_country
+        optional["school_country"] = school_country
     if study_country:
-        row["study_country"] = study_country
+        optional["study_country"] = study_country
     if study_level:
-        row["study_level"] = study_level
+        optional["study_level"] = study_level
     try:
         sb().table("preferences").upsert(row, on_conflict="user_id").execute()
+        if optional:
+            sb().table("preferences").update(optional).eq("user_id", uid()).execute()
+            row.update(optional)
         st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
         st.session_state.profile_type = profile_type
         st.session_state.onboarding_done = True
     except Exception as e:
+        detail = str(e).lower()
+        if optional and ("column" in detail or "schema cache" in detail):
+            try:
+                sb().table("preferences").upsert(row, on_conflict="user_id").execute()
+                st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
+                st.session_state.profile_type = profile_type
+                st.session_state.onboarding_done = True
+                st.warning("Ton profil est enregistré. Les détails scolaires seront synchronisés après le prochain rechargement.")
+                return True
+            except Exception as fallback_error:
+                db_error(fallback_error)
+                return False
         db_error(e)
         return False
     return True
@@ -1581,32 +1602,107 @@ def locked(msg):
     st.info(msg)
     st.button("Voir les offres", key=f"locked_{st.session_state.page}", on_click=goto, args=("compte",))
 
+def generate_app(prompt, mode):
+    if not clean_text(prompt, 12000):
+        st.warning("Décris ton projet pour lancer la génération.")
+        return False
+    if not rate_ok() or not quota_ok("code"):
+        return False
+    messages = [{"role": "system", "content": SYSTEM_APP}]
+    if mode == "refine" and st.session_state.app_result:
+        messages.append({"role": "user", "content": "Voici la version actuelle de l'application :\n```html\n" + clean_text(st.session_state.app_result, 30000) + "\n```"})
+        messages.append({"role": "user", "content": "Modifie-la sans supprimer les fonctionnalités existantes sauf si je le demande. Demande de retouche : " + clean_text(prompt, 4000)})
+    else:
+        messages.append({"role": "user", "content": clean_text(prompt, 12000)})
+    with st.spinner("Bea construit ton application..."):
+        try:
+            raw = "".join(stream_groq(messages, 10000))
+            html_code = extract_html(raw)
+        except Exception:
+            html_code = ""
+    if not html_code or "<" not in html_code or ">" not in html_code:
+        st.error("La génération n'a pas produit une application exploitable. Reformule le besoin et réessaie.")
+        return False
+    previous = st.session_state.get("app_result")
+    if previous and previous != html_code:
+        st.session_state.app_versions = (st.session_state.get("app_versions", []) + [previous])[-5:]
+    st.session_state.app_result = html_code
+    st.session_state.app_generation_count = st.session_state.get("app_generation_count", 0) + 1
+    quota_consume("code")
+    return True
+
+
+def build_web_app_pack(html_code: str):
+    stream = io.BytesIO()
+    manifest = json.dumps({
+        "name": "Application créée avec Bea",
+        "short_name": "Mon application",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#101522",
+        "theme_color": "#2563eb",
+        "lang": "fr",
+    }, ensure_ascii=False, indent=2)
+    service_worker = "self.addEventListener('install', event => self.skipWaiting());\\nself.addEventListener('activate', event => self.clients.claim());"
+    guide = "Ce pack contient une application web autonome. Déploie index.html sur un hébergeur web ou importe-le dans un outil de wrapper mobile pour préparer une version Android/iOS. La publication finale sur les stores nécessite les comptes développeur et les contrôles de chaque store."
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("index.html", html_code)
+        archive.writestr("manifest.webmanifest", manifest)
+        archive.writestr("sw.js", service_worker)
+        archive.writestr("README.txt", guide)
+    return stream.getvalue()
+
+
 def page_app():
-    st.markdown("### 🌐 Application web en un prompt")
+    st.markdown("### 🌐 Atelier de création web")
     if st.session_state.plan != "abo":
-        locked("Cette fonction est incluse dans Bea Ultra.")
+        locked("L'atelier complet de création web est inclus dans Bea Ultra.")
         return
-    st.caption("Génère une application web d'une seule page (HTML, CSS, JavaScript). Pas d'APK ni de base de données : les données restent dans le navigateur.")
-    idea = st.text_area("Décris ton application", height=140, placeholder="Ex : un suivi d'habitudes avec calendrier et série de jours consécutifs", key="app_idea")
-    if st.button("Générer l'application", key="app_go", use_container_width=True) and clean_text(idea, 3000):
-        if rate_ok() and quota_ok("code"):
-            with st.spinner("Génération en cours..."):
-                try:
-                    raw = "".join(stream_groq([{"role": "system", "content": SYSTEM_APP}, {"role": "user", "content": clean_text(idea, 3000)}], 6000))
-                    html_code = extract_html(raw)
-                except Exception:
-                    html_code = ""
-            if html_code:
-                st.session_state.app_result = html_code
-                quota_consume("code")
+    st.caption("Décris ton idée, construis une première version, puis demande des retouches sans repartir de zéro. Chaque résultat est un fichier HTML autonome.")
+    with st.container(border=True):
+        st.markdown("#### 1. Définis ton produit")
+        app_kind = st.selectbox("Type de projet", ["Application web", "Site vitrine", "Landing page", "Portfolio", "Tableau de bord", "Outil interne"], key="app_kind")
+        audience = st.text_input("Pour qui ?", key="app_audience", placeholder="Ex : indépendants qui veulent suivre leurs prospects")
+        objective = st.text_input("Objectif principal", key="app_objective", placeholder="Ex : visualiser les priorités et relancer au bon moment")
+        features = st.text_area("Fonctions indispensables", height=100, key="app_features", placeholder="Ex : ajouter une tâche, filtrer par statut, voir les statistiques, sauvegarder les données")
+        c1, c2 = st.columns(2)
+        with c1:
+            visual_style = st.selectbox("Style visuel", ["Minimal clair", "Sombre premium", "Éditorial", "Coloré et énergique", "Professionnel"], key="app_visual_style")
+        with c2:
+            pages = st.selectbox("Organisation", ["Une page", "Tableau de bord avec sections", "Navigation multi-vues"], key="app_pages")
+        extra = st.text_area("Contraintes ou détails à respecter", height=80, key="app_extra", placeholder="Ex : couleurs de ma marque, ton sérieux, mobile prioritaire")
+        brief = f"Type : {app_kind}\nPublic : {clean_text(audience, 500)}\nObjectif : {clean_text(objective, 700)}\nFonctions : {clean_text(features, 1800)}\nStyle : {visual_style}\nOrganisation : {pages}\nContraintes : {clean_text(extra, 1000)}"
+        if st.button("Construire la première version", key="app_go", use_container_width=True, type="primary"):
+            if generate_app(brief, "initial"):
                 st.rerun()
-            else:
-                st.error("La génération a échoué. Réessaie en reformulant ta demande.")
-    if st.session_state.app_result:
-        st.download_button("⬇️ Télécharger le fichier HTML", st.session_state.app_result, file_name="mon_app.html", mime="text/html", key="app_dl")
-        components.html(st.session_state.app_result, height=650, scrolling=True)
-        with st.expander("Voir le code"):
-            st.code(st.session_state.app_result, language="html")
+    if not st.session_state.app_result:
+        st.info("Commence par remplir le brief. Bea générera une interface avec de vraies interactions, un état vide et des données de démonstration.")
+        return
+    st.divider()
+    st.markdown("#### 2. Teste et améliore")
+    st.caption(f"Version {st.session_state.get('app_generation_count', 1)} — teste les boutons dans l'aperçu puis demande une retouche précise.")
+    refinement = st.text_area("Que veux-tu changer ?", height=90, key="app_refinement", placeholder="Ex : Ajoute un mode sombre, rends le bouton principal plus visible et ajoute une recherche par nom.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Appliquer la retouche", key="app_refine", use_container_width=True, type="primary"):
+            if generate_app(refinement, "refine"):
+                st.rerun()
+    with c2:
+        st.download_button("Télécharger HTML", st.session_state.app_result, file_name="mon_app.html", mime="text/html", key="app_dl", use_container_width=True)
+    with c3:
+        if st.button("Revenir à la version précédente", key="app_undo", use_container_width=True, disabled=not st.session_state.get("app_versions")):
+            versions = st.session_state.app_versions
+            st.session_state.app_result = versions.pop()
+            st.session_state.app_generation_count = max(1, st.session_state.app_generation_count - 1)
+            st.rerun()
+    app_pack = build_web_app_pack(st.session_state.app_result)
+    st.download_button("Télécharger le pack web installable", app_pack, file_name="mon_app_web.zip", mime="application/zip", key="app_pack_dl", use_container_width=True)
+    st.caption("Le pack est prêt à héberger ou à importer dans un outil de wrapper mobile. La publication Play Store/App Store demande ensuite les comptes développeur et les validations propres à chaque plateforme.")
+    preview_tab, code_tab = st.tabs(["Aperçu interactif", "Code HTML"])
+    with preview_tab:
+        components.html(st.session_state.app_result, height=720, scrolling=True)
+    with code_tab:
+        st.code(st.session_state.app_result, language="html")
 
 def studio_step_card(num, title, desc):
     st.markdown(
@@ -1614,13 +1710,145 @@ def studio_step_card(num, title, desc):
         unsafe_allow_html=True
     )
 
+
+def canvas_font(size: int, bold: bool = False):
+    candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return ImageFont.truetype(path, size)
+    return ImageFont.load_default()
+
+
+def draw_canvas_text(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int], max_width: int, font, fill: str):
+    words = clean_text(text, 180).split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if draw.textbbox((0, 0), candidate, font=font)[2] <= max_width or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    line_height = int(font.size * 1.18) if hasattr(font, "size") else 24
+    for index, line in enumerate(lines[:5]):
+        draw.text((xy[0], xy[1] + index * line_height), line, font=font, fill=fill)
+
+
+def compose_canvas(assets: list[Image.Image], size: tuple[int, int], layout: str, title: str, subtitle: str, accent: str, background: str):
+    width, height = size
+    canvas = Image.new("RGB", size, background)
+    draw = ImageDraw.Draw(canvas)
+    margin = max(28, int(width * 0.055))
+    gap = max(16, int(width * 0.025))
+    usable_width = width - (margin * 2)
+    usable_height = height - (margin * 2)
+    if assets:
+        if layout == "Grille 2×2":
+            cells = [(0, 0), (1, 0), (0, 1), (1, 1)]
+            cell_w = (usable_width - gap) // 2
+            cell_h = int(usable_height * 0.58)
+            for asset, (column, row) in zip(assets[:4], cells):
+                x = margin + column * (cell_w + gap)
+                y = margin + row * (cell_h + gap)
+                fitted = ImageOps.fit(asset.convert("RGB"), (cell_w, cell_h))
+                canvas.paste(fitted, (x, y))
+                draw.rounded_rectangle((x, y, x + cell_w, y + cell_h), radius=18, outline=accent, width=4)
+        elif layout == "Collage éditorial":
+            main_w = int(usable_width * 0.64)
+            main_h = int(usable_height * 0.64)
+            if assets:
+                canvas.paste(ImageOps.fit(assets[0].convert("RGB"), (main_w, main_h)), (margin, margin))
+            for index, asset in enumerate(assets[1:4]):
+                x = margin + main_w + gap
+                y = margin + index * ((main_h - gap * 2) // 3 + gap)
+                h = (main_h - gap * 2) // 3
+                canvas.paste(ImageOps.fit(asset.convert("RGB"), (usable_width - main_w - gap, h)), (x, y))
+        else:
+            image_h = int(usable_height * 0.68)
+            canvas.paste(ImageOps.fit(assets[0].convert("RGB"), (usable_width, image_h)), (margin, margin))
+            draw.rounded_rectangle((margin, margin, margin + usable_width, margin + image_h), radius=20, outline=accent, width=5)
+    else:
+        draw.rounded_rectangle((margin, margin, width - margin, int(height * 0.68)), radius=24, outline=accent, width=4)
+        placeholder_font = canvas_font(max(24, int(width * 0.035)), True)
+        draw.text((width // 2, int(height * 0.36)), "Ajoute tes photos", font=placeholder_font, fill="#8f98ad", anchor="mm")
+    overlay_y = int(height * 0.73)
+    draw.rounded_rectangle((margin, overlay_y, width - margin, height - margin), radius=26, fill="#101522")
+    title_font = canvas_font(max(28, int(width * 0.052)), True)
+    subtitle_font = canvas_font(max(18, int(width * 0.026)))
+    draw_canvas_text(draw, title or "Ton titre ici", (margin + 28, overlay_y + 28), usable_width - 56, title_font, "#ffffff")
+    draw_canvas_text(draw, subtitle or "Ajoute un message clair et mémorable.", (margin + 28, overlay_y + int(height * 0.105)), usable_width - 56, subtitle_font, "#c8d0df")
+    draw.rounded_rectangle((margin + 28, height - margin - 58, margin + 210, height - margin - 22), radius=17, fill=accent)
+    draw.text((margin + 46, height - margin - 52), "Découvrir", font=canvas_font(18, True), fill="#ffffff")
+    return canvas
+
+
+def build_canvas_pack(png: bytes, platform: str, title: str):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("visuel.png", png)
+        archive.writestr("publication.txt", f"Format : {platform}\\nTitre : {clean_text(title, 180)}\\n\\nLe visuel est prêt à importer dans Instagram, TikTok, YouTube ou ton outil de publication.")
+    return stream.getvalue()
+
+
 def page_studio():
     menu = st.session_state.studio_menu
     st.markdown(f"### 🎬 Studio créateur — {studio_section_label(menu)}")
     st.caption("Suis les étapes ci-dessous. Les actions avec un cadenas 🔒 nécessitent une offre Pro ou Ultra.")
 
-    if menu == "importer":
-        studio_step_card(1, "Importer ton média", "Ajoute une vidéo, un audio ou une image. Tu pourras ensuite l'utiliser dans les autres étapes du studio.")
+    if menu == "composer":
+        if st.session_state.plan != "abo":
+            studio_step_card(1, "Composer comme dans Canva", "Crée un visuel social complet avec un canvas central, des modèles et tes photos.")
+            locked("Le canvas, les modèles et les exports sociaux sont inclus dans Bea Ultra.")
+            return
+        studio_step_card(1, "Construis ton visuel", "Choisis un format de publication, dépose tes photos, sélectionne une mise en page et ajuste ton texte.")
+        formats = {
+            "Instagram · Post carré": ((1080, 1080), "Instagram"),
+            "Instagram · Story / Reel": ((1080, 1920), "Instagram Story / Reel"),
+            "TikTok · Vertical": ((1080, 1920), "TikTok"),
+            "YouTube · Miniature": ((1920, 1080), "YouTube"),
+            "LinkedIn · Publication": ((1200, 1200), "LinkedIn"),
+            "App Store · Capture": ((1242, 2688), "App Store"),
+        }
+        format_label = st.selectbox("Format de destination", list(formats), key="canvas_format")
+        size, platform = formats[format_label]
+        left, center, right = st.columns([1, 1.35, 1])
+        with left:
+            layout = st.selectbox("Modèle", ["Hero photo", "Grille 2×2", "Collage éditorial"], key="canvas_layout")
+            title = st.text_input("Titre", max_chars=90, key="canvas_title", placeholder="Ton idée en une phrase")
+            subtitle = st.text_area("Sous-titre", height=90, max_chars=180, key="canvas_subtitle", placeholder="Une promesse simple ou un appel à l'action")
+        with right:
+            accent = st.color_picker("Couleur d'accent", "#2563EB", key="canvas_accent")
+            background = st.color_picker("Couleur du fond", "#172033", key="canvas_background")
+            photos = st.file_uploader("Ajoute jusqu'à 8 photos", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key="canvas_photos")
+            assets = []
+            for photo in photos[:8] if photos else []:
+                try:
+                    assets.append(Image.open(io.BytesIO(photo.getvalue())).convert("RGB"))
+                except Exception:
+                    st.warning(f"Impossible de lire {photo.name}.")
+        with center:
+            st.markdown("#### Canvas de publication")
+            canvas = compose_canvas(assets, size, layout, title, subtitle, accent, background)
+            st.image(canvas, use_container_width=True)
+        st.divider()
+        png = image_to_png_bytes(canvas)
+        st.session_state.canvas_png = png
+        st.session_state.canvas_zip = build_canvas_pack(png, platform, title)
+        d1, d2 = st.columns(2)
+        with d1:
+            st.download_button("Télécharger le visuel PNG", png, file_name="visuel_publication.png", mime="image/png", key="canvas_png_download", use_container_width=True)
+        with d2:
+            st.download_button("Télécharger le pack publication", st.session_state.canvas_zip, file_name="pack_publication.zip", mime="application/zip", key="canvas_zip_download", use_container_width=True)
+        st.caption(f"Prêt pour {platform}. Pour une vidéo, utilise ce visuel comme couverture ou première séquence dans ton éditeur mobile préféré.")
+
+    elif menu == "importer":
+        studio_step_card(1, "Importer ton média", "Ajoute ta vidéo, audio ou image. Tu pourras ensuite l'utiliser dans les autres étapes du studio.")
         up = st.file_uploader("Choisis un fichier", type=["mp4","mp3","wav","png","jpg","jpeg","webm","mov","m4a","ogg"], key="media_up")
         if up:
             st.success(f"✅ {up.name} importé — {up.size/1024/1024:.2f} Mo")
