@@ -1,3 +1,4 @@
+import base64
 import html
 import io
 import json
@@ -146,12 +147,12 @@ for k, v in {
     "page": "chat", "sb": None, "user": None, "plan": "free", "quota": {}, "prefs": {},
     "conv_id": None, "messages": [], "convs": None, "projects": None,
     "code_messages": [], "code_project_id": None, "code_name_in": "", "code_lang_in": "python",
-    "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "",
+    "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "", "pending_confirmation_email": "",
     "sub_result": None, "plan_result": None, "app_result": None, "app_versions": [], "app_generation_count": 0, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
     "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
-    "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_profile_choice": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "", "onboarding_study_country": "France", "onboarding_study_level": "Collège - 6e",
+    "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_profile_choice": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "", "onboarding_study_country": "France", "onboarding_study_level": "Collège - 6e", "landing_tab": "connexion",
     "canvas_png": None, "canvas_zip": None,
 }.items():
     if k not in st.session_state:
@@ -355,6 +356,45 @@ def stream_groq(messages, max_tokens=2600, model_override=None):
 
 def new_client():
     return create_client(SUPA_URL, SUPA_KEY)
+
+
+def persist_auth_session(session):
+    access_token = getattr(session, "access_token", "")
+    refresh_token = getattr(session, "refresh_token", "")
+    if not access_token or not refresh_token:
+        return
+    payload = base64.urlsafe_b64encode(json.dumps({"access": access_token, "refresh": refresh_token}).encode()).decode()
+    components.html(f"""
+    <script>
+    window.parent.document.cookie = {json.dumps(f"bea_auth={payload}; Max-Age=2592000; Path=/; SameSite=Lax")};
+    </script>
+    """, height=0)
+
+
+def clear_auth_session():
+    components.html("<script>window.parent.document.cookie = 'bea_auth=; Max-Age=0; Path=/; SameSite=Lax';</script>", height=0)
+
+
+def restore_auth_session():
+    try:
+        context = getattr(st, "context", None)
+        cookies = getattr(context, "cookies", {}) if context else {}
+        raw = cookies.get("bea_auth", "")
+        if not raw:
+            return False
+        data = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
+        client = new_client()
+        result = client.auth.set_session(data["access"], data["refresh"])
+        session = getattr(result, "session", None)
+        user = getattr(session, "user", None) if session else None
+        if not user:
+            return False
+        st.session_state.sb, st.session_state.user = client, user
+        load_account()
+        return True
+    except Exception:
+        return False
+
 
 def sb():
     return st.session_state.sb
@@ -858,12 +898,30 @@ def page_dev_lab():
         st.rerun()
 
 def page_vitrine():
+    nav_a, nav_b, nav_c = st.columns([1, 1.4, 1])
+    with nav_a:
+        if st.button("Offres", key="landing_offers", use_container_width=True):
+            st.session_state.landing_tab = "offres"
+            st.rerun()
+    with nav_b:
+        if st.button("BehaviorLab AI", key="landing_about", use_container_width=True):
+            st.session_state.landing_tab = "about"
+            st.rerun()
+    with nav_c:
+        st.selectbox("Langues", ["Français", "English"], key="landing_language", label_visibility="collapsed")
     if LOGO:
         _, c, _ = st.columns([1, 0.3, 1])
         with c:
             st.image(LOGO, width=80)
     st.markdown('<div class="claude-title">Bea</div><div class="claude-sub">BehaviorLab AI</div>', unsafe_allow_html=True)
-    st.markdown('<div class="desc-main">Bea part d\'une idée encore floue et la transforme en projet concret. Elle repère le blocage précis qui ralentit ton avancement, puis propose des actions mesurables que tu peux appliquer immédiatement.</div>', unsafe_allow_html=True)
+    landing_tab = st.session_state.get("landing_tab", "connexion")
+    if landing_tab == "about":
+        st.markdown('<div class="desc-main"><strong>BehaviorLab AI</strong> développe des intelligences artificielles pensées pour transformer les idées en progrès concrets. Nos outils combinent compréhension du comportement, aide à la décision et accompagnement pratique pour vous aider à avancer avec plus de clarté, de régularité et d\'impact.</div>', unsafe_allow_html=True)
+    elif landing_tab == "offres":
+        st.markdown('<div class="desc-main">Choisissez l\'accompagnement adapté à votre besoin, puis revenez à l\'onglet de connexion pour commencer.</div>', unsafe_allow_html=True)
+        render_offers()
+    else:
+        st.markdown('<div class="desc-main">Bea transforme une idée floue ou un blocage en prochaines étapes concrètes. Elle vous aide à comprendre ce qui ralentit votre projet, à choisir une direction et à passer à l\'action avec un plan clair.</div>', unsafe_allow_html=True)
     _, col, _ = st.columns([0.5, 1.6, 0.5])
     with col:
         with st.container(border=True):
@@ -882,6 +940,7 @@ def page_vitrine():
                             d = new_client()
                             res = d.auth.verify_otp({"email": pend["email"], "token": code.strip(), "type": "email"})
                             st.session_state.sb, st.session_state.user = d, res.user
+                            persist_auth_session(getattr(res, "session", None))
                             st.session_state.pending_login = None
                             st.session_state.auth_notice = ""
                             load_account()
@@ -918,21 +977,26 @@ def page_vitrine():
                                 st.session_state.pending_login = {"email": email.strip()}
                                 st.rerun()
                             st.session_state.sb, st.session_state.user = c, res.user
+                            persist_auth_session(getattr(res, "session", None))
                             st.session_state.auth_notice = ""
                             load_account()
                             st.rerun()
                         except Exception as e:
-                            st.error("Adresse e-mail à confirmer : vérifie ta boîte mail." if "confirm" in str(e).lower() else "Identifiants invalides.")
-                    with st.expander("Je n'ai pas reçu l'e-mail de confirmation"):
-                        with st.form("form_resend"):
-                            email_r = st.text_input("Adresse e-mail", key="rc_email")
-                            go_r = st.form_submit_button("Renvoyer l'e-mail de confirmation", use_container_width=True)
-                        if go_r:
+                            if "confirm" in str(e).lower():
+                                st.session_state.pending_confirmation_email = email.strip()
+                                st.error("Cette adresse doit encore être confirmée. Utilise le bouton ci-dessous pour recevoir un nouvel e-mail.")
+                            else:
+                                st.error("Identifiants invalides.")
+                    confirmation_email = st.session_state.get("pending_confirmation_email", "")
+                    if confirmation_email:
+                        st.info(f"Adresse identifiée : {confirmation_email}")
+                        if st.button("Renvoyer l'e-mail de confirmation", key="resend_after_identification", use_container_width=True):
                             try:
-                                new_client().auth.resend({"type": "signup", "email": email_r.strip()})
+                                new_client().auth.resend({"type": "signup", "email": confirmation_email})
+                                st.success("Un nouvel e-mail de confirmation vient d'être envoyé.")
                             except Exception:
-                                pass
-                            st.success("Si ce compte existe et n'est pas encore confirmé, un nouvel e-mail vient d'être envoyé.")
+                                st.error("Impossible de renvoyer l'e-mail pour le moment.")
+                    st.caption("Le renvoi devient disponible après une tentative d'identification.")
             with t_up:
                 with st.form("form_signup"):
                     email2 = st.text_input("Adresse e-mail", key="su_email")
@@ -952,6 +1016,7 @@ def page_vitrine():
                             res = c.auth.sign_up({"email": email2.strip(), "password": pwd2})
                             if getattr(res, "session", None):
                                 st.session_state.sb, st.session_state.user = c, res.user
+                                persist_auth_session(getattr(res, "session", None))
                                 load_account()
                                 st.rerun()
                             else:
@@ -970,8 +1035,7 @@ def page_vitrine():
                     except Exception:
                         pass
                     st.success("Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé.")
-    st.markdown("<div style='height:36px;'></div>", unsafe_allow_html=True)
-    render_offers()
+    st.markdown("<div style='height:36px;'></div>")
 
 STUDIO_SECTIONS = [
     ("composer", "🎨 Composer", "Canvas central, modèles, photos et formats sociaux", "abo"),
@@ -1119,6 +1183,7 @@ def render_sidebar():
                 sb().auth.sign_out()
             except Exception:
                 pass
+            clear_auth_session()
             for k in ("sb", "user", "conv_id", "convs", "projects", "sub_result", "plan_result", "app_result", "thumb_png", "dev_key_ok"):
                 st.session_state[k] = None
             st.session_state.messages, st.session_state.code_messages, st.session_state.quota, st.session_state.prefs = [], [], {}, {}
@@ -1220,45 +1285,40 @@ def recommend_use_case(goal, custom_goal):
 
 def save_onboarding(profile_type, use_case, display_name, goal, school_country=None, study_country=None, study_level=None):
     row = {
-        "user_id": uid(),
-        "profile_type": profile_type,
         "use_case": use_case,
         "display_name": clean_text(display_name, 40),
         "goal": clean_text(goal, 300),
         "style": "Expert comportemental",
+        "profile_type": profile_type,
         "updated_at": now_iso(),
     }
-    optional = {}
     if school_country:
-        optional["school_country"] = school_country
+        row["school_country"] = school_country
     if study_country:
-        optional["study_country"] = study_country
+        row["study_country"] = study_country
     if study_level:
-        optional["study_level"] = study_level
+        row["study_level"] = study_level
     try:
         sb().table("preferences").upsert(row, on_conflict="user_id").execute()
-        if optional:
-            sb().table("preferences").update(optional).eq("user_id", uid()).execute()
-            row.update(optional)
         st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
         st.session_state.profile_type = profile_type
         st.session_state.onboarding_done = True
+        return True
     except Exception as e:
         detail = str(e).lower()
-        if optional and ("column" in detail or "schema cache" in detail):
+        if "column" in detail or "schema cache" in detail:
+            fallback = {k: value for k, value in row.items() if k not in ("school_country", "study_country", "study_level")}
             try:
-                sb().table("preferences").upsert(row, on_conflict="user_id").execute()
-                st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
+                sb().table("preferences").upsert(fallback, on_conflict="user_id").execute()
+                st.session_state.prefs = {k: fallback.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case")}
                 st.session_state.profile_type = profile_type
                 st.session_state.onboarding_done = True
-                st.warning("Ton profil est enregistré. Les détails scolaires seront synchronisés après le prochain rechargement.")
                 return True
             except Exception as fallback_error:
                 db_error(fallback_error)
                 return False
         db_error(e)
         return False
-    return True
 
 
 def page_onboarding():
@@ -1395,38 +1455,58 @@ def page_chat():
         if generate_reply():
             st.rerun()
 
-    up = st.file_uploader("Joindre un fichier", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}", label_visibility="collapsed")
+    up = None
+    with st.popover("＋", help="Partager, télécharger ou joindre un fichier"):
+        st.markdown("#### Ajouter à la discussion")
+        up = st.file_uploader("Glisser un fichier ici", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}")
+        st.download_button("Télécharger la discussion", export_markdown(), file_name="discussion_bea.md", key=f"dl_menu_{st.session_state.up_key}", use_container_width=True)
+        components.html("""
+        <button onclick="(navigator.share ? navigator.share({title:'Discussion avec Bea', text:window.parent.document.body.innerText.slice(-5000)}) : navigator.clipboard.writeText(window.parent.document.body.innerText.slice(-5000)))" style="width:100%;padding:10px;border-radius:10px;border:1px solid #7c3aed;background:#17122b;color:white;font-weight:700;cursor:pointer">Partager la discussion</button>
+        """, height=48)
+    if up:
+        st.caption(f"Fichier prêt à être envoyé : {up.name}")
 
     default = st.session_state.transcribed_text if st.session_state.get("transcribed_text") else ""
     prompt = st.chat_input("Écris ton message à Bea..." if not default else default)
-
-    st.markdown('<div id="mic-point-vert">', unsafe_allow_html=True)
-    audio = st.audio_input("mic", key=f"mic_{st.session_state.up_key}", label_visibility="collapsed")
-    st.markdown('</div>', unsafe_allow_html=True)
+    audio = st.audio_input("micro", key=f"mic_{st.session_state.up_key}", label_visibility="collapsed")
 
     components.html("""
     <script>
     (function(){
         const doc = window.parent.document;
         let tries = 0;
-        function placeMic(){
-            const mic = doc.getElementById('mic-point-vert');
+        function placeTools(){
             const chat = doc.querySelector('div[data-testid="stChatInput"]');
-            if(mic && chat){
-                if(!chat.contains(mic)){
-                    chat.style.position = 'relative';
-                    mic.style.position = 'absolute';
-                    mic.style.right = '54px';
-                    mic.style.bottom = '7px';
-                    mic.style.zIndex = '9999';
-                    chat.appendChild(mic);
-                }
-                return true;
+            const mic = doc.querySelector('div[data-testid="stAudioInput"]');
+            const plus = Array.from(doc.querySelectorAll('[data-testid="stPopover"]')).pop();
+            if(!chat) return false;
+            chat.style.position = 'relative';
+            const input = chat.querySelector('textarea');
+            if(input){
+                input.style.paddingLeft = '52px';
+                input.style.paddingRight = '96px';
             }
-            return false;
+            if(mic && !chat.contains(mic)){
+                mic.style.position = 'absolute';
+                mic.style.right = '52px';
+                mic.style.bottom = '6px';
+                mic.style.zIndex = '20';
+                mic.style.width = '40px';
+                mic.style.height = '40px';
+                chat.appendChild(mic);
+            }
+            if(plus && !chat.contains(plus)){
+                plus.style.position = 'absolute';
+                plus.style.left = '7px';
+                plus.style.bottom = '6px';
+                plus.style.zIndex = '21';
+                plus.style.width = '40px';
+                chat.appendChild(plus);
+            }
+            return Boolean(mic && plus);
         }
         function loop(){
-            if(placeMic() || tries > 40) return;
+            if(placeTools() || tries > 50) return;
             tries++;
             setTimeout(loop, 150);
         }
@@ -2061,6 +2141,9 @@ def page_compte():
             st.success("Historique supprimé.")
         except Exception as e:
             db_error(e)
+
+if not logged_in():
+    restore_auth_session()
 
 if not logged_in():
     page_vitrine()
