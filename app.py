@@ -193,6 +193,51 @@ Pour une salutation, une question factuelle ou une demande simple, réponds bri�
 
 RÈGLES : réponds dans la langue de l'utilisateur (français par défaut) ; sois dense, concret et sans jargon ; n'invente ni chiffres, ni statistiques, ni exemples présentés comme réels ; tu ne poses pas de diagnostic médical ou psychologique et tu ne remplaces pas un professionnel. Si la personne semble en détresse ou en danger, encourage-la à en parler à un proche ou à un professionnel (en France : 3114 pour la prévention du suicide, 15 ou 112 en urgence). Si un fichier est joint, appuie-toi dessus."""
 
+SYSTEM_USE_CASES = {
+    "clients": (
+        "MODE ANALYSE CLIENTS / PROSPECTS.\n"
+        "L'utilisateur vient pour mieux comprendre et analyser ses clients, prospects ou partenaires à partir de leurs messages (e-mails, DM, échanges).\n"
+        "MÉTHODE : tu mobilises les biais cognitifs liés à la décision d'achat (preuve sociale, aversion à la perte, réciprocité, autorité, engagement et cohérence, ancrage) et la détection des émotions derrière les mots (signal d'achat, de doute, d'objection, d'urgence).\n"
+        "FORMAT DE RÉPONSE :\n"
+        "1. **Lecture du message** : reformule en une ligne ce que le client dit vraiment (intention consciente + intention sous-jacente).\n"
+        "2. **Signaux détectés** : 3 à 5 signaux (ton, intention, biais cognitif probable, émotion dominante, niveau d'engagement).\n"
+        "3. **Biais à activer** : 2 ou 3 leviers psycho éthiques pour avancer la relation (preuve sociale, urgence douce, cadrage gain vs perte, etc.) avec une phrase prête à l'emploi pour chacun.\n"
+        "4. **Réponse suggérée** : un modèle de réponse concret, prêt à copier-coller, adapté au ton du client.\n"
+        "5. **Angle de relance** : une idée de relance si pas de réponse dans X jours.\n"
+        "RÈGLES : pas de manipulation trompeuse, pas de promesses fausses ; tu respectes le client tout en maximisant la clarté de l'offre. Réponds dans la langue de l'utilisateur. N'invente aucune statistique."
+    ),
+    "contenu": (
+        "MODE STRATÈGE CONTENU CRÉATEUR.\n"
+        "L'utilisateur vient pour créer et publier du contenu plus vite (TikTok, Reels, Shorts, LinkedIn, YouTube, newsletter).\n"
+        "MÉTHODE : tu mobilises les biais cognitifs d'attention et de mémorisation — curiosity gap, pattern interrupt, bizarreness effect, effet de position et de récence, effet de sequence, effet de vérité illusoire, biais de négativité — et les déclencheurs émotionnels qui arrêtent le pouce d'un scroller.\n"
+        "FORMAT DE RÉPONSE (adapte selon la demande) :\n"
+        "1. **Accroche (3 premières secondes)** : 2 à 3 propositions d'hook qui stoppent le scroll, avec le biais cognitif activé pour chacune.\n"
+        "2. **Structure du contenu** : plan clair (hook → corps → preuve → CTA) adapté à la plateforme et à la durée.\n"
+        "3. **Titres cliquables** : 3 titres optimisés (curiosité, contradiction, promesse concrète).\n"
+        "4. **Idée de miniature / visuel** : 1 proposition concrète de visuel accrocheur.\n"
+        "5. **Levier psycho principal** : le biais cognitif ou l'émotion qui fait le plus le travail dans ce contenu, expliqué simplement.\n"
+        "RÈGLES : pas de promesses trompeuses, pas de statistiques inventées, reste authentique au style du créateur. Réponds dans la langue de l'utilisateur."
+    ),
+    "site": (
+        "MODE BÂTISSEUR DE SITE / PAGE.\n"
+        "L'utilisateur vient pour créer un site ou une page de présentation (landing page, page Insta, one-page site, portfolio).\n"
+        "MÉTHODE : tu mobilises la psychologie de la conversion — charge cognitive, effet de goal-gradient, ancrage des prix, preuve sociale, confiance par signaux, hiérarchie visuelle qui guide l'œil, CTA ancré dans un bénéfice concret, effet de réciprocité par un cadeau gratuit.\n"
+        "FORMAT DE RÉPONSE :\n"
+        "1. **Structure de la page** : sections à inclure, dans l'ordre (hero, problème, solution, preuve, offre, CTA, FAQ éventuelle).\n"
+        "2. **Texte de chaque section** : une proposition concrète prête à coller, avec une alternative courte.\n"
+        "3. **Appel à l'action** : un CTA précis, ancré dans un bénéfice, avec le biais activé (urgence douce, rareté, preuve sociale).\n"
+        "4. **Conseils visuels** : 3 points clés pour guider l'œil et réduire la friction (contraste, hiérarchie, espace blanc).\n"
+        "5. **Si Bea Ultra** : propose en plus un fichier HTML one-page prêt à l'emploi (renvoie vers la page App web du studio).\n"
+        "RÈGLES : pas de promesses trompeuses, pas de statistiques inventées. Réponds dans la langue de l'utilisateur."
+    ),
+    "code": (
+        "MODE COACH CODE.\n"
+        "L'utilisateur vient pour écrire, corriger ou améliorer du code, sans passer par la page Code manuelle.\n"
+        "Tu aides à comprendre, déboguer et améliorer du code. Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code, puis explique brièvement les changements. Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer. Réponds dans la langue de l'utilisateur, avec les commentaires de code en français."
+    ),
+    "general": None,
+}
+
 SYSTEM_CODE = ("Tu es l'IA code de Bea. Tu aides à comprendre, déboguer et améliorer du code. Réponds en français sauf demande contraire. "
                "Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code puis explique brièvement les changements. "
                "Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer.")
@@ -217,9 +262,16 @@ def system_behavior():
         extra.append(f"Style de réponse demandé : {p['style']}. {STYLE_HINT[p['style']]}")
     if objectif:
         extra.append(f"Objectif principal de la personne : {objectif}")
+    if p.get("profile_type"):
+        extra.append(f"Profil déclaré : {p['profile_type']}.")
     if mems:
         extra.append("Mémoire sur l'utilisateur : " + "; ".join([m.get('content','')[:120] for m in mems[:5]]))
-    return SYSTEM_BEHAVIOR_BASE + ("\n\n" + "\n".join(extra) if extra else "")
+    base = SYSTEM_BEHAVIOR_BASE
+    use_case = p.get("use_case")
+    spec = SYSTEM_USE_CASES.get(use_case) if use_case else None
+    if spec:
+        base = base + "\n\n" + spec
+    return base + ("\n\n" + "\n".join(extra) if extra else "")
 
 def stream_groq(messages, max_tokens=2600, model_override=None):
     if model_override:
@@ -309,7 +361,7 @@ def dev_reset_usage():
 def load_account():
     check_admin()
     try:
-        rows = sb().table("preferences").select("display_name,style,goal").eq("user_id", uid()).execute().data
+        rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case").eq("user_id", uid()).execute().data
         st.session_state.prefs = rows[0] if rows else {}
     except Exception:
         st.session_state.prefs = {}
@@ -976,11 +1028,61 @@ def render_sidebar():
             st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free", "chat", False, None
             st.rerun()
 
+PROFILE_OPTIONS = [
+    ("entreprise", "🏢 Entreprise"),
+    ("independant", "💼 Indépendant"),
+    ("createur", "🎬 Créateur de contenu"),
+    ("developpeur", "💻 Développeur"),
+    ("autre", "✨ Autre"),
+]
+
+USE_CASE_OPTIONS = [
+    ("clients", "Mieux comprendre et analyser mes clients / prospects"),
+    ("contenu", "Créer et publier du contenu plus vite"),
+    ("site", "Créer un site ou une page de présentation"),
+    ("code", "Écrire, corriger ou améliorer du code"),
+    ("general", "Me débloquer sur mes projets et mes habitudes"),
+]
+
+def save_onboarding(profile_type, use_case, display_name):
+    row = {
+        "user_id": uid(),
+        "profile_type": profile_type,
+        "use_case": use_case,
+        "display_name": clean_text(display_name, 40),
+        "style": "Expert comportemental",
+        "updated_at": now_iso(),
+    }
+    try:
+        sb().table("preferences").upsert(row).execute()
+        st.session_state.prefs = {k: row[k] for k in ("display_name", "style", "profile_type", "use_case")}
+        st.session_state.profile_type = profile_type
+        st.session_state.onboarding_done = True
+    except Exception as e:
+        db_error(e)
+        return False
+    return True
+
+def page_onboarding():
+    st.markdown("### Bienvenue chez Bea")
+    st.caption("Trois petites questions pour que Bea s'adapte à toi dès le premier message.")
+    prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k,_ in PROFILE_OPTIONS],
+                    format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onb_profile", horizontal=False)
+    nom = st.text_input("Comment veux-tu que Bea t'appelle ?", key="onb_name", placeholder="Ton prénom ou pseudo (optionnel)", max_chars=40)
+    uc = st.radio("Quel est ton but avec Bea ?", [k for k,_ in USE_CASE_OPTIONS],
+                  format_func=lambda x: dict(USE_CASE_OPTIONS)[x], key="onb_usecase", horizontal=False)
+    if st.button("C'est parti", key="onb_go", use_container_width=True, type="primary"):
+        if save_onboarding(prof, uc, nom):
+            st.session_state.page = "chat"
+            st.rerun()
+
 def page_chat():
     st.markdown("### 💬 Discussion avec Bea")
     if not st.session_state.messages:
-        st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et je t'aide à repérer ce qui te freine, puis à construire un plan d'action mesurable. Choisis ton profil pour démarrer plus vite :")
-        pt = st.radio("Profil", ["entreprise","independant","createur"], horizontal=True, key="profile_type", format_func=lambda x: {"entreprise":"🏢 Entreprise","independant":"💼 Indépendant","createur":"🎬 Créateur"}[x])
+        pt = (st.session_state.prefs or {}).get("profile_type") or st.session_state.get("profile_type") or "createur"
+        if pt not in STARTER_CARDS:
+            pt = "createur"
+        st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et je t'aide à repérer ce qui te freine, puis à construire un plan d'action mesurable. Quelques idées pour démarrer :")
         cols = st.columns(3)
         for i, q in enumerate(STARTER_CARDS[pt]):
             with cols[i % 3]:
@@ -1406,16 +1508,24 @@ def page_perso():
         st.success("Personnalisation enregistrée : Bea l'utilisera dans toutes tes discussions.")
     p = st.session_state.prefs or {}
     styles = list(STYLE_HINT)
+    profs = [k for k,_ in PROFILE_OPTIONS]
+    ucs = [k for k,_ in USE_CASE_OPTIONS]
     with st.form("form_perso"):
         nom = st.text_input("Comment Bea doit-elle t'appeler ?", value=p.get("display_name") or "", max_chars=40)
         style = st.selectbox("Style de réponse", styles, index=styles.index(p["style"]) if p.get("style") in styles else 0)
         objectif = st.text_input("Objectif principal", value=p.get("goal") or "", max_chars=160, placeholder="Ex : arrêter de procrastiner sur mes vidéos")
+        prof = st.selectbox("Profil", profs, index=profs.index(p["profile_type"]) if p.get("profile_type") in profs else 0,
+                            format_func=lambda x: dict(PROFILE_OPTIONS)[x])
+        uc = st.selectbox("Ton but avec Bea", ucs, index=ucs.index(p["use_case"]) if p.get("use_case") in ucs else len(ucs)-1,
+                          format_func=lambda x: dict(USE_CASE_OPTIONS)[x])
         ok = st.form_submit_button("Enregistrer", use_container_width=True)
     if ok:
-        row = {"user_id": uid(), "display_name": clean_text(nom, 40), "style": style, "goal": clean_text(objectif, 160), "updated_at": now_iso()}
+        row = {"user_id": uid(), "display_name": clean_text(nom, 40), "style": style, "goal": clean_text(objectif, 160),
+               "profile_type": prof, "use_case": uc, "updated_at": now_iso()}
         try:
             sb().table("preferences").upsert(row).execute()
-            st.session_state.prefs = {k: row[k] for k in ("display_name", "style", "goal")}
+            st.session_state.prefs = {k: row[k] for k in ("display_name", "style", "goal", "profile_type", "use_case")}
+            st.session_state.profile_type = prof
             st.session_state.perso_saved = True
         except Exception as e:
             db_error(e)
@@ -1462,6 +1572,10 @@ if st.session_state.page == "dev_portal":
     st.stop()
 if st.session_state.page == "dev_lab":
     page_dev_lab()
+    st.stop()
+
+if not st.session_state.get("onboarding_done") and not (st.session_state.prefs or {}).get("use_case") and not st.session_state.is_admin:
+    page_onboarding()
     st.stop()
 
 render_sidebar()
