@@ -5,3 +5,5 @@ pillow
 pypdf
 fpdf2
 python-docx
+edge-tts
+gTTS
