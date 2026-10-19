@@ -81,7 +81,37 @@ STARTER_CARDS = {
         "Je n'arrive pas à publier tous les jours, je bloque",
         "Mon montage me prend 5h, comment aller plus vite ?",
         "Je ne sais pas quoi dire en face cam, comment me débloquer ?",
-    ]
+    ],
+    "etudiant": [
+        "Je dois réviser mais je n'arrive pas à m'y mettre",
+        "Je ne comprends pas un cours et je ne sais pas comment le reprendre",
+        "J'ai plusieurs devoirs et je ne sais pas par quoi commencer",
+    ],
+    "salarie": [
+        "Je me sens débordé au travail, comment reprendre le contrôle ?",
+        "Je veux mieux m'organiser entre mes priorités et mes réunions",
+        "Je n'ose pas parler d'un problème avec mon équipe",
+    ],
+    "recherche_emploi": [
+        "Je cherche un emploi mais je repousse mes candidatures",
+        "Je veux mieux présenter mon parcours en entretien",
+        "Je ne sais pas quelle direction professionnelle choisir",
+    ],
+    "parent": [
+        "Je veux mieux m'organiser entre ma vie familiale et mes projets",
+        "Je manque de temps pour avancer sur ce qui compte pour moi",
+        "Je culpabilise quand je prends du temps pour moi",
+    ],
+    "enseignant": [
+        "Je veux préparer mes cours avec plus de méthode",
+        "Je cherche une façon plus claire d'expliquer une notion",
+        "Je veux aider mes élèves à mieux mémoriser",
+    ],
+    "autre": [
+        "Je procrastine sur un projet important",
+        "Je me sens bloqué sans comprendre pourquoi",
+        "Je veux construire une routine qui tienne dans le temps",
+    ],
 }
 
 @st.cache_resource
@@ -120,7 +150,7 @@ for k, v in {
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
     "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
-    "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "",
+    "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_profile_choice": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "", "onboarding_study_country": "France", "onboarding_study_level": "Collège - 6e",
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -277,6 +307,10 @@ def system_behavior():
         extra.append(f"Objectif principal de la personne : {objectif}")
     if p.get("profile_type"):
         extra.append(f"Profil déclaré : {p['profile_type']}.")
+    if p.get("study_country"):
+        extra.append(f"Pays d'études : {p['study_country']}.")
+    if p.get("study_level"):
+        extra.append(f"Niveau d'études : {p['study_level']}.")
     if mems:
         extra.append("Mémoire sur l'utilisateur : " + "; ".join([m.get('content','')[:120] for m in mems[:5]]))
     base = SYSTEM_BEHAVIOR_BASE
@@ -378,7 +412,7 @@ def dev_reset_usage():
 def load_account():
     check_admin()
     try:
-        rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case,school_country").eq("user_id", uid()).execute().data
+        rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case,school_country,study_country,study_level").eq("user_id", uid()).execute().data
         st.session_state.prefs = rows[0] if rows else {}
     except Exception:
         st.session_state.prefs = {}
@@ -1087,10 +1121,15 @@ def render_sidebar():
             st.rerun()
 
 PROFILE_OPTIONS = [
-    ("entreprise", "🏢 Entreprise"),
-    ("independant", "💼 Indépendant"),
+    ("entreprise", "🏢 Entreprise / organisation"),
+    ("independant", "💼 Indépendant / freelance"),
+    ("salarie", "🧑‍💼 Salarié"),
+    ("etudiant", "🎓 Étudiant / élève"),
     ("createur", "🎬 Créateur de contenu"),
     ("developpeur", "💻 Développeur"),
+    ("recherche_emploi", "🔎 En recherche d'emploi"),
+    ("parent", "👨‍👩‍👧 Parent"),
+    ("enseignant", "📚 Enseignant / formateur"),
     ("autre", "✨ Autre"),
 ]
 
@@ -1153,6 +1192,8 @@ PROMPT_OFFER_RECOMMENDATIONS = {
 }
 
 SCHOOL_COUNTRIES = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
+STUDY_COUNTRIES = ["France", "Belgique", "Suisse", "Canada", "Maroc", "Sénégal", "Côte d'Ivoire", "Cameroun", "Tunisie", "Algérie"]
+STUDY_LEVELS = ["Collège - 6e", "Collège - 5e", "Collège - 4e", "Collège - 3e", "Lycée - Seconde", "Lycée - Première", "Lycée - Terminale"]
 
 
 def recommend_use_case(goal, custom_goal):
@@ -1172,7 +1213,7 @@ def recommend_use_case(goal, custom_goal):
     return "general"
 
 
-def save_onboarding(profile_type, use_case, display_name, goal, school_country=None):
+def save_onboarding(profile_type, use_case, display_name, goal, school_country=None, study_country=None, study_level=None):
     row = {
         "user_id": uid(),
         "profile_type": profile_type,
@@ -1184,9 +1225,13 @@ def save_onboarding(profile_type, use_case, display_name, goal, school_country=N
     }
     if school_country:
         row["school_country"] = school_country
+    if study_country:
+        row["study_country"] = study_country
+    if study_level:
+        row["study_level"] = study_level
     try:
         sb().table("preferences").upsert(row, on_conflict="user_id").execute()
-        st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country")}
+        st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
         st.session_state.profile_type = profile_type
         st.session_state.onboarding_done = True
     except Exception as e:
@@ -1201,7 +1246,13 @@ def page_onboarding():
         st.markdown("### Bienvenue chez Bea")
         st.caption("Étape 1 sur 4 — quelques réponses pour adapter Bea à ton profil.")
         prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k, _ in PROFILE_OPTIONS],
-                        format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onboarding_profile", horizontal=False)
+                        format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onboarding_profile_choice", horizontal=False)
+        study_country = None
+        study_level = None
+        if prof == "etudiant":
+            st.markdown("#### Ton parcours scolaire")
+            study_country = st.selectbox("Dans quel pays étudies-tu ?", STUDY_COUNTRIES, key="onboarding_study_country")
+            study_level = st.selectbox("Quel est ton niveau d'étude ?", STUDY_LEVELS, key="onboarding_study_level")
         if st.button("Valider", key="onboarding_profile_next", use_container_width=True, type="primary"):
             st.session_state.onboarding_profile = prof
             st.session_state.onboarding_step = 2
@@ -1263,6 +1314,8 @@ def page_onboarding():
     use_case = st.session_state.get("onboarding_recommended_use_case", "general")
     saved_goal = custom_goal if goal == "custom" else dict(USE_CASE_OPTIONS).get(goal, goal)
     school_country = st.session_state.get("onboarding_country") if use_case == "scolaire" else None
+    study_country = st.session_state.get("onboarding_study_country") if st.session_state.get("onboarding_profile") == "etudiant" else None
+    study_level = st.session_state.get("onboarding_study_level") if st.session_state.get("onboarding_profile") == "etudiant" else None
     c_back, c_finish = st.columns(2)
     with c_back:
         if st.button("Retour", key="onboarding_name_back", use_container_width=True):
@@ -1270,7 +1323,7 @@ def page_onboarding():
             st.rerun()
     with c_finish:
         if st.button("Valider et entrer dans Bea", key="onboarding_finish", use_container_width=True, type="primary"):
-            if save_onboarding(st.session_state.get("onboarding_profile", "autre"), use_case, nom, saved_goal, school_country):
+            if save_onboarding(st.session_state.get("onboarding_profile", "autre"), use_case, nom, saved_goal, school_country, study_country, study_level):
                 st.session_state.page = "chat"
                 st.rerun()
 
@@ -1722,19 +1775,30 @@ def page_perso():
                           format_func=lambda x: USE_CASE_LABEL.get(x, x))
         school_country = None
         if uc == "scolaire":
-            pays_liste = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
             cur_pays = p.get("school_country")
-            school_country = st.selectbox("Pays du programme scolaire", pays_liste,
-                                          index=pays_liste.index(cur_pays) if cur_pays in pays_liste else 0)
+            school_country = st.selectbox("Pays du programme scolaire", SCHOOL_COUNTRIES,
+                                          index=SCHOOL_COUNTRIES.index(cur_pays) if cur_pays in SCHOOL_COUNTRIES else 0)
+        study_country = None
+        study_level = None
+        if prof == "etudiant":
+            cur_study_country = p.get("study_country")
+            cur_study_level = p.get("study_level")
+            study_country = st.selectbox("Pays d'études", STUDY_COUNTRIES,
+                                          index=STUDY_COUNTRIES.index(cur_study_country) if cur_study_country in STUDY_COUNTRIES else 0)
+            study_level = st.selectbox("Niveau d'étude", STUDY_LEVELS,
+                                       index=STUDY_LEVELS.index(cur_study_level) if cur_study_level in STUDY_LEVELS else 0)
         ok = st.form_submit_button("Enregistrer", use_container_width=True)
     if ok:
         row = {"user_id": uid(), "display_name": clean_text(nom, 40), "style": style, "goal": clean_text(objectif, 160),
                "profile_type": prof, "use_case": uc, "updated_at": now_iso()}
         if uc == "scolaire" and school_country:
             row["school_country"] = school_country
+        if prof == "etudiant" and study_country and study_level:
+            row["study_country"] = study_country
+            row["study_level"] = study_level
         try:
-            sb().table("preferences").upsert(row).execute()
-            st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country")}
+            sb().table("preferences").upsert(row, on_conflict="user_id").execute()
+            st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
             st.session_state.profile_type = prof
             st.session_state.perso_saved = True
         except Exception as e:
