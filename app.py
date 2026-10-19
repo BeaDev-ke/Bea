@@ -33,39 +33,44 @@ def find_file(cands):
             return f
     return None
 
-LOGO = find_file(["logo_bea.png", "logo.png"])
+LOGO = find_file(["logo.png", "logo.jpg", "logo.jpeg", "assets/logo.png", "static/logo.png"])
 try:
     _icon = Image.open(LOGO) if LOGO else "🧠"
 except Exception:
     _icon = "🧠"
 
 st.set_page_config(page_title="Bea", page_icon=_icon, layout="wide", initial_sidebar_state="expanded")
-AVATAR = LOGO or "🧠"
 
-STRIPE_BEA_9 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
-STRIPE_PRO_1490 = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
-STRIPE_ABO_16 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
+from bea_i18n import setup_i18n, render_landing_nav, render_language_selector, language_instruction, flush_translations, md_raw
+from bea_voice import render_voice_button, render_voice_player, render_voice_settings, queue_autoplay
+
+setup_i18n()
+AVATAR = find_file(["avatar.png", "bea.png", "assets/avatar.png"]) or LOGO or "🧠"
+
+STRIPE_BEA_9 = st.secrets.get("STRIPE_BEA_9", "")
+STRIPE_PRO_1490 = st.secrets.get("STRIPE_PRO_1490", "")
+STRIPE_ABO_16 = st.secrets.get("STRIPE_ABO_16", "")
 
 try:
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
     SUPA_URL = st.secrets["SUPABASE_URL"]
-    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY")
+    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY", "")
     if not SUPA_KEY:
         raise KeyError("SUPABASE_ANON_KEY")
-    DEV_ACCESS_KEY = st.secrets.get("DEV_ACCESS_KEY", "")
-    DEV_EMAIL = st.secrets.get("DEV_EMAIL", "saydoukebe31@gmail.com")
+    DEV_ACCESS_KEY = str(st.secrets.get("DEV_ACCESS_KEY", "") or "")
+    DEV_EMAIL = str(st.secrets.get("DEV_EMAIL", "") or "")
 except Exception:
     st.error("Configuration manquante : GROQ_API_KEY, SUPABASE_URL et SUPABASE_ANON_KEY doivent être définis dans les secrets.")
     st.stop()
 
-CONTACT_EMAIL = st.secrets.get("CONTACT_EMAIL", "")
+CONTACT_EMAIL = str(st.secrets.get("CONTACT_EMAIL", "") or "")
 REQUIRE_LOGIN_CODE = str(st.secrets.get("REQUIRE_LOGIN_CODE", "false")).strip().lower() in ("1", "true", "yes", "oui")
 
-PLANS = ("free", "bea", "pro", "abo")
+PLANS = ["free", "bea", "pro", "abo"]
 PLAN_LABEL = {"free": "Gratuit", "bea": "Bea", "pro": "Bea Pro", "abo": "Bea Ultra"}
 WHISPER_MODEL = "whisper-large-v3-turbo"
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
-EXT = {"python": "py", "javascript": "js", "typescript": "ts", "html": "html", "css": "css", "json": "json", "sql": "sql"}
+EXT = {"python": "py", "javascript": "js", "typescript": "ts", "html": "html", "css": "css", "sql": "sql", "java": "java", "c": "c", "cpp": "cpp", "csharp": "cs", "php": "php", "go": "go", "rust": "rs", "bash": "sh", "json": "json", "markdown": "md"}
 DEFAULT_CODE = ""
 
 STARTER_CARDS = {
@@ -160,7 +165,7 @@ for k, v in {
 if "code_area" not in st.session_state:
     st.session_state["code_area"] = DEFAULT_CODE
 
-GRAD = "linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
+GRAD = "linear-gradient(135deg,#7c3aed 0%,#a855f7 50%,#ec4899 100%)"
 BORDER, BG, CARD, TEXT = "#7c3aed", "#0f0a1e", "#1a1535", "#f5f3ff"
 st.markdown(f"""
 <style>
@@ -212,7 +217,7 @@ STYLE_HINT = {
     "Expert comportemental": "Utilise le vocabulaire de la psychologie comportementale (déclencheurs, renforcement, friction, habitudes) en l'expliquant simplement.",
 }
 
-SYSTEM_BEHAVIOR_BASE = """Tu es Bea, une IA d'analyse comportementale créée par BehaviorLab AI. Tu aides les entreprises, les indépendants et les créateurs de contenu à avancer sur leurs projets.
+SYSTEM_BEHAVIOR_BASE = """
 
 PRINCIPE CENTRAL : tu apportes de la valeur dès ta toute première réponse. Tu ne poses JAMAIS de questions avant d'aider et tu ne conditionnes jamais ta réponse à des précisions. Si la demande est floue, fais des hypothèses explicites et couvre plusieurs cas possibles.
 
@@ -284,15 +289,15 @@ SYSTEM_USE_CASES = {
     ),
 }
 
-SYSTEM_CODE = ("Tu es l'IA code de Bea. Tu aides à comprendre, déboguer et améliorer du code. Réponds en français sauf demande contraire. "
+SYSTEM_CODE = (
                "Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code puis explique brièvement les changements. "
                "Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer.")
 
-SYSTEM_MONTAGE = ("Tu es monteur vidéo et stratège de contenu. À partir du sujet ou du script fourni, produis un plan de montage concret : "
+SYSTEM_MONTAGE = (
                   "hook des 3 premières secondes, découpage en séquences avec durées, rythme et coupes, style des sous-titres, idées de musique et d'effets sonores, "
                   "appel à l'action, 3 idées de titres et 1 idée de miniature. Adapte-toi à la plateforme et à la durée demandées. N'invente aucune statistique.")
 
-SYSTEM_APP = ("Tu es un product builder senior. Tu génères une application web complète et réellement utilisable dans UN SEUL fichier HTML autonome (HTML + CSS + JavaScript vanilla). "
+SYSTEM_APP = (
               "Commence par transformer le brief en une expérience claire : navigation, état vide, données de démonstration réalistes, actions principales, validations, messages de succès et d'erreur, responsive mobile/desktop et accessibilité clavier. "
               "Contraintes : aucune ressource externe, aucun CDN, aucun appel réseau, aucune dépendance ; les données restent dans la page et peuvent être conservées avec localStorage ; pas de fausse fonctionnalité ni de bouton sans action. "
               "Utilise une direction visuelle premium adaptée au projet, avec contraste lisible, hiérarchie nette, micro-interactions discrètes et code maintenable. Interface en français sauf demande contraire. "
@@ -327,7 +332,7 @@ def system_behavior():
     spec = SYSTEM_USE_CASES.get(use_case) if use_case else None
     if spec:
         base = base + "\n\n" + spec
-    return base + ("\n\n" + "\n".join(extra) if extra else "")
+    return base + ("\n\n" + "\n".join(extra) if extra else "") + language_instruction()
 
 def stream_groq(messages, max_tokens=2600, model_override=None):
     if model_override:
@@ -623,7 +628,7 @@ def render_message(m, idx):
                         st.session_state.editing_msg_id = None
                         st.rerun()
             else:
-                st.markdown(m["content"])
+                md_raw(m["content"])
                 if m.get("attachment_name"):
                     st.caption(f"📎 {m['attachment_name']}")
                 if m.get("id"):
@@ -632,8 +637,10 @@ def render_message(m, idx):
                         st.rerun()
     else:
         with st.chat_message("assistant", avatar=AVATAR):
-            st.markdown(m["content"])
-            c1,c2,c3,c4,c5 = st.columns([1,1,1,1,2])
+            md_raw(m["content"])
+            c1,c2,c3,c4,c5,c6 = st.columns([1,1,1,1,2,1])
+            with c6:
+                render_voice_button(idx)
             with c1:
                 if st.button("📋", key=f"copy_{idx}", help="Copier"):
                     components.html(f"<script>navigator.clipboard.writeText({json.dumps(m['content'])});</script>", height=0)
@@ -660,6 +667,7 @@ def render_message(m, idx):
                 if st.button("📝 Word", key=f"word_{idx}"):
                     st.session_state[f"export_word_{idx}"] = True
                     st.rerun()
+            render_voice_player(m["content"], idx)
             if st.session_state.get(f"export_pdf_{idx}"):
                 try:
                     from fpdf import FPDF
@@ -702,6 +710,7 @@ def generate_reply():
         db_error(e)
         mid = None
     st.session_state.messages.append({"id": mid, "role": "assistant", "content": text})
+    queue_autoplay(text)
     st.session_state.convs = None
     quota_consume("chat")
     return True
@@ -863,7 +872,9 @@ def page_dev_lab():
         except Exception:
             pass
         model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-        SYSTEM_DEV = """Tu es l'architecte de Bea. Tu modifies sans rien casser, sans rien oublier. Retourne le code complet modifié dans ```python."""
+        SYSTEM_DEV = ("Tu es un expert Python/Streamlit. On te donne un CODE et une CONSIGNE. "
+            "Applique uniquement la consigne sans casser le reste, conserve toutes les fonctionnalités existantes, "
+            "et renvoie le fichier COMPLET modifié dans un unique bloc ```python ... ```.")
         with st.spinner(f"Groq {model_id} modifie + applique..."):
             try:
                 raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE:\n{code_cible}\n\nCONSIGNE: {consigne}"}], 8000, model_override=model_id))
@@ -892,23 +903,13 @@ def page_dev_lab():
     if st.button("← Retour portail", key="back_portal", use_container_width=True):
         st.session_state.page = "dev_portal"
         st.rerun()
-    if st.button("🌐 Site fonctionnel", key="to_prod_from_lab", use_container_width=True):
+    if st.button("🌐 Site fonctionnel", key="restored_key_1", use_container_width=True):
         st.session_state.dev_mode = "prod"
         st.session_state.page = "chat"
         st.rerun()
 
 def page_vitrine():
-    nav_a, nav_b, nav_c = st.columns([1, 1.4, 1])
-    with nav_a:
-        if st.button("Offres", key="landing_offers", use_container_width=True):
-            st.session_state.landing_tab = "offres"
-            st.rerun()
-    with nav_b:
-        if st.button("BehaviorLab AI", key="landing_about", use_container_width=True):
-            st.session_state.landing_tab = "about"
-            st.rerun()
-    with nav_c:
-        st.selectbox("Langues", ["Français", "English"], key="landing_language", label_visibility="collapsed")
+    render_landing_nav()
     if LOGO:
         _, c, _ = st.columns([1, 0.3, 1])
         with c:
@@ -1092,6 +1093,8 @@ def render_sidebar():
             return f"{x['used']}/{x['limit']}" if x else "?"
         st.markdown(f'<div class="limit-badge">{PLAN_LABEL[st.session_state.plan]} · Chat {fmt(q.get("chat"))} · Code {fmt(q.get("code"))} · {st.session_state.model_choice}</div>', unsafe_allow_html=True)
         st.selectbox("Modèle", ["rapide","puissant"], key="model_choice", help="Rapide = réponse instantanée, Puissant = raisonnement plus profond")
+        render_language_selector("sidebar")
+        render_voice_settings()
         nom_perso = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
         if nom_perso:
             st.markdown(f'<div style="font-size:12px; color:#c4b5fd; margin-top:-4px; margin-bottom:6px;">👤 {html.escape(nom_perso)}</div>', unsafe_allow_html=True)
@@ -1178,7 +1181,7 @@ def render_sidebar():
         if nom:
             st.markdown(f'<div style="font-size:14px; font-weight:700; margin-top:10px;">{html.escape(nom)}</div>', unsafe_allow_html=True)
         st.caption(st.session_state.user.email or "")
-        if st.button("🚪 Déconnexion", key="nav_logout", use_container_width=True):
+        if st.button("🚪 Déconnexion", key="restored_key_3", use_container_width=True):
             try:
                 sb().auth.sign_out()
             except Exception:
@@ -1261,9 +1264,9 @@ PROMPT_OFFER_RECOMMENDATIONS = {
     },
 }
 
-SCHOOL_COUNTRIES = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
-STUDY_COUNTRIES = ["France", "Belgique", "Suisse", "Canada", "Maroc", "Sénégal", "Côte d'Ivoire", "Cameroun", "Tunisie", "Algérie"]
-STUDY_LEVELS = ["Collège - 6e", "Collège - 5e", "Collège - 4e", "Collège - 3e", "Lycée - Seconde", "Lycée - Première", "Lycée - Terminale"]
+SCHOOL_COUNTRIES = ["France", "Belgique", "Suisse", "Canada (Québec)", "Luxembourg", "Maroc", "Algérie", "Tunisie", "Sénégal", "Côte d'Ivoire", "Cameroun", "Autre"]
+STUDY_COUNTRIES = ["France", "Belgique", "Suisse", "Canada", "Luxembourg", "Maroc", "Algérie", "Tunisie", "Sénégal", "Côte d'Ivoire", "Cameroun", "Royaume-Uni", "États-Unis", "Espagne", "Allemagne", "Italie", "Autre"]
+STUDY_LEVELS = ["Primaire", "Collège - 6e", "Collège - 5e", "Collège - 4e", "Collège - 3e", "Lycée - Seconde", "Lycée - Première", "Lycée - Terminale", "BTS / BUT", "Licence", "Master", "Doctorat", "Formation professionnelle", "Autre"]
 
 
 def recommend_use_case(goal, custom_goal):
@@ -1438,7 +1441,7 @@ def page_chat():
                     st.session_state.regen_flag = True
                     st.rerun()
         with c2:
-            if st.button("▶️ Continuer", key="continue_btn", use_container_width=True):
+            if st.button("▶️ Continuer", key="restored_key_4", use_container_width=True):
                 if st.session_state.messages and st.session_state.messages[-1]["role"]=="assistant":
                     cont = st.session_state.messages[-1]["content"][-500:] + "\n\n[Continue exactement où tu t'es arrêté, sans répéter]"
                     st.session_state.messages.append({"role":"user","content": cont})
@@ -1944,7 +1947,7 @@ def page_studio():
             st.info("Aucun média importé pour le moment.")
 
     elif menu == "sous_titres":
-        LANGS = {"Détection automatique": None, "Français": "fr", "English": "en"}
+        LANGS = {"Détection automatique": None, "Français": "fr", "English": "en", "Español": "es", "Deutsch": "de", "Italiano": "it", "Português": "pt", "العربية": "ar", "中文": "zh", "日本語": "ja", "हिन्दी": "hi", "Русский": "ru", "Nederlands": "nl", "Türkçe": "tr", "Polski": "pl", "한국어": "ko", "ไทย": "th"}
         if st.session_state.plan not in ("pro", "abo"):
             studio_step_card(1, "Sous-titres automatiques", "Transcription par IA au format SRT et VTT, prêts à importer dans ton logiciel de montage.")
             st.warning("🔒 Cette fonction est incluse dans Bea Pro et Bea Ultra.")
@@ -2046,7 +2049,7 @@ def page_studio():
 
     elif menu == "filtres":
         studio_step_card(1, "Filtres couleur", "Ajuste le rendu couleur de ta vidéo : contraste, saturation, teinte.")
-        st.slider("Contraste", 0.5, 2.0, 1.0, key="filt_contrast")
+        st.slider("Contraste", 0.5, 2.0, 1.0, key="restored_key_5")
 
     elif menu == "ajustement":
         studio_step_card(1, "Ajustement", "Recadre, pivote ou change la vitesse de ta vidéo.")
@@ -2054,7 +2057,7 @@ def page_studio():
 
     elif menu == "autocollants":
         studio_step_card(1, "Autocollants", "Ajoute des emojis ou des images par-dessus ta vidéo.")
-        st.file_uploader("Image autocollant (PNG recommandé)", type=["png","jpg","webp"], key="sticker_up")
+        st.file_uploader("Image autocollant (PNG recommandé)", type=["png","jpg","webp"], key="restored_key_6")
 
     elif menu == "modeles":
         studio_step_card(1, "Formats prédéfinis", "Choisis un format selon la plateforme de destination.")
@@ -2169,3 +2172,5 @@ render_sidebar()
     "projets": page_projets, "perso": page_perso, "compte": page_compte, "memoire": page_memoire,
     "dev_portal": page_dev_portal, "dev_lab": page_dev_lab,
 }.get(st.session_state.page, page_chat)()
+
+flush_translations()
