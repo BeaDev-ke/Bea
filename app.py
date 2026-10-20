@@ -1011,12 +1011,13 @@ def validate_python_code(code_str: str):
         return False, f"Erreur de structure : {str(e)}"
 
 def page_dev_lab():
-    st.markdown("### 🧪 Labo Dev IA - Modifications par Niveau")
+    st.markdown("### 🧪 Labo Dev IA — Modifier l’application")
+    st.info("Mode d’emploi : choisis un niveau, sélectionne la partie à modifier, décris le résultat souhaité, puis lance la modification. Pour plus de sécurité, utilise « Prévisualiser le diff d’abord » avant d’écrire le code.")
     q = st.session_state.quota.get('code') or {}
     st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")} · Protection AST: Active</div>', unsafe_allow_html=True)
 
     tab_lab, tab_diff, tab_backups, tab_guide = st.tabs([
-        "🚀 Modifier par Niveau", "🔍 Diff & Aperçu", "💾 Sauvegardes & Rollback", "📖 Guide des Niveaux"
+        "1. Modifier", "2. Vérifier les changements", "3. Sauvegardes", "Guide"
     ])
 
     try:
@@ -1050,10 +1051,10 @@ def page_dev_lab():
             chosen_label = st.selectbox("Élément ciblé dans l'application", target_labels, key=f"target_sel_{level_key}")
             target_id = lvl_info["targets"][chosen_label]
         with col_t2:
-            apply_mode = st.radio("Mode d'application", ["1-Clic direct (recommandé)", "Prévisualiser le diff d'abord"], key="lab_apply_mode")
+            apply_mode = st.radio("Mode d'application", ["Prévisualiser le diff d’abord", "1-Clic direct"], key="lab_apply_mode")
 
         # Suggestions prêtes à l'emploi en 1 clic
-        st.markdown("**💡 Suggestions de modifications rapides :**")
+        st.markdown("**Suggestions rapides**")
         p_cols = st.columns(len(lvl_info["presets"]))
         for i, preset in enumerate(lvl_info["presets"]):
             with p_cols[i]:
@@ -1064,7 +1065,7 @@ def page_dev_lab():
         consigne = st.text_area(
             "Consigne de modification pour l'IA",
             height=130,
-            placeholder="Ex : Ajoute un bouton de téléchargement direct sous la réponse du chat et rends-le violet",
+            placeholder="Décris précisément ce que tu veux changer, où le faire et le résultat attendu.",
             key="dev_consigne"
         )
 
@@ -1074,7 +1075,7 @@ def page_dev_lab():
 
         c_go1, c_go2 = st.columns([2, 1])
         with c_go1:
-            btn_label = "🚀 APPLIQUER LA MODIFICATION (1 clic direct)" if apply_mode.startswith("1-Clic") else "🔍 GÉNÉRER ET PRÉVISUALISER LE DIFF"
+            btn_label = "APPLIQUER LA MODIFICATION" if apply_mode.startswith("1-Clic") else "GÉNÉRER L’APERÇU DES CHANGEMENTS"
             launch = st.button(btn_label, key="dev_go_level", use_container_width=True, type="primary")
 
         if launch and consigne.strip():
@@ -1400,7 +1401,7 @@ def studio_section_label(key):
 def render_sidebar():
     with st.sidebar:
         if st.session_state.page == "studio":
-            st.markdown('<div style="text-align:center; font-size:18px; font-weight:800;">🎬 Studio créateur</div>', unsafe_allow_html=True)
+            st.markdown('<div style="text-align:center; font-size:18px; font-weight:800;">🎬︎ Studio créateur</div>', unsafe_allow_html=True)
             st.caption("Choisis une action ci-dessous")
             if st.button("← Retour à Bea", key="back_bea", use_container_width=True):
                 st.session_state.page = "chat"
@@ -1410,7 +1411,7 @@ def render_sidebar():
             for key, title, desc, req_plan in STUDIO_SECTIONS:
                 is_locked = req_plan != "free" and st.session_state.plan == "free"
                 badge = '<span class="studio-badge studio-badge-pro">PRO</span>' if is_locked else ""
-                active = "✅ " if key == current else "   "
+                active = "✅︎ " if key == current else "   "
                 label = f"{active}{title}"
                 if st.button(label, key=f"studio_menu_{key}", use_container_width=True, help=desc):
                     if is_locked:
@@ -1432,11 +1433,11 @@ def render_sidebar():
         st.selectbox("Modèle", ["rapide","puissant"], key="model_choice", help="Rapide = réponse instantanée, Puissant = raisonnement plus profond")
         nom_perso = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
         if nom_perso:
-            st.markdown(f'<div style="font-size:12px; color:#c4b5fd; margin-top:-4px; margin-bottom:6px;">👤 {html.escape(nom_perso)}</div>', unsafe_allow_html=True)
-        if st.button("✨ Nouvelle discussion", key="nav_new", use_container_width=True):
+            st.markdown(f'<div style="font-size:12px; color:#c4b5fd; margin-top:-4px; margin-bottom:6px;">👤︎ {html.escape(nom_perso)}</div>', unsafe_allow_html=True)
+        if st.button("✨︎ Nouvelle discussion", key="nav_new", use_container_width=True):
             new_chat()
             st.rerun()
-        for label, pg in [("💬 Chat", "chat"), ("💻 Code", "code"), ("🌐 App web (Ultra)", "app"), ("🎬 Studio créateur", "studio"), ("📁 Projets", "projets"), ("🧠 Mémoire", "memoire"), ("🎨 Personnalisation", "perso"), ("💎 Compte & offres", "compte")]:
+        for label, pg in [("💬︎ Chat", "chat"), ("💻︎ Code", "code"), ("🌐︎ App web (Ultra)", "app"), ("🎬︎ Studio créateur", "studio"), ("📁︎ Projets", "projets"), ("🧠︎ Mémoire", "memoire"), ("🎨︎ Personnalisation", "perso"), ("💎︎ Compte & offres", "compte")]:
             if st.button(label, key=f"nav_{pg}", use_container_width=True):
                 st.session_state.page = pg
                 st.rerun()
@@ -1453,7 +1454,7 @@ def render_sidebar():
             st.divider()
             st.markdown('<div style="font-size:10px; color:#a855f7; font-weight:800; margin-bottom:8px;">ZONE DEV PRIVÉE - TOI SEUL</div>', unsafe_allow_html=True)
             if not st.session_state.is_admin and DEV_ACCESS_KEY:
-                with st.expander("🔒 Entrer clé dev (1 fois)", expanded=True):
+                with st.expander("🔒︎ Entrer clé dev (1 fois)", expanded=True):
                     with st.form("dev_key_sidebar_final"):
                         k = st.text_input("Clé dev", type="password", key="dev_key_sidebar_final_input", placeholder="64 caractères")
                         go_dev = st.form_submit_button("Déverrouiller accès", use_container_width=True, type="primary")
@@ -1516,7 +1517,7 @@ def render_sidebar():
         if nom:
             st.markdown(f'<div style="font-size:14px; font-weight:700; margin-top:10px;">{html.escape(nom)}</div>', unsafe_allow_html=True)
         st.caption(st.session_state.user.email or "")
-        if st.button("🚪 Déconnexion", key="nav_logout", use_container_width=True):
+        if st.button("🚪︎ Déconnexion", key="nav_logout", use_container_width=True):
             try:
                 sb().auth.sign_out()
             except Exception:
@@ -1533,12 +1534,12 @@ PROFILE_OPTIONS = [
     ("independant", "💼 Indépendant / freelance"),
     ("salarie", "🧑‍💼 Salarié"),
     ("etudiant", "🎓 Étudiant / élève"),
-    ("createur", "🎬 Créateur de contenu"),
-    ("developpeur", "💻 Développeur"),
+    ("createur", "🎬︎ Créateur de contenu"),
+    ("developpeur", "💻︎ Développeur"),
     ("recherche_emploi", "🔎 En recherche d'emploi"),
     ("parent", "👨‍👩‍👧 Parent"),
     ("enseignant", "📚 Enseignant / formateur"),
-    ("autre", "✨ Autre"),
+    ("autre", "✨︎ Autre"),
 ]
 
 USE_CASE_OPTIONS = [
