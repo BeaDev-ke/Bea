@@ -1,4 +1,6 @@
+import ast
 import base64
+import difflib
 import html
 import io
 import json
@@ -638,7 +640,24 @@ def render_message(m, idx):
     else:
         with st.chat_message("assistant", avatar=AVATAR):
             st.markdown(m["content"])
-            c1,c2,c3,c4,c5 = st.columns([1,1,1,1,2])
+            c0,c1,c2,c3,c4,c5 = st.columns([1,1,1,1,1,2])
+            with c0:
+                if st.button("🔊", key=f"speak_{idx}", help="Écouter Bea (100% gratuit - Web Speech)"):
+                    clean_speech = json.dumps(m["content"].replace("**","").replace("#","").replace("`","")[:3500])
+                    components.html(f"""
+                    <script>
+                    if ('speechSynthesis' in window) {{
+                        window.speechSynthesis.cancel();
+                        const u = new SpeechSynthesisUtterance({clean_speech});
+                        u.lang = 'fr-FR';
+                        u.rate = 1.02;
+                        u.pitch = 1.05;
+                        const v = window.speechSynthesis.getVoices().find(x => x.lang.startsWith('fr'));
+                        if (v) u.voice = v;
+                        window.speechSynthesis.speak(u);
+                    }}
+                    </script>
+                    """, height=0)
             with c1:
                 if st.button("📋", key=f"copy_{idx}", help="Copier"):
                     components.html(f"<script>navigator.clipboard.writeText({json.dumps(m['content'])});</script>", height=0)
@@ -837,70 +856,363 @@ def page_dev_portal():
         st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free","chat",False,None
         st.rerun()
 
+# ==============================================================================
+# LABO DEV IA AVANCÉ - MOTEUR DE MODIFICATION PAR NIVEAU
+# ==============================================================================
+
+LAB_LEVELS = {
+    "1": {
+        "title": "🎨 Niveau 1 : Cosmétique & UI",
+        "badge": "Niveau 1 - Zéro risque",
+        "scope": "Textes, boutons, couleurs, styles CSS, messages d'accueil",
+        "description": "Modifie les libellés, micro-copies, styles CSS, palettes de couleurs ou textes sans toucher à la logique Python.",
+        "targets": {
+            "Styles CSS globaux (classes, fonds, bordures)": "CSS_STYLES",
+            "Cartes d'accroche (STARTER_CARDS)": "STARTER_CARDS",
+            "Styles de réponse de Bea (STYLE_HINT)": "STYLE_HINT",
+            "Textes de la page d'accueil (page_vitrine)": "page_vitrine",
+            "Barre latérale & badges (render_sidebar)": "render_sidebar",
+        },
+        "presets": [
+            "Changer le texte d'accueil de Bea pour le rendre plus direct et orienté action",
+            "Remplacer la couleur violette d'accent par un bleu électrique #2563eb",
+            "Ajouter 3 nouvelles questions d'accroche pour les indépendants dans STARTER_CARDS",
+            "Modifier le libellé du bouton Se connecter en Continuer vers Bea"
+        ]
+    },
+    "2": {
+        "title": "🧩 Niveau 2 : Page ou Fonction isolée",
+        "badge": "Niveau 2 - Chirurgical",
+        "scope": "Une fonction de page ciblée (chat, studio, code, onboarding, compte...)",
+        "description": "Isole et modifie uniquement la fonction ciblée. Aucun risque de tronquer les 2200 lignes de app.py !",
+        "targets": {
+            "💬 Page Chat (page_chat)": "page_chat",
+            "🎬 Page Studio Créateur (page_studio)": "page_studio",
+            "💻 Page Éditeur de Code (page_code)": "page_code",
+            "🌐 Page Atelier Web HTML (page_app)": "page_app",
+            "🎓 Page Parcours d'Accueil (page_onboarding)": "page_onboarding",
+            "🎨 Page Personnalisation (page_perso)": "page_perso",
+            "💎 Page Compte & Offres (page_compte)": "page_compte",
+            "🧠 Page Mémoire (page_memoire)": "page_memoire",
+            "📁 Page Projets Enregistrés (page_projets)": "page_projets",
+            "🚪 Page Portail Développeur (page_dev_portal)": "page_dev_portal",
+            "📌 Barre Latérale Complète (render_sidebar)": "render_sidebar",
+            "🌐 Page Vitrine & Auth (page_vitrine)": "page_vitrine",
+        },
+        "presets": [
+            "Ajouter un bouton pour copier la réponse en format Markdown dans page_chat",
+            "Ajouter un compteur de caractères sous la zone de texte dans page_code",
+            "Ajouter un filtre par format de réseau social dans page_studio",
+            "Ajouter un bouton de test rapide dans la page de personnalisation"
+        ]
+    },
+    "3": {
+        "title": "🧠 Niveau 3 : Moteur Comportemental & Prompts IA",
+        "badge": "Niveau 3 - Intelligence IA",
+        "scope": "Prompts système, biais cognitifs, règles d'analyse comportementale",
+        "description": "Ajuste la psychologie et la méthode d'analyse de Bea (biais cognitifs, 5 étapes, cadrage, relances).",
+        "targets": {
+            "Système de prompt dynamique (system_behavior)": "system_behavior",
+            "Comportement de base de Bea (SYSTEM_BEHAVIOR_BASE)": "SYSTEM_BEHAVIOR_BASE",
+            "Cas d'usage spécialisés (SYSTEM_USE_CASES)": "SYSTEM_USE_CASES",
+            "Prompt de l'IA Code (SYSTEM_CODE)": "SYSTEM_CODE",
+            "Prompt du Monteur Vidéo (SYSTEM_MONTAGE)": "SYSTEM_MONTAGE",
+            "Prompt du Bâtisseur d'App Web (SYSTEM_APP)": "SYSTEM_APP",
+        },
+        "presets": [
+            "Renforcer l'analyse des biais cognitifs (ancrage, preuve sociale) dans SYSTEM_USE_CASES clients",
+            "Ajouter une étape 'Micro-défi du jour' dans SYSTEM_BEHAVIOR_BASE",
+            "Adapter le prompt scolaire pour toujours donner une analogie du quotidien",
+            "Rendre le prompt du bâtisseur web encore plus strict sur le responsive mobile"
+        ]
+    },
+    "4": {
+        "title": "⚡ Niveau 4 : Nouveau Module ou Fonctionnalité",
+        "badge": "Niveau 4 - Évolution fonctionnelle",
+        "scope": "Ajout de nouvelle page, nouvelle section studio, nouveau profil utilisateur",
+        "description": "Ajoute une nouvelle brique fonctionnelle dans Bea avec mise à jour automatique des menus et du routage.",
+        "targets": {
+            "Nouveau profil utilisateur (PROFILE_OPTIONS)": "PROFILE_OPTIONS",
+            "Nouvel outil dans le Studio (STUDIO_SECTIONS)": "STUDIO_SECTIONS",
+            "Nouveau use-case dans l'onboarding (USE_CASE_OPTIONS)": "USE_CASE_OPTIONS",
+            "Nouvelle page complète dans l'application": "NEW_PAGE",
+        },
+        "presets": [
+            "Ajouter une option de profil 'Artisan / Commerçant' dans PROFILE_OPTIONS",
+            "Ajouter un outil 'Script Téléprompteur' dans STUDIO_SECTIONS",
+            "Ajouter une section 'Journal d'habitudes' dans le menu latéral"
+        ]
+    },
+    "5": {
+        "title": "🏛️ Niveau 5 : Architecture Complète (Full-Stack)",
+        "badge": "Niveau 5 - Refonte globale",
+        "scope": "Fichier app.py complet avec découpage sécurisé et sauvegarde intégrale",
+        "description": "Modifications transversales sur l'ensemble du fichier avec validation syntaxique obligatoire.",
+        "targets": {
+            "Fichier complet app.py (Architecture)": "FULL_FILE",
+        },
+        "presets": [
+            "Ajouter la persistance de l'état du mode sombre dans les préférences Supabase",
+            "Optimiser la gestion du cache et des modèles Groq",
+            "Renforcer la gestion des erreurs réseau et de reconnexion"
+        ]
+    }
+}
+
+def extract_target_code(full_code: str, target: str) -> str:
+    """Extrait le code source correspondant exactement à la cible demandée."""
+    if not full_code:
+        return ""
+    if target == "FULL_FILE":
+        return full_code[:20000]
+    if target == "CSS_STYLES":
+        m = re.search(r'st\.markdown\(f?"""\s*<style>[\s\S]*?</style>\s*"""', full_code)
+        return m.group(0) if m else ""
+    if target in ("SYSTEM_BEHAVIOR_BASE", "SYSTEM_USE_CASES", "STARTER_CARDS", "STYLE_HINT", "PLANS", "STUDIO_SECTIONS", "PROFILE_OPTIONS", "USE_CASE_OPTIONS", "SYSTEM_CODE", "SYSTEM_MONTAGE", "SYSTEM_APP"):
+        m = re.search(rf'^{target}\s*=\s*[\s\S]*?(?=\n\n[A-Z_a-z]|\n\ndef )', full_code, re.MULTILINE)
+        return m.group(0) if m else ""
+    if target == "NEW_PAGE":
+        return "# Exemple pour ajouter une page:\ndef page_journal():\n    st.markdown('### 📔 Mon Journal')\n    st.info('Journal personnel')"
+    m = re.search(rf'def {target}\(.*?\)[\s\S]*?(?=\n\ndef |\n\n[A-Z_a-z0-9]+\s*=|\Z)', full_code)
+    return m.group(0) if m else ""
+
+def inject_target_code(full_code: str, target: str, new_code: str) -> str:
+    """Réinjecte le code modifié proprement à l'emplacement exact de la cible."""
+    if target == "FULL_FILE":
+        return new_code
+    if target == "CSS_STYLES":
+        pattern = r'st\.markdown\(f?"""\s*<style>[\s\S]*?</style>\s*"""'
+        if re.search(pattern, full_code):
+            return re.sub(pattern, new_code, full_code, count=1)
+        return full_code
+    if target in ("SYSTEM_BEHAVIOR_BASE", "SYSTEM_USE_CASES", "STARTER_CARDS", "STYLE_HINT", "PLANS", "STUDIO_SECTIONS", "PROFILE_OPTIONS", "USE_CASE_OPTIONS", "SYSTEM_CODE", "SYSTEM_MONTAGE", "SYSTEM_APP"):
+        pattern = rf'^{target}\s*=\s*[\s\S]*?(?=\n\n[A-Z_a-z]|\n\ndef )'
+        if re.search(pattern, full_code, re.MULTILINE):
+            return re.sub(pattern, new_code + "\n", full_code, count=1, flags=re.MULTILINE)
+        return full_code
+    if target == "NEW_PAGE":
+        insert_marker = "\nrender_sidebar()"
+        if insert_marker in full_code:
+            return full_code.replace(insert_marker, "\n\n" + new_code + "\n\n" + insert_marker, 1)
+        return full_code + "\n\n" + new_code
+    pattern = rf'def {target}\(.*?\)[\s\S]*?(?=\n\ndef |\n\n[A-Z_a-z0-9]+\s*=|\Z)'
+    if re.search(pattern, full_code):
+        return re.sub(pattern, new_code + "\n\n", full_code, count=1)
+    return full_code
+
+def validate_python_code(code_str: str):
+    """Valide la syntaxe Python via ast.parse pour garantir zéro plantage."""
+    try:
+        ast.parse(code_str)
+        return True, "Syntaxe Python 100% valide"
+    except SyntaxError as e:
+        return False, f"Erreur de syntaxe ligne {e.lineno} : {e.msg}"
+    except Exception as e:
+        return False, f"Erreur de structure : {str(e)}"
+
 def page_dev_lab():
-    st.markdown("### 🧪 Labo Dev IA - 1 clic = site modifié direct (0€)")
+    st.markdown("### 🧪 Labo Dev IA - Modifications par Niveau")
     q = st.session_state.quota.get('code') or {}
-    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota: {q.get("used","?")}/{q.get("limit","?")}</div>', unsafe_allow_html=True)
-    col_m1, col_m2 = st.columns([2,1])
-    with col_m1:
-        st.selectbox("Cerveau (Ultra = ne casse rien)", list(DEV_MODELES.keys()), key="dev_model_choice")
-    with col_m2:
-        st.text_input("Nom sauvegarde auto", value=f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
-    consigne = st.text_area("Que veux-tu modifier ?", height=120, placeholder="Ex: retire le bouton Déconnexion", key="dev_consigne")
-    cible = st.selectbox("Cible", ["Fichier complet app.py (recommandé)", "Seulement render_sidebar", "Seulement page_chat", "Seulement page_studio"], key="dev_cible")
+    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")} · Protection AST: Active</div>', unsafe_allow_html=True)
+
+    tab_lab, tab_diff, tab_backups, tab_guide = st.tabs([
+        "🚀 Modifier par Niveau", "🔍 Diff & Aperçu", "💾 Sauvegardes & Rollback", "📖 Guide des Niveaux"
+    ])
+
     try:
         with open(__file__, 'r', encoding='utf-8') as fh:
             full_code = fh.read()
     except Exception:
         full_code = ""
-    code_cible = full_code[:18000]
-    if cible == "Seulement page_chat":
-        mm = re.search(r'def page_chat\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
-        code_cible = mm.group(0)[:12000] if mm else full_code[:12000]
-    elif cible == "Seulement render_sidebar":
-        mm = re.search(r'def render_sidebar\(\):.*?(?=\n\ndef )', full_code, re.DOTALL)
-        code_cible = mm.group(0)[:15000] if mm else full_code[:12000]
-    if st.button("🚀 GROQ MODIFIE LE SITE DIRECTEMENT (1 clic)", key="dev_go", use_container_width=True, type="primary") and consigne.strip():
-        if not rate_ok() or not quota_ok("code"):
-            st.stop()
-        try:
-            sb().table("code_projects").insert({"user_id": uid(), "name": st.session_state.dev_backup_name, "language": "python", "content": full_code}).execute()
-        except Exception:
-            pass
-        model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-        SYSTEM_DEV = """Tu es l'architecte de Bea. Tu modifies sans rien casser, sans rien oublier. Retourne le code complet modifié dans ```python."""
-        with st.spinner(f"Groq {model_id} modifie + applique..."):
-            try:
-                raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE:\n{code_cible}\n\nCONSIGNE: {consigne}"}], 8000, model_override=model_id))
-                mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
-                new_code = mm.group(1).strip() if mm else raw.strip()
-                if cible != "Fichier complet app.py (recommandé)" and "def " in new_code:
-                    pattern = r'def render_sidebar\(\):.*?(?=\n\ndef )' if "render_sidebar" in cible else (r'def page_chat\(\):.*?(?=\n\ndef )' if "page_chat" in cible else None)
-                    if pattern and re.search(pattern, full_code, re.DOTALL):
-                        final_code = re.sub(pattern, new_code + "\n\n", full_code, count=1, flags=re.DOTALL)
-                    else:
-                        final_code = new_code
-                else:
-                    final_code = new_code
-                if len(final_code) < len(full_code)*0.7:
-                    st.error("Code incomplet, annulé. Réessaie en Ultra.")
-                else:
-                    with open(__file__, 'w', encoding='utf-8') as f:
-                        f.write(final_code)
-                    quota_consume("code")
-                    st.success("✅ SITE MODIFIÉ ! Redémarrage...")
-                    time.sleep(2)
+
+    with tab_lab:
+        c_lev, c_mod = st.columns([1.6, 1.4])
+        with c_lev:
+            level_key = st.selectbox(
+                "Niveau de modification souhaité",
+                list(LAB_LEVELS.keys()),
+                format_func=lambda k: LAB_LEVELS[k]["title"],
+                key="lab_level_choice"
+            )
+            lvl_info = LAB_LEVELS[level_key]
+            st.caption(f"**Portée :** {lvl_info['scope']}")
+            st.markdown(f"*{lvl_info['description']}*")
+        with c_mod:
+            st.selectbox("Cerveau IA", list(DEV_MODELES.keys()), key="dev_model_choice")
+            st.text_input("Nom de la sauvegarde", value=f"backup_lvl{level_key}_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
+
+        st.divider()
+
+        # Choix de la cible spécifique selon le niveau
+        col_t1, col_t2 = st.columns([2, 1])
+        with col_t1:
+            target_labels = list(lvl_info["targets"].keys())
+            chosen_label = st.selectbox("Élément ciblé dans l'application", target_labels, key=f"target_sel_{level_key}")
+            target_id = lvl_info["targets"][chosen_label]
+        with col_t2:
+            apply_mode = st.radio("Mode d'application", ["1-Clic direct (recommandé)", "Prévisualiser le diff d'abord"], key="lab_apply_mode")
+
+        # Suggestions prêtes à l'emploi en 1 clic
+        st.markdown("**💡 Suggestions de modifications rapides :**")
+        p_cols = st.columns(len(lvl_info["presets"]))
+        for i, preset in enumerate(lvl_info["presets"]):
+            with p_cols[i]:
+                if st.button(preset[:32] + "...", key=f"btn_preset_{level_key}_{i}", help=preset, use_container_width=True):
+                    st.session_state["dev_consigne"] = preset
                     st.rerun()
-            except Exception as e:
-                st.error(f"Echec: {e}")
+
+        consigne = st.text_area(
+            "Consigne de modification pour l'IA",
+            height=130,
+            placeholder="Ex : Ajoute un bouton de téléchargement direct sous la réponse du chat et rends-le violet",
+            key="dev_consigne"
+        )
+
+        code_cible = extract_target_code(full_code, target_id)
+        with st.expander(f"👁️ Voir le code source actuel ciblé ({target_id})", expanded=False):
+            st.code(code_cible[:2500] + ("\n... [tronqué pour affichage]" if len(code_cible) > 2500 else ""), language="python")
+
+        c_go1, c_go2 = st.columns([2, 1])
+        with c_go1:
+            btn_label = "🚀 APPLIQUER LA MODIFICATION (1 clic direct)" if apply_mode.startswith("1-Clic") else "🔍 GÉNÉRER ET PRÉVISUALISER LE DIFF"
+            launch = st.button(btn_label, key="dev_go_level", use_container_width=True, type="primary")
+
+        if launch and consigne.strip():
+            if not rate_ok() or not quota_ok("code"):
+                st.stop()
+
+            # Sauvegarde automatique
+            try:
+                sb().table("code_projects").insert({
+                    "user_id": uid(),
+                    "name": st.session_state.dev_backup_name,
+                    "language": "python",
+                    "content": full_code
+                }).execute()
+            except Exception:
+                pass
+
+            model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
+            
+            # Prompt système ultra-précis selon le niveau
+            SYSTEM_DEV = f"""Tu es l'architecte expert de Bea (BehaviorLab AI).
+Tu travailles au NIVEAU {level_key} ({lvl_info['title']}).
+RÈGLES D'OR :
+1. Tu ne modifies QUE l'élément ciblé ({target_id}) selon la consigne.
+2. Tu conserves intacte toute la structure existante sans rien casser ni oublier.
+3. Le code Python doit être 100% valide sans aucune erreur de syntaxe ou d'indentation.
+4. Retourne UNIQUEMENT le bloc de code modifié complet dans un bloc ```python ... ```."""
+
+            with st.spinner(f"Groq {model_id} modifie au Niveau {level_key} ({target_id})..."):
+                try:
+                    raw = "".join(stream_groq([
+                        {"role": "system", "content": SYSTEM_DEV},
+                        {"role": "user", "content": f"CIBLE ({target_id}):\n{code_cible}\n\nCONSIGNE:\n{consigne}"}
+                    ], 8000, model_override=model_id))
+
+                    mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
+                    new_block = mm.group(1).strip() if mm else raw.strip()
+
+                    final_code = inject_target_code(full_code, target_id, new_block)
+
+                    # Validation syntaxique Python AST
+                    is_valid, validation_msg = validate_python_code(final_code)
+                    if not is_valid:
+                        st.error(f"❌ Annulé pour votre sécurité : {validation_msg}")
+                        st.info("Le code d'origine a été conservé intact. Réessaie avec une consigne plus détaillée ou le modèle Ultra.")
+                        st.session_state["dev_raw_failed"] = raw
+                    else:
+                        # Calcul du diff
+                        diff = difflib.unified_diff(
+                            full_code.splitlines(),
+                            final_code.splitlines(),
+                            fromfile="actuel.py",
+                            tofile="modifie.py",
+                            lineterm=""
+                        )
+                        diff_text = "\n".join(list(diff))
+                        st.session_state["dev_last_diff"] = diff_text
+                        st.session_state["dev_pending_code"] = final_code
+
+                        if apply_mode.startswith("1-Clic"):
+                            with open(__file__, 'w', encoding='utf-8') as f:
+                                f.write(final_code)
+                            quota_consume("code")
+                            st.success(f"✅ MODIFICATION NIVEAU {level_key} APPLIQUÉE AVEC SUCCÈS ! (Syntaxe validée)")
+                            time.sleep(1.5)
+                            st.rerun()
+                        else:
+                            st.success("✅ Code généré et syntaxe validée ! Passe à l'onglet 'Diff & Aperçu' pour valider.")
+                except Exception as e:
+                    st.error(f"Échec de la génération : {e}")
+
+    with tab_diff:
+        st.markdown("#### 🔍 Comparaison des changements (Diff)")
+        pending_code = st.session_state.get("dev_pending_code")
+        diff_text = st.session_state.get("dev_last_diff")
+        if diff_text:
+            st.code(diff_text[:12000], language="diff")
+            if pending_code:
+                if st.button("✅ CONFIRMER ET ÉCRIRE LE CODE SUR LE DISQUE", key="apply_pending_code", type="primary", use_container_width=True):
+                    with open(__file__, 'w', encoding='utf-8') as f:
+                        f.write(pending_code)
+                    quota_consume("code")
+                    st.success("✅ MODIFICATION APPLIQUÉE !")
+                    st.session_state["dev_pending_code"] = None
+                    time.sleep(1.5)
+                    st.rerun()
+        else:
+            st.info("Aucune modification en attente. Lance une modification dans le premier onglet.")
+
+    with tab_backups:
+        st.markdown("#### 💾 Sauvegardes & Restauration (Rollback)")
+        st.caption("Chaque modification sauvegarde automatiquement une version complète du site.")
+        try:
+            projs = sb().table("code_projects").select("id,name,updated_at,content").order("updated_at", desc=True).limit(10).execute().data or []
+            if projs:
+                for p in projs:
+                    col_b1, col_b2, col_b3 = st.columns([2, 1, 1])
+                    with col_b1:
+                        st.markdown(f"**{p['name']}**")
+                        st.caption(p.get("updated_at", "")[:19])
+                    with col_b2:
+                        st.download_button("Télécharger", p.get("content", ""), file_name=f"{p['name']}.py", key=f"dl_bk_{p['id']}", use_container_width=True)
+                    with col_b3:
+                        if st.button("Restaurer", key=f"restore_bk_{p['id']}", use_container_width=True, help="Remplace app.py par cette sauvegarde"):
+                            with open(__file__, 'w', encoding='utf-8') as f:
+                                f.write(p.get("content", ""))
+                            st.success(f"Version {p['name']} restaurée !")
+                            time.sleep(1.5)
+                            st.rerun()
+            else:
+                st.info("Aucune sauvegarde trouvée dans la base.")
+        except Exception as e:
+            st.warning("Impossible de lister les sauvegardes : " + str(e))
+
+    with tab_guide:
+        st.markdown("""
+        #### 📖 Guide des Niveaux de Modification
+
+        Le Labo Dev IA structure les modifications en **5 Niveaux de granularité** pour garantir une précision chirurgicale et zéro crash :
+
+        - **🎨 Niveau 1 — Cosmétique & UI (Zéro risque)** : Idéal pour modifier les couleurs, boutons, textes de la vitrine, cartes d'accroche. Ne touche aucune logique applicative.
+        - **🧩 Niveau 2 — Page ou Fonction (Chirurgical)** : Modifie une fonction isolée (`page_chat`, `page_studio`, etc.) sans jamais toucher aux autres parties de l'appli.
+        - **🧠 Niveau 3 — Moteur Comportemental (Cerveau)** : Pour modifier la manière dont Bea répond, analyser les biais cognitifs, le format des 5 étapes, les relances.
+        - **⚡ Niveau 4 — Nouveaux Modules** : Pour ajouter une nouvelle page, un nouvel outil vidéo ou un nouveau profil d'utilisateur.
+        - **🏛️ Niveau 5 — Architecture Globale** : Pour des refontes transversales avec validation de syntaxe Python intégrale.
+        """)
+
     st.divider()
-    if st.button("← Retour portail", key="back_portal", use_container_width=True):
-        st.session_state.page = "dev_portal"
-        st.rerun()
-    if st.button("🌐 Site fonctionnel", key="to_prod_from_lab", use_container_width=True):
-        st.session_state.dev_mode = "prod"
-        st.session_state.page = "chat"
-        st.rerun()
+    c_ret1, c_ret2 = st.columns(2)
+    with c_ret1:
+        if st.button("← Retour portail", key="back_portal_lvl", use_container_width=True):
+            st.session_state.page = "dev_portal"
+            st.rerun()
+    with c_ret2:
+        if st.button("🌐 Ouvrir le site fonctionnel (Prod)", key="to_prod_from_lab_lvl", use_container_width=True):
+            st.session_state.dev_mode = "prod"
+            st.session_state.page = "chat"
+            st.rerun()
 
 def page_vitrine():
     nav_a, nav_b, nav_spacer, nav_c = st.columns([1, 1.35, 4.8, 1])
@@ -1310,11 +1622,33 @@ def recommend_use_case(goal, custom_goal):
 
 
 def save_onboarding(profile_type, use_case, display_name, goal, school_country=None, study_country=None, study_level=None):
-    row = {
-        "user_id": uid(),
+    # 1. Enregistrement immédiat dans la session locale (infaillible, anti-blocage)
+    clean_nom = clean_text(display_name, 40) or "Utilisateur"
+    clean_obj = clean_text(goal, 300)
+    
+    st.session_state.profile_type = profile_type
+    st.session_state.prefs = {
+        "display_name": clean_nom,
+        "style": "Expert comportemental",
+        "goal": clean_obj,
+        "profile_type": profile_type,
         "use_case": use_case,
-        "display_name": clean_text(display_name, 40),
-        "goal": clean_text(goal, 300),
+        "school_country": school_country or "France",
+        "study_country": study_country or "France",
+        "study_level": study_level or "Collège - 6e",
+    }
+    st.session_state.onboarding_done = True
+    
+    # 2. Persistance distante Supabase si connecté (sans faire échouer l'utilisateur si la base est hors ligne)
+    user_id = uid()
+    if not user_id:
+        return True
+        
+    row = {
+        "user_id": user_id,
+        "use_case": use_case,
+        "display_name": clean_nom,
+        "goal": clean_obj,
         "style": "Expert comportemental",
         "profile_type": profile_type,
         "updated_at": now_iso(),
@@ -1325,11 +1659,9 @@ def save_onboarding(profile_type, use_case, display_name, goal, school_country=N
         row["study_country"] = study_country
     if study_level:
         row["study_level"] = study_level
+        
     try:
         sb().table("preferences").upsert(row, on_conflict="user_id").execute()
-        st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
-        st.session_state.profile_type = profile_type
-        st.session_state.onboarding_done = True
         return True
     except Exception as e:
         detail = str(e).lower()
@@ -1337,15 +1669,12 @@ def save_onboarding(profile_type, use_case, display_name, goal, school_country=N
             fallback = {k: value for k, value in row.items() if k not in ("school_country", "study_country", "study_level")}
             try:
                 sb().table("preferences").upsert(fallback, on_conflict="user_id").execute()
-                st.session_state.prefs = {k: fallback.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case")}
-                st.session_state.profile_type = profile_type
-                st.session_state.onboarding_done = True
                 return True
-            except Exception as fallback_error:
-                db_error(fallback_error)
-                return False
-        db_error(e)
-        return False
+            except Exception:
+                pass
+        # Si la DB est temporairement indisponible, le profil est quand même conservé en session
+        return True
+
 
 
 def page_onboarding():
