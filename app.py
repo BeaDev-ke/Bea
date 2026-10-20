@@ -1311,6 +1311,7 @@ def recommend_use_case(goal, custom_goal):
 
 def save_onboarding(profile_type, use_case, display_name, goal, school_country=None, study_country=None, study_level=None):
     row = {
+        "user_id": uid(),
         "use_case": use_case,
         "display_name": clean_text(display_name, 40),
         "goal": clean_text(goal, 300),
