@@ -124,26 +124,58 @@ def get_groq():
 
 @st.cache_data(ttl=3600)
 def get_modeles():
-    pref_fast = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]
-    pref_power = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile"]
+    # Modèles de production Groq ; évite les IDs historiques dépréciés.
+    pref_fast = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
+    pref_power = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
     try:
         ids = [m.id for m in get_groq().models.list().data]
-        chat_ids = [i for i in ids if "whisper" not in i and "guard" not in i]
-        fast = [m for m in pref_fast if m in chat_ids] or chat_ids[:2]
-        power = [m for m in pref_power if m in chat_ids] or chat_ids[:2]
-        return {"rapide": fast, "puissant": power}
+        chat_ids = [
+            model_id for model_id in ids
+            if "whisper" not in model_id
+            and "guard" not in model_id
+            and "orpheus" not in model_id
+        ]
+        fast = [model_id for model_id in pref_fast if model_id in chat_ids]
+        power = [model_id for model_id in pref_power if model_id in chat_ids]
+        return {
+            "rapide": fast or chat_ids[:1],
+            "puissant": power or fast or chat_ids[:1],
+        }
     except Exception:
         return {"rapide": pref_fast[:1], "puissant": pref_power[:1]}
 
 DEV_MODELES = {
-    "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]": "openai/gpt-oss-120b",
-    "Puissant (gratuit) - Llama 3.3 70B": "llama-3.3-70b-versatile",
-    "Codeur (gratuit) - GPT OSS 20B": "openai/gpt-oss-20b",
-    "Rapide (gratuit) - Llama 3.1 8B": "llama-3.1-8b-instant",
+    "Recommandé pour le code — GPT OSS 120B": "openai/gpt-oss-120b",
+    "Plus rapide — GPT OSS 20B": "openai/gpt-oss-20b",
 }
+
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+def password_strength(password):
+    """Évalue localement la robustesse du mot de passe."""
+    if not password:
+        return None, "", ""
+    score = 0
+    if len(password) >= 8:
+        score += 1
+    if len(password) >= 12:
+        score += 1
+    if re.search(r"[a-z]", password) and re.search(r"[A-Z]", password):
+        score += 1
+    if re.search(r"\d", password):
+        score += 1
+    if re.search(r"[^A-Za-z0-9]", password):
+        score += 1
+    if len(password) < 8 or score <= 1:
+        return "Faible", "#ef4444", "Ajoute au moins 8 caractères, avec des chiffres et des symboles."
+    if score <= 3:
+        return "Modéré", "#facc15", "Plus long et plus varié sera plus sûr."
+    if score == 4:
+        return "Fort", "#4ade80", "Bon niveau de sécurité."
+    return "Très fort", "#22c55e", "Mot de passe robuste."
 
 for k, v in {
     "page": "chat", "sb": None, "user": None, "plan": "free", "quota": {}, "prefs": {},
@@ -152,7 +184,7 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "", "pending_confirmation_email": "",
     "sub_result": None, "plan_result": None, "app_result": None, "app_versions": [], "app_generation_count": 0, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
-    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
+    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Recommandé pour le code — GPT OSS 120B",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
     "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_profile_choice": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "", "onboarding_study_country": "France", "onboarding_study_level": "Collège - 6e", "landing_tab": "connexion",
     "canvas_png": None, "canvas_zip": None,
@@ -173,6 +205,26 @@ header[data-testid="stHeader"]{{background:transparent!important;}}
 .block-container{{max-width:1150px!important; padding-top:2.8rem!important; padding-bottom:7rem!important;}}
 #MainMenu,footer{{visibility:hidden;}}
 div[data-testid="stButton"]>button{{background:#15112a!important; color:#e8e0ff!important; border:2px solid {BORDER}!important; border-radius:12px!important; font-weight:600!important; font-size:13px!important; min-height:44px!important;}}
+/* Navigation latérale sobre : pas de cases visibles, survol violet */
+[data-testid="stSidebar"] div[data-testid="stButton"]>button{{
+  background:transparent!important;
+  color:#e2d6ff!important;
+  border:1px solid transparent!important;
+  border-radius:10px!important;
+  box-shadow:none!important;
+  text-align:left!important;
+  justify-content:flex-start!important;
+  padding:8px 12px!important;
+  min-height:40px!important;
+  transition:background .15s ease, color .15s ease!important;
+}}
+[data-testid="stSidebar"] div[data-testid="stButton"]>button:hover{{
+  background:#3b246b!important;
+  color:#ffffff!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}}
+
 div[data-testid="stButton"]>button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 10px rgba(124,58,237,0.4)!important;}}
 div[data-testid="stLinkButton"]>a{{background:{GRAD}!important; color:white!important; border-radius:12px!important; font-weight:700!important; border:2px solid {BORDER}!important; padding:12px!important;}}
 div[data-testid="stChatMessage"]{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:16px!important; padding:14px!important;}}
@@ -336,15 +388,21 @@ def system_behavior():
         base = base + "\n\n" + spec
     return base + ("\n\n" + "\n".join(extra) if extra else "")
 
-def stream_groq(messages, max_tokens=2600, model_override=None):
+def stream_groq(messages, max_tokens=2600, model_override=None, temperature=0.3):
     if model_override:
-        models = [model_override]
+        models = list(model_override) if isinstance(model_override, (list, tuple)) else [model_override]
     else:
         models = get_modeles().get(st.session_state.model_choice, get_modeles()["rapide"])
     last, started = None, False
     for mid in models:
         try:
-            stream = get_groq().chat.completions.create(model=mid, messages=messages, temperature=0.5, max_tokens=max_tokens, stream=True)
+            stream = get_groq().chat.completions.create(
+                model=mid,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=True,
+            )
             for chunk in stream:
                 if not chunk.choices:
                     continue
@@ -356,7 +414,7 @@ def stream_groq(messages, max_tokens=2600, model_override=None):
         except Exception as e:
             last = e
             if started:
-                yield "\n\n⚠️ _Réponse interrompue, tu peux cliquer sur Continuer._"
+                yield "\\n\\n⚠️ _Réponse interrompue, tu peux cliquer sur Continuer._"
                 return
     if last:
         raise last
@@ -964,7 +1022,8 @@ def extract_target_code(full_code: str, target: str) -> str:
     if not full_code:
         return ""
     if target == "FULL_FILE":
-        return full_code[:20000]
+        # Ne jamais tronquer silencieusement le fichier source.
+        return full_code
     if target == "CSS_STYLES":
         m = re.search(r'st\.markdown\(f?"""\s*<style>[\s\S]*?</style>\s*"""', full_code)
         return m.group(0) if m else ""
@@ -1093,28 +1152,88 @@ def page_dev_lab():
             except Exception:
                 pass
 
-            model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-            
-            # Prompt système ultra-précis selon le niveau
-            SYSTEM_DEV = f"""Tu es l'architecte expert de Bea (BehaviorLab AI).
-Tu travailles au NIVEAU {level_key} ({lvl_info['title']}).
-RÈGLES D'OR :
-1. Tu ne modifies QUE l'élément ciblé ({target_id}) selon la consigne.
-2. Tu conserves intacte toute la structure existante sans rien casser ni oublier.
-3. Le code Python doit être 100% valide sans aucune erreur de syntaxe ou d'indentation.
-4. Retourne UNIQUEMENT le bloc de code modifié complet dans un bloc ```python ... ```."""
+            model_id = DEV_MODELES.get(
+                st.session_state.dev_model_choice,
+                "openai/gpt-oss-120b",
+            )
+            model_fallbacks = [model_id]
+            for fallback_id in ("openai/gpt-oss-120b", "openai/gpt-oss-20b"):
+                if fallback_id not in model_fallbacks:
+                    model_fallbacks.append(fallback_id)
 
-            with st.spinner(f"Groq {model_id} modifie au Niveau {level_key} ({target_id})..."):
+            SYSTEM_DEV = f"""Tu es un ingénieur logiciel senior chargé de modifier le code réel de Bea.
+NIVEAU : {level_key} — {lvl_info['title']}
+CIBLE EXACTE : {target_id}
+
+CONSIGNES OBLIGATOIRES :
+- Respecte strictement la demande de l'utilisateur. N'ajoute pas de fonctionnalités non demandées.
+- Modifie uniquement la cible désignée. Préserve tout le code hors cible, les noms, les interfaces, les imports, les appels, les comportements existants et les commentaires utiles.
+- Ne remplace jamais du code par des ellipses, des placeholders, des commentaires du type « reste inchangé », du pseudo-code ou une version raccourcie.
+- Ne supprime aucun cas, branche, paramètre, validation, fonction ou constante nécessaire au fonctionnement.
+- Retourne la cible ENTIÈRE, du premier au dernier caractère nécessaire, même si elle est longue.
+- Pour une fonction, fournis la fonction complète avec son indentation correcte. Pour une constante, fournis toute sa définition. Pour FULL_FILE, fournis le fichier complet sans omission.
+- N'invente aucune API, variable, fonction, modèle Groq ou dépendance. Réutilise les noms déjà présents dans le code fourni.
+- Vérifie les références, les types, les appels et les chemins d'erreur.
+- Le résultat doit être du code uniquement, dans un seul bloc ```python ... ```, sans explication avant ni après.
+- Si la consigne est ambiguë ou impossible à réaliser sans risque, renvoie exactement le code d'origine, sans le raccourcir."""
+
+            with st.spinner(f"Groq {model_id} modifie le niveau {level_key} ({target_id})..."):
                 try:
+                    if not code_cible.strip():
+                        raise ValueError(
+                            f"La cible {target_id} est vide ou introuvable. Aucun changement appliqué."
+                        )
+
                     raw = "".join(stream_groq([
                         {"role": "system", "content": SYSTEM_DEV},
-                        {"role": "user", "content": f"CIBLE ({target_id}):\n{code_cible}\n\nCONSIGNE:\n{consigne}"}
-                    ], 8000, model_override=model_id))
+                        {"role": "user", "content": (
+                            f"CODE SOURCE COMPLET DE LA CIBLE ({target_id}) :\\n"
+                            f"{code_cible}\\n\\n"
+                            f"DEMANDE EXACTE :\\n{consigne}\\n\\n"
+                            "Rends uniquement le code complet de cette cible. "
+                            "Ne raccourcis rien et ne mets aucun placeholder."
+                        )}
+                    ], 16000, model_override=model_fallbacks, temperature=0.1))
 
-                    mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
+                    mm = re.search(r'```(?:python)?\s*(.*?)```', raw, re.DOTALL | re.IGNORECASE)
                     new_block = mm.group(1).strip() if mm else raw.strip()
+                    if not new_block:
+                        raise ValueError("Le modèle a renvoyé un résultat vide.")
+
+                    forbidden_truncation = (
+                        "... reste inchangé", "# reste inchangé", "# code omis",
+                        "# TODO: compléter", "pass  # placeholder", "[code omitted]",
+                        "[reste du code]"
+                    )
+                    if any(marker.lower() in new_block.lower() for marker in forbidden_truncation):
+                        raise ValueError(
+                            "Le résultat semble raccourci ou contient un placeholder. "
+                            "Le code original est conservé ; réessaie avec une cible plus petite."
+                        )
 
                     final_code = inject_target_code(full_code, target_id, new_block)
+                    if final_code == full_code and target_id != "NEW_PAGE":
+                        raise ValueError(
+                            "La cible n'a pas été remplacée. Le code original est conservé."
+                        )
+
+                    if target_id == "FULL_FILE":
+                        old_tree = ast.parse(full_code)
+                        new_tree = ast.parse(final_code)
+                        old_names = {
+                            node.name for node in old_tree.body
+                            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                        }
+                        new_names = {
+                            node.name for node in new_tree.body
+                            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                        }
+                        missing_names = sorted(old_names - new_names)
+                        if missing_names:
+                            raise ValueError(
+                                "Le fichier généré semble incomplet : définitions manquantes : "
+                                + ", ".join(missing_names[:20])
+                            )
 
                     # Validation syntaxique Python AST
                     is_valid, validation_msg = validate_python_code(final_code)
@@ -1335,15 +1454,21 @@ def page_vitrine():
                                 st.success("Un nouvel e-mail de confirmation vient d'être envoyé.")
                             except Exception:
                                 st.error("Impossible de renvoyer l'e-mail pour le moment.")
-                    st.caption("Le renvoi devient disponible après une tentative d'identification.")
             with t_up:
-                with st.form("form_signup"):
-                    email2 = st.text_input("Adresse e-mail", key="su_email")
-                    pwd2 = st.text_input("Mot de passe (8 caractères minimum)", type="password", key="su_pwd")
-                    with st.expander("Politique de confidentialité"):
-                        st.markdown(privacy_md())
-                    ok_cgu = st.checkbox("J'ai lu et j'accepte la politique de confidentialité", key="su_cgu")
-                    go2 = st.form_submit_button("Créer mon compte", use_container_width=True)
+                email2 = st.text_input("Adresse e-mail", key="su_email")
+                pwd2 = st.text_input("Mot de passe (8 caractères minimum)", type="password", key="su_pwd")
+                strength_label, strength_color, strength_tip = password_strength(pwd2)
+                if strength_label:
+                    st.markdown(
+                        f'<div style="margin-top:-6px;margin-bottom:12px;font-size:13px;">'
+                        f'Sécurité du mot de passe : <strong style="color:{strength_color};">{strength_label}</strong>'
+                        f'<div style="color:#b9aecf;font-size:12px;margin-top:3px;">{strength_tip}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                with st.expander("Politique de confidentialité"):
+                    st.markdown(privacy_md())
+                ok_cgu = st.checkbox("J'ai lu et j'accepte la politique de confidentialité", key="su_cgu")
+                go2 = st.button("Créer mon compte", key="signup_create_button", use_container_width=True, type="primary")
                 if go2:
                     if len(pwd2) < 8 or "@" not in email2:
                         st.error("Adresse e-mail invalide ou mot de passe trop court (8 caractères minimum).")
@@ -1359,9 +1484,19 @@ def page_vitrine():
                                 load_account()
                                 st.rerun()
                             else:
-                                st.success("Compte créé. Confirme ton adresse e-mail via le message reçu, puis connecte-toi.")
+                                st.session_state.pending_confirmation_email = email2.strip()
+                                st.session_state.signup_confirmation_email = email2.strip()
+                                st.success("Compte créé. Un e-mail de confirmation vient d'être envoyé. Vérifie ta boîte de réception.")
                         except Exception:
                             st.error("Création impossible (adresse déjà utilisée ou mot de passe refusé).")
+                signup_email_pending = st.session_state.get("signup_confirmation_email", "")
+                if signup_email_pending and signup_email_pending == email2.strip():
+                    if st.button("Renvoyer l’e-mail de confirmation", key="resend_signup_confirmation", use_container_width=True):
+                        try:
+                            new_client().auth.resend({"type": "signup", "email": signup_email_pending})
+                            st.success("Un nouvel e-mail de confirmation vient d’être envoyé.")
+                        except Exception:
+                            st.error("Impossible de renvoyer l’e-mail pour le moment.")
             with t_rst:
                 with st.form("form_reset"):
                     email3 = st.text_input("Adresse e-mail", key="rs_email")
