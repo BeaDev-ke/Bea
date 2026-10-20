@@ -125,8 +125,8 @@ def get_groq():
 @st.cache_data(ttl=3600)
 def get_modeles():
     # Modèles de production Groq ; évite les IDs historiques dépréciés.
-    pref_fast = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
-    pref_power = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+    pref_fast = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "openai/gpt-oss-120b"]
+    pref_power = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "openai/gpt-oss-20b", "llama-3.1-8b-instant"]
     try:
         ids = [m.id for m in get_groq().models.list().data]
         chat_ids = [
@@ -145,7 +145,11 @@ def get_modeles():
         return {"rapide": pref_fast[:1], "puissant": pref_power[:1]}
 
 DEV_MODELES = {
-    "Recommandé pour le code — GPT OSS 120B": "openai/gpt-oss-120b",
+    # Modèles historiques restaurés + modèles ajoutés récemment.
+    "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]": "openai/gpt-oss-120b",
+    "Puissant (gratuit) - Llama 3.3 70B": "llama-3.3-70b-versatile",
+    "Codeur (gratuit) - GPT OSS 20B": "openai/gpt-oss-20b",
+    "Rapide (gratuit) - Llama 3.1 8B": "llama-3.1-8b-instant",
     "Plus rapide — GPT OSS 20B": "openai/gpt-oss-20b",
 }
 
@@ -246,11 +250,11 @@ div[data-testid="stBottom"]>div{{background:transparent!important;}}
 @media (max-width:700px){{.landing-copy{{padding:20px 18px;}} .landing-copy h2{{font-size:20px;}} .landing-copy p{{font-size:14px;}}}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
-#mic-point-vert{{position:absolute!important; right:54px!important; bottom:7px!important; z-index:9999!important; width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
-#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:44px!important; min-width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert{{position:absolute!important; right:52px!important; bottom:6px!important; z-index:9999!important; width:40px!important; height:40px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:40px!important; min-width:40px!important; height:40px!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] label{{display:none!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:44px!important; height:44px!important; min-height:44px!important; padding:0!important; margin:0!important; display:flex!important; align-items:center!important; justify-content:center!important; box-shadow:0 2px 6px rgba(0,0,0,0.3)!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:40px!important; height:40px!important; min-height:40px!important; padding:0!important; margin:0!important; display:flex!important; align-items:center!important; justify-content:center!important; box-shadow:0 2px 6px rgba(0,0,0,0.3)!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 14px rgba(124,58,237,0.55)!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] svg{{width:20px!important; height:20px!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] [data-baseweb="file-uploader"]{{background:transparent!important; border:none!important;}}
@@ -263,6 +267,44 @@ div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .studio-badge-pro{{background:#1a2a3a; color:#60a5fa; border-color:#3b82f6;}}
 </style>
 """, unsafe_allow_html=True)
+
+# Détection visuelle des gros collages, disponible sur toutes les pages de l'application.
+components.html("""
+<script>
+(function(){
+  try {
+    const doc = window.parent.document;
+    if (doc.documentElement.dataset.beaPasteWatcher) return;
+    doc.documentElement.dataset.beaPasteWatcher = '1';
+    function showPasteBadge(target, length) {
+      if (!target || !target.closest) return;
+      const host = target.closest('[data-testid="stChatInput"]') || target.closest('[data-testid="stTextArea"]') || target.parentElement;
+      if (!host) return;
+      if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+      let badge = host.querySelector('[data-bea-paste-badge="1"]');
+      if (!badge) {
+        badge = doc.createElement('span');
+        badge.setAttribute('data-bea-paste-badge', '1');
+        badge.style.cssText = 'position:absolute;right:8px;top:-22px;z-index:99999;padding:3px 9px;border-radius:999px;background:#6d28d9;color:#fff;font:700 11px/1.4 sans-serif;box-shadow:0 2px 8px #0005;pointer-events:none;';
+        host.appendChild(badge);
+      }
+      badge.textContent = 'PASTE · ' + Number(length).toLocaleString('fr-FR') + ' caractères';
+      badge.style.display = 'inline-block';
+      if (badge._beaTimer) clearTimeout(badge._beaTimer);
+      badge._beaTimer = setTimeout(function(){ if (badge.isConnected) badge.style.display = 'none'; }, 6000);
+    }
+    doc.addEventListener('paste', function(event){
+      const target = event.target;
+      if (!target || !('value' in target)) return;
+      let pasted = '';
+      try { pasted = event.clipboardData ? event.clipboardData.getData('text') : ''; } catch(e) {}
+      const lines = pasted.split(/\r?\n/).length;
+      if (pasted.length >= 500 || lines >= 8) showPasteBadge(target, pasted.length);
+    }, true);
+  } catch(e) {}
+})();
+</script>
+""", height=0)
 
 STYLE_HINT = {
     "Direct": "Va droit au but, phrases courtes, sans détour.",
@@ -390,7 +432,14 @@ def system_behavior():
 
 def stream_groq(messages, max_tokens=2600, model_override=None, temperature=0.3):
     if model_override:
-        models = list(model_override) if isinstance(model_override, (list, tuple)) else [model_override]
+        requested = list(model_override) if isinstance(model_override, (list, tuple)) else [model_override]
+        # Si un ancien identifiant Groq a été retiré, réessayer automatiquement
+        # avec les modèles actifs afin que le choix historique ne bloque pas le studio.
+        try:
+            available_fallbacks = get_modeles().get("puissant", []) + get_modeles().get("rapide", [])
+        except Exception:
+            available_fallbacks = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+        models = list(dict.fromkeys(requested + available_fallbacks))
     else:
         models = get_modeles().get(st.session_state.model_choice, get_modeles()["rapide"])
     last, started = None, False
@@ -1127,6 +1176,8 @@ def page_dev_lab():
             placeholder="Décris précisément ce que tu veux changer, où le faire et le résultat attendu.",
             key="dev_consigne"
         )
+        if consigne and (len(consigne) >= 500 or consigne.count("\n") >= 8):
+            st.info(f"PASTE détecté · {len(consigne):,} caractères collés ou saisis. Vérifie que la consigne est complète avant de lancer la modification.".replace(",", " "))
 
         code_cible = extract_target_code(full_code, target_id)
         with st.expander(f"👁️ Voir le code source actuel ciblé ({target_id})", expanded=False):
@@ -1512,7 +1563,8 @@ def page_vitrine():
 
 
 STUDIO_SECTIONS = [
-    ("composer", "🎨 Composer", "Canvas central, modèles, photos et formats sociaux", "abo"),
+    ("composer", "🎨 Composer", "Éditeur visuel avec modèles façon Canva", "free"),
+    ("assistant_ia", "✨ Assistant IA du studio", "Idées, textes, scripts et conseils de création", "free"),
     ("importer", "📂 Importer un média", "Ajoute ta vidéo, audio ou image", "free"),
     ("sous_titres", "💬 Sous-titres automatiques", "Transcription IA en SRT/VTT", "pro"),
     ("miniature", "🖼️ Miniature 1280×720", "Génère une miniature accrocheuse", "free"),
@@ -1543,10 +1595,14 @@ def render_sidebar():
                 st.rerun()
             st.divider()
             current = st.session_state.studio_menu
+            # Les réglages typographiques restent en haut de l'éditeur et les effets,
+            # ajustements et formats en bas : on ne les duplique pas dans ce menu.
+            moved_to_editor = {"texte", "effets", "transitions", "filtres", "ajustement"}
             for key, title, desc, req_plan in STUDIO_SECTIONS:
+                if key in moved_to_editor:
+                    continue
                 is_locked = req_plan != "free" and st.session_state.plan == "free"
-                badge = '<span class="studio-badge studio-badge-pro">PRO</span>' if is_locked else ""
-                active = "✅︎ " if key == current else "   "
+                active = "● " if key == current else "   "
                 label = f"{active}{title}"
                 if st.button(label, key=f"studio_menu_{key}", use_container_width=True, help=desc):
                     if is_locked:
@@ -1554,6 +1610,46 @@ def render_sidebar():
                     else:
                         st.session_state.studio_menu = key
                         st.rerun()
+            if st.session_state.studio_menu == "composer":
+                st.divider()
+                st.markdown("**Modèles de départ**")
+                st.caption("Choisis un format, puis personnalise ton visuel.")
+                sidebar_templates = {
+                    "Story / Reel": {"canvas_format": "Instagram · Story / Reel", "canvas_layout": "Hero photo", "canvas_accent": "#E1306C", "canvas_background": "#17112B", "canvas_title": "Une idée à partager"},
+                    "Post Instagram": {"canvas_format": "Instagram · Post carré", "canvas_layout": "Hero photo", "canvas_accent": "#C13584", "canvas_background": "#17112B", "canvas_title": "Nouveau post"},
+                    "TikTok vertical": {"canvas_format": "TikTok · Vertical", "canvas_layout": "Hero photo", "canvas_accent": "#25F4EE", "canvas_background": "#101014", "canvas_title": "Regarde jusqu’à la fin"},
+                    "Miniature YouTube": {"canvas_format": "YouTube · Miniature", "canvas_layout": "Hero photo", "canvas_accent": "#FF0033", "canvas_background": "#171717", "canvas_title": "Le guide complet"},
+                    "Collage photos": {"canvas_format": "Instagram · Post carré", "canvas_layout": "Collage éditorial", "canvas_accent": "#D6A85F", "canvas_background": "#201B18", "canvas_title": "Moments choisis"},
+                    "Grille 2×2": {"canvas_format": "Instagram · Post carré", "canvas_layout": "Grille 2×2", "canvas_accent": "#8B5CF6", "canvas_background": "#17112B", "canvas_title": "En quatre images"},
+                    "LinkedIn pro": {"canvas_format": "LinkedIn · Publication", "canvas_layout": "Hero photo", "canvas_accent": "#0A66C2", "canvas_background": "#102033", "canvas_title": "Une idée professionnelle"},
+                    "Affiche minimaliste": {"canvas_format": "Instagram · Post carré", "canvas_layout": "Hero photo", "canvas_accent": "#F5F5F4", "canvas_background": "#202020", "canvas_title": "Simple. Clair. Mémorable."},
+                }
+                for template_name, template_values in sidebar_templates.items():
+                    if st.button(template_name, key="studio_tpl_" + re.sub(r"[^a-z0-9]+", "_", template_name.lower()), use_container_width=True):
+                        for state_key, state_value in template_values.items():
+                            st.session_state[state_key] = state_value
+                        st.session_state.studio_menu = "composer"
+                        st.toast(f"Modèle « {template_name} » chargé")
+                        st.rerun()
+            st.divider()
+            st.markdown("#### Modèles de création")
+            st.caption("Choisis une base, puis personnalise-la dans le canvas.")
+            templates = [
+                ("📱 Story / Reel", "Instagram · Story / Reel", "Hero photo", "#7C3AED", "#17122B"),
+                ("🎬 TikTok vertical", "TikTok · Vertical", "Hero photo", "#EC4899", "#18181B"),
+                ("▶️ Miniature YouTube", "YouTube · Miniature", "Hero photo", "#EF4444", "#172033"),
+                ("▦ Grille photos", "Instagram · Post carré", "Grille 2×2", "#2563EB", "#172033"),
+                ("📰 Collage éditorial", "LinkedIn · Publication", "Collage éditorial", "#D97706", "#1F2937"),
+                ("✨ Minimal premium", "Instagram · Post carré", "Hero photo", "#14B8A6", "#0F172A"),
+            ]
+            for i, (label, fmt, layout, accent, background) in enumerate(templates):
+                if st.button(label, key=f"studio_tpl_{i}", use_container_width=True):
+                    st.session_state.studio_menu = "composer"
+                    st.session_state.canvas_format = fmt
+                    st.session_state.canvas_layout = layout
+                    st.session_state.canvas_accent = accent
+                    st.session_state.canvas_background = background
+                    st.rerun()
             return
 
         if LOGO:
@@ -1967,6 +2063,36 @@ def page_chat():
     (function(){
         const doc = window.parent.document;
         let tries = 0;
+        function showPasteBadge(target, length){
+            if(!target) return;
+            const chat = target.closest('[data-testid="stChatInput"]');
+            const host = chat || target.closest('[data-testid="stTextArea"]') || target.parentElement;
+            if(!host) return;
+            host.style.position = host.style.position || 'relative';
+            let badge = host.querySelector('[data-bea-paste-badge="1"]');
+            if(!badge){
+                badge = doc.createElement('span');
+                badge.setAttribute('data-bea-paste-badge','1');
+                badge.style.cssText = 'position:absolute;right:8px;top:-22px;z-index:99999;padding:3px 9px;border-radius:999px;background:#6d28d9;color:#fff;font:700 11px/1.4 sans-serif;box-shadow:0 2px 8px #0005;pointer-events:none;';
+                host.appendChild(badge);
+            }
+            badge.textContent = 'PASTE · ' + Number(length).toLocaleString('fr-FR') + ' caractères';
+            badge.style.display = 'inline-block';
+            if(badge._beaTimer) clearTimeout(badge._beaTimer);
+            badge._beaTimer = setTimeout(()=>{ if(badge.isConnected) badge.style.display='none'; }, 6000);
+        }
+        if(!doc.documentElement.dataset.beaPasteWatcher){
+            doc.documentElement.dataset.beaPasteWatcher='1';
+            doc.addEventListener('paste', function(event){
+                const target = event.target;
+                if(!target || !('value' in target)) return;
+                let pasted = '';
+                try { pasted = event.clipboardData ? event.clipboardData.getData('text') : ''; } catch(e) {}
+                const lines = pasted.split(/\r?\n/).length;
+                if(pasted.length >= 500 || lines >= 8) showPasteBadge(target, pasted.length);
+            }, true);
+        }
+        let pasteObserver = null;
         function placeTools(){
             const chat = doc.querySelector('div[data-testid="stChatInput"]');
             const mic = doc.querySelector('div[data-testid="stAudioInput"]');
@@ -1985,6 +2111,18 @@ def page_chat():
                 mic.style.zIndex = '20';
                 mic.style.width = '40px';
                 mic.style.height = '40px';
+                mic.style.minWidth = '40px';
+                mic.style.display = 'flex';
+                mic.style.alignItems = 'center';
+                mic.style.justifyContent = 'center';
+                const micButton = mic.querySelector('button');
+                if(micButton){
+                    micButton.style.width = '40px';
+                    micButton.style.height = '40px';
+                    micButton.style.minWidth = '40px';
+                    micButton.style.padding = '0';
+                    micButton.style.borderRadius = '50%';
+                }
                 chat.appendChild(mic);
             }
             if(plus && !chat.contains(plus)){
@@ -2312,7 +2450,7 @@ def draw_canvas_text(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int], 
         draw.text((xy[0], xy[1] + index * line_height), line, font=font, fill=fill)
 
 
-def compose_canvas(assets: list[Image.Image], size: tuple[int, int], layout: str, title: str, subtitle: str, accent: str, background: str):
+def compose_canvas(assets: list[Image.Image], size: tuple[int, int], layout: str, title: str, subtitle: str, accent: str, background: str, font_family: str = "Sans-serif", title_size: int | None = None, title_color: str = "#FFFFFF", bold_title: bool = True):
     width, height = size
     canvas = Image.new("RGB", size, background)
     draw = ImageDraw.Draw(canvas)
@@ -2351,9 +2489,20 @@ def compose_canvas(assets: list[Image.Image], size: tuple[int, int], layout: str
         draw.text((width // 2, int(height * 0.36)), "Ajoute tes photos", font=placeholder_font, fill="#8f98ad", anchor="mm")
     overlay_y = int(height * 0.73)
     draw.rounded_rectangle((margin, overlay_y, width - margin, height - margin), radius=26, fill="#101522")
-    title_font = canvas_font(max(28, int(width * 0.052)), True)
-    subtitle_font = canvas_font(max(18, int(width * 0.026)))
-    draw_canvas_text(draw, title or "Ton titre ici", (margin + 28, overlay_y + 28), usable_width - 56, title_font, "#ffffff")
+    chosen_title_size = title_size or max(28, int(width * 0.052))
+    if font_family == "Serif":
+        serif_path = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf" if bold_title else "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+        title_font = ImageFont.truetype(serif_path, chosen_title_size) if os.path.exists(serif_path) else canvas_font(chosen_title_size, bold_title)
+        subtitle_path = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+        subtitle_font = ImageFont.truetype(subtitle_path, max(18, int(width * 0.026))) if os.path.exists(subtitle_path) else canvas_font(max(18, int(width * 0.026)), False)
+    elif font_family == "Monospace":
+        mono_path = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf" if bold_title else "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+        title_font = ImageFont.truetype(mono_path, chosen_title_size) if os.path.exists(mono_path) else canvas_font(chosen_title_size, bold_title)
+        subtitle_font = canvas_font(max(18, int(width * 0.026)))
+    else:
+        title_font = canvas_font(chosen_title_size, bold_title)
+        subtitle_font = canvas_font(max(18, int(width * 0.026)))
+    draw_canvas_text(draw, title or "Ton titre ici", (margin + 28, overlay_y + 28), usable_width - 56, title_font, title_color)
     draw_canvas_text(draw, subtitle or "Ajoute un message clair et mémorable.", (margin + 28, overlay_y + int(height * 0.105)), usable_width - 56, subtitle_font, "#c8d0df")
     draw.rounded_rectangle((margin + 28, height - margin - 58, margin + 210, height - margin - 22), radius=17, fill=accent)
     draw.text((margin + 46, height - margin - 52), "Découvrir", font=canvas_font(18, True), fill="#ffffff")
@@ -2374,11 +2523,7 @@ def page_studio():
     st.caption("Suis les étapes ci-dessous. Les actions avec un cadenas 🔒 nécessitent une offre Pro ou Ultra.")
 
     if menu == "composer":
-        if st.session_state.plan != "abo":
-            studio_step_card(1, "Composer comme dans Canva", "Crée un visuel social complet avec un canvas central, des modèles et tes photos.")
-            locked("Le canvas, les modèles et les exports sociaux sont inclus dans Bea Ultra.")
-            return
-        studio_step_card(1, "Construis ton visuel", "Choisis un format de publication, dépose tes photos, sélectionne une mise en page et ajuste ton texte.")
+        studio_step_card(1, "Composer comme dans Canva", "Crée gratuitement des visuels pour les réseaux sociaux, applique des réglages et exporte ton image. Les modèles de départ sont accessibles dans la barre latérale.")
         formats = {
             "Instagram · Post carré": ((1080, 1080), "Instagram"),
             "Instagram · Story / Reel": ((1080, 1920), "Instagram Story / Reel"),
@@ -2387,28 +2532,79 @@ def page_studio():
             "LinkedIn · Publication": ((1200, 1200), "LinkedIn"),
             "App Store · Capture": ((1242, 2688), "App Store"),
         }
-        format_label = st.selectbox("Format de destination", list(formats), key="canvas_format")
-        size, platform = formats[format_label]
-        left, center, right = st.columns([1, 1.35, 1])
+        # Barre supérieure : texte, police et mise en forme, comme un éditeur bureautique.
+        with st.container(border=True):
+            st.markdown("#### Texte et typographie")
+            top1, top2, top3 = st.columns([1.5, 1, 1])
+            with top1:
+                title = st.text_input("Titre", max_chars=90, key="canvas_title", placeholder="Ton titre")
+                subtitle = st.text_input("Sous-titre", max_chars=180, key="canvas_subtitle", placeholder="Ton sous-titre ou appel à l'action")
+            with top2:
+                font_family = st.selectbox("Police", ["Sans-serif", "Serif", "Monospace"], key="canvas_font_family")
+                title_size = st.slider("Taille du titre", 24, 100, 56, key="canvas_title_size")
+            with top3:
+                title_color = st.color_picker("Couleur du texte", "#FFFFFF", key="canvas_title_color")
+                bold_title = st.checkbox("Titre en gras", value=True, key="canvas_bold_title")
+        left, center, right = st.columns([0.85, 1.7, 0.9])
         with left:
-            layout = st.selectbox("Modèle", ["Hero photo", "Grille 2×2", "Collage éditorial"], key="canvas_layout")
-            title = st.text_input("Titre", max_chars=90, key="canvas_title", placeholder="Ton idée en une phrase")
-            subtitle = st.text_area("Sous-titre", height=90, max_chars=180, key="canvas_subtitle", placeholder="Une promesse simple ou un appel à l'action")
-        with right:
-            accent = st.color_picker("Couleur d'accent", "#2563EB", key="canvas_accent")
-            background = st.color_picker("Couleur du fond", "#172033", key="canvas_background")
-            photos = st.file_uploader("Ajoute jusqu'à 8 photos", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key="canvas_photos")
+            st.markdown("#### Modèle")
+            layout = st.selectbox("Mise en page", ["Hero photo", "Grille 2×2", "Collage éditorial"], key="canvas_layout")
+            photos = st.file_uploader("Ajouter jusqu'à 8 photos", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key="canvas_photos")
             assets = []
             for photo in photos[:8] if photos else []:
                 try:
                     assets.append(Image.open(io.BytesIO(photo.getvalue())).convert("RGB"))
                 except Exception:
                     st.warning(f"Impossible de lire {photo.name}.")
+        with right:
+            st.markdown("#### Identité visuelle")
+            accent = st.color_picker("Couleur d'accent", "#2563EB", key="canvas_accent")
+            background = st.color_picker("Fond", "#172033", key="canvas_background")
         with center:
-            st.markdown("#### Canvas de publication")
-            canvas = compose_canvas(assets, size, layout, title, subtitle, accent, background)
+            st.markdown("#### Aperçu du canvas")
+            format_label = st.session_state.get("canvas_format", "Instagram · Post carré")
+            if format_label not in formats:
+                format_label = "Instagram · Post carré"
+            size, platform = formats[format_label]
+            canvas = compose_canvas(assets, size, layout, title, subtitle, accent, background,
+                                   font_family=font_family, title_size=title_size,
+                                   title_color=title_color, bold_title=bold_title)
+            from PIL import ImageEnhance, ImageFilter
+            preview_blur = st.session_state.get("canvas_blur", 0)
+            preview_contrast = st.session_state.get("canvas_contrast", 1.0)
+            preview_saturation = st.session_state.get("canvas_saturation", 1.0)
+            preview_brightness = st.session_state.get("canvas_brightness", 1.0)
+            preview_rotation = st.session_state.get("canvas_rotation", "0°")
+            if preview_blur:
+                canvas = canvas.filter(ImageFilter.GaussianBlur(radius=preview_blur / 3))
+            canvas = ImageEnhance.Contrast(canvas).enhance(preview_contrast)
+            canvas = ImageEnhance.Color(canvas).enhance(preview_saturation)
+            canvas = ImageEnhance.Brightness(canvas).enhance(preview_brightness)
+            if preview_rotation != "0°":
+                canvas = canvas.rotate(int(preview_rotation[:-1]), expand=True)
             st.image(canvas, use_container_width=True)
+        # Barre inférieure : effets, ajustements et formats regroupés comme dans Canva.
         st.divider()
+        effect_tab, adjust_tab, format_tab = st.tabs(["✨ Effets", "⚙️ Ajustements", "📐 Formats"])
+        with effect_tab:
+            e1, e2, e3 = st.columns(3)
+            with e1:
+                blur = st.slider("Flou", 0, 10, 0, key="canvas_blur")
+            with e2:
+                contrast = st.slider("Contraste", 0.5, 2.0, 1.0, 0.1, key="canvas_contrast")
+            with e3:
+                saturation = st.slider("Saturation", 0.0, 2.0, 1.0, 0.1, key="canvas_saturation")
+        with adjust_tab:
+            a1, a2 = st.columns(2)
+            with a1:
+                brightness = st.slider("Luminosité", 0.5, 1.8, 1.0, 0.1, key="canvas_brightness")
+            with a2:
+                rotation = st.selectbox("Rotation", ["0°", "90°", "180°", "270°"], key="canvas_rotation")
+        with format_tab:
+            format_label = st.selectbox("Format de destination", list(formats), index=list(formats).index(format_label), key="canvas_format")
+            st.caption("Les modèles du menu de gauche préconfigurent le format, la mise en page et les couleurs.")
+        # Le canvas affiché plus haut contient déjà les effets actifs.
+        st.markdown("#### Export")
         png = image_to_png_bytes(canvas)
         st.session_state.canvas_png = png
         st.session_state.canvas_zip = build_canvas_pack(png, platform, title)
@@ -2417,7 +2613,48 @@ def page_studio():
             st.download_button("Télécharger le visuel PNG", png, file_name="visuel_publication.png", mime="image/png", key="canvas_png_download", use_container_width=True)
         with d2:
             st.download_button("Télécharger le pack publication", st.session_state.canvas_zip, file_name="pack_publication.zip", mime="application/zip", key="canvas_zip_download", use_container_width=True)
-        st.caption(f"Prêt pour {platform}. Pour une vidéo, utilise ce visuel comme couverture ou première séquence dans ton éditeur mobile préféré.")
+        st.caption(f"Prêt pour {platform}. Les effets et ajustements sélectionnés sont appliqués à l'export. Fonctionnalités gratuites : modèles de départ, texte personnalisable, filtres, formats sociaux et export PNG/ZIP.")
+
+    elif menu == "assistant_ia":
+        studio_step_card(1, "Assistant IA du studio", "Prépare des idées, accroches, scripts, légendes et directions artistiques sans quitter ton espace de création.")
+        with st.form("studio_ai_assistant_form"):
+            project_type = st.selectbox("Que veux-tu créer ?", ["Publication Instagram", "Story / Reel", "Vidéo TikTok", "Short YouTube", "Miniature YouTube", "Carrousel", "Affiche / flyer", "Autre"], key="studio_ai_type")
+            goal = st.text_input("Objectif", key="studio_ai_goal", placeholder="Ex. présenter mon activité et attirer des clients")
+            audience = st.text_input("Public cible", key="studio_ai_audience", placeholder="Ex. jeunes entrepreneurs")
+            tone = st.selectbox("Ton", ["Dynamique", "Premium", "Pédagogique", "Humoristique", "Émotionnel", "Minimaliste"], key="studio_ai_tone")
+            details = st.text_area("Contexte ou idée", key="studio_ai_details", height=110, placeholder="Décris ton idée, ton produit ou le message à faire passer.")
+            run_ai = st.form_submit_button("Créer avec l'assistant IA", use_container_width=True, type="primary")
+        if run_ai and clean_text(details or goal, 5000):
+            if rate_ok() and quota_ok("chat"):
+                brief = f"Type de création : {project_type}\nObjectif : {clean_text(goal, 500)}\nPublic : {clean_text(audience, 500)}\nTon : {tone}\nContexte : {clean_text(details, 3500)}"
+                messages = [
+                    {"role": "system", "content": "Tu es l'assistant créatif intégré à un studio inspiré des éditeurs visuels. Réponds en français et fournis un résultat directement exploitable : concept visuel, titre/accroche, texte à placer dans le visuel, légende, palette de couleurs, composition, suggestions de médias et appel à l'action. Sois concret, structuré et concis. Ne prétends pas avoir rendu une image ou monté une vidéo si ce n'est pas le cas."},
+                    {"role": "user", "content": brief},
+                ]
+                try:
+                    result = "".join(stream_groq(messages, 3500))
+                    if result.strip():
+                        st.session_state.studio_ai_result = result
+                        quota_consume("chat")
+                        st.rerun()
+                except Exception:
+                    st.error("L'assistant IA est momentanément indisponible. Réessaie dans un instant.")
+        if st.session_state.get("studio_ai_result"):
+            st.markdown("#### Proposition de l'assistant")
+            st.markdown(st.session_state.studio_ai_result)
+            apply_cols = st.columns([1, 1, 2])
+            with apply_cols[0]:
+                if st.button("Utiliser comme titre", key="studio_ai_apply_title", use_container_width=True):
+                    first_line = next((line.strip(" #*-•") for line in st.session_state.studio_ai_result.splitlines() if line.strip()), "")
+                    st.session_state.canvas_title = clean_text(first_line, 90) or "Ton titre"
+                    st.session_state.studio_menu = "composer"
+                    st.rerun()
+            with apply_cols[1]:
+                if st.button("Afficher pour copier", key="studio_ai_copy_result", use_container_width=True):
+                    st.code(st.session_state.studio_ai_result, language="markdown")
+                    st.caption("Sélectionne le texte ci-dessus puis copie-le. Le presse-papiers automatique dépend des permissions du navigateur.")
+            with apply_cols[2]:
+                st.download_button("Télécharger la proposition (.md)", st.session_state.studio_ai_result, file_name="assistant_studio.md", key="studio_ai_download", use_container_width=True)
 
     elif menu == "importer":
         studio_step_card(1, "Importer ton média", "Ajoute ta vidéo, audio ou image. Tu pourras ensuite l'utiliser dans les autres étapes du studio.")
@@ -2519,7 +2756,7 @@ def page_studio():
         else:
             st.code("ffmpeg -i input.mp4 -vn -q:a 0 output.mp3", language="bash")
             if st.button("Extraire l'audio", key="audio_ex", use_container_width=True):
-                st.success("Commande prête. Sur Streamlit Cloud, elle sera exécutée via subprocess.")
+                st.info("La commande FFmpeg est affichée pour référence. L’extraction directe n’est pas encore exécutée par cette interface : il faut intégrer FFmpeg côté serveur pour produire le fichier audio.")
 
     elif menu == "texte":
         studio_step_card(1, "Texte incrusté", "Ajoute du texte par-dessus ta vidéo. Choisis la taille, la couleur et la position.")
