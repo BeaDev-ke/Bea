@@ -33,44 +33,39 @@ def find_file(cands):
             return f
     return None
 
-LOGO = find_file(["logo.png", "logo.jpg", "logo.jpeg", "assets/logo.png", "static/logo.png"])
+LOGO = find_file(["logo_bea.png", "logo.png", "logo_bea.svg"])
 try:
     _icon = Image.open(LOGO) if LOGO else "🧠"
 except Exception:
     _icon = "🧠"
 
 st.set_page_config(page_title="Bea", page_icon=_icon, layout="wide", initial_sidebar_state="expanded")
+AVATAR = LOGO or "🧠"
 
-from bea_i18n import setup_i18n, render_landing_nav, render_language_selector, language_instruction, flush_translations, md_raw
-from bea_voice import render_voice_button, render_voice_player, render_voice_settings, queue_autoplay
-
-setup_i18n()
-AVATAR = find_file(["avatar.png", "bea.png", "assets/avatar.png"]) or LOGO or "🧠"
-
-STRIPE_BEA_9 = st.secrets.get("STRIPE_BEA_9", "")
-STRIPE_PRO_1490 = st.secrets.get("STRIPE_PRO_1490", "")
-STRIPE_ABO_16 = st.secrets.get("STRIPE_ABO_16", "")
+STRIPE_BEA_9 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
+STRIPE_PRO_1490 = "https://buy.stripe.com/test_cNieVea1P0c62B08523wQ00"
+STRIPE_ABO_16 = "https://buy.stripe.com/test_8x27sMei58IC6Rg3OM3wQ01"
 
 try:
     GROQ_KEY = st.secrets["GROQ_API_KEY"]
     SUPA_URL = st.secrets["SUPABASE_URL"]
-    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY", "")
+    SUPA_KEY = st.secrets.get("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_KEY")
     if not SUPA_KEY:
         raise KeyError("SUPABASE_ANON_KEY")
-    DEV_ACCESS_KEY = str(st.secrets.get("DEV_ACCESS_KEY", "") or "")
-    DEV_EMAIL = str(st.secrets.get("DEV_EMAIL", "") or "")
+    DEV_ACCESS_KEY = st.secrets.get("DEV_ACCESS_KEY", "")
+    DEV_EMAIL = st.secrets.get("DEV_EMAIL", "saydoukebe31@gmail.com")
 except Exception:
     st.error("Configuration manquante : GROQ_API_KEY, SUPABASE_URL et SUPABASE_ANON_KEY doivent être définis dans les secrets.")
     st.stop()
 
-CONTACT_EMAIL = str(st.secrets.get("CONTACT_EMAIL", "") or "")
+CONTACT_EMAIL = st.secrets.get("CONTACT_EMAIL", "")
 REQUIRE_LOGIN_CODE = str(st.secrets.get("REQUIRE_LOGIN_CODE", "false")).strip().lower() in ("1", "true", "yes", "oui")
 
-PLANS = ["free", "bea", "pro", "abo"]
+PLANS = ("free", "bea", "pro", "abo")
 PLAN_LABEL = {"free": "Gratuit", "bea": "Bea", "pro": "Bea Pro", "abo": "Bea Ultra"}
 WHISPER_MODEL = "whisper-large-v3-turbo"
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
-EXT = {"python": "py", "javascript": "js", "typescript": "ts", "html": "html", "css": "css", "sql": "sql", "java": "java", "c": "c", "cpp": "cpp", "csharp": "cs", "php": "php", "go": "go", "rust": "rs", "bash": "sh", "json": "json", "markdown": "md"}
+EXT = {"python": "py", "javascript": "js", "typescript": "ts", "html": "html", "css": "css", "json": "json", "sql": "sql"}
 DEFAULT_CODE = ""
 
 STARTER_CARDS = {
@@ -165,7 +160,7 @@ for k, v in {
 if "code_area" not in st.session_state:
     st.session_state["code_area"] = DEFAULT_CODE
 
-GRAD = "linear-gradient(135deg,#7c3aed 0%,#a855f7 50%,#ec4899 100%)"
+GRAD = "linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
 BORDER, BG, CARD, TEXT = "#7c3aed", "#0f0a1e", "#1a1535", "#f5f3ff"
 st.markdown(f"""
 <style>
@@ -190,6 +185,11 @@ div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .claude-title{{font-size:34px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0;}}
 .claude-sub{{font-size:12px; color:#d8ccff!important; text-align:center; font-weight:700; letter-spacing:0.8px; margin-bottom:16px;}}
 .desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
+.landing-copy{{max-width:820px; margin:18px auto 34px auto; padding:24px 30px; background:rgba(26,21,53,.72); border:1px solid rgba(124,58,237,.65); border-radius:18px; text-align:center;}}
+.landing-copy h2{{color:{TEXT}; font-size:23px; margin:0 0 14px 0; line-height:1.25;}}
+.landing-copy p{{color:#d8d1eb; font-size:15px; line-height:1.75; margin:10px 0;}}
+.landing-copy strong{{color:#93c5fd;}}
+@media (max-width:700px){{.landing-copy{{padding:20px 18px;}} .landing-copy h2{{font-size:20px;}} .landing-copy p{{font-size:14px;}}}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
 #mic-point-vert{{position:absolute!important; right:54px!important; bottom:7px!important; z-index:9999!important; width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
@@ -217,7 +217,7 @@ STYLE_HINT = {
     "Expert comportemental": "Utilise le vocabulaire de la psychologie comportementale (déclencheurs, renforcement, friction, habitudes) en l'expliquant simplement.",
 }
 
-SYSTEM_BEHAVIOR_BASE = """
+SYSTEM_BEHAVIOR_BASE = """Tu es Bea, une IA d'analyse comportementale créée par BehaviorLab AI. Tu aides les entreprises, les indépendants et les créateurs de contenu à avancer sur leurs projets.
 
 PRINCIPE CENTRAL : tu apportes de la valeur dès ta toute première réponse. Tu ne poses JAMAIS de questions avant d'aider et tu ne conditionnes jamais ta réponse à des précisions. Si la demande est floue, fais des hypothèses explicites et couvre plusieurs cas possibles.
 
@@ -289,15 +289,15 @@ SYSTEM_USE_CASES = {
     ),
 }
 
-SYSTEM_CODE = (
+SYSTEM_CODE = ("Tu es l'IA code de Bea. Tu aides à comprendre, déboguer et améliorer du code. Réponds en français sauf demande contraire. "
                "Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code puis explique brièvement les changements. "
                "Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer.")
 
-SYSTEM_MONTAGE = (
+SYSTEM_MONTAGE = ("Tu es monteur vidéo et stratège de contenu. À partir du sujet ou du script fourni, produis un plan de montage concret : "
                   "hook des 3 premières secondes, découpage en séquences avec durées, rythme et coupes, style des sous-titres, idées de musique et d'effets sonores, "
                   "appel à l'action, 3 idées de titres et 1 idée de miniature. Adapte-toi à la plateforme et à la durée demandées. N'invente aucune statistique.")
 
-SYSTEM_APP = (
+SYSTEM_APP = ("Tu es un product builder senior. Tu génères une application web complète et réellement utilisable dans UN SEUL fichier HTML autonome (HTML + CSS + JavaScript vanilla). "
               "Commence par transformer le brief en une expérience claire : navigation, état vide, données de démonstration réalistes, actions principales, validations, messages de succès et d'erreur, responsive mobile/desktop et accessibilité clavier. "
               "Contraintes : aucune ressource externe, aucun CDN, aucun appel réseau, aucune dépendance ; les données restent dans la page et peuvent être conservées avec localStorage ; pas de fausse fonctionnalité ni de bouton sans action. "
               "Utilise une direction visuelle premium adaptée au projet, avec contraste lisible, hiérarchie nette, micro-interactions discrètes et code maintenable. Interface en français sauf demande contraire. "
@@ -332,7 +332,7 @@ def system_behavior():
     spec = SYSTEM_USE_CASES.get(use_case) if use_case else None
     if spec:
         base = base + "\n\n" + spec
-    return base + ("\n\n" + "\n".join(extra) if extra else "") + language_instruction()
+    return base + ("\n\n" + "\n".join(extra) if extra else "")
 
 def stream_groq(messages, max_tokens=2600, model_override=None):
     if model_override:
@@ -628,7 +628,7 @@ def render_message(m, idx):
                         st.session_state.editing_msg_id = None
                         st.rerun()
             else:
-                md_raw(m["content"])
+                st.markdown(m["content"])
                 if m.get("attachment_name"):
                     st.caption(f"📎 {m['attachment_name']}")
                 if m.get("id"):
@@ -637,10 +637,8 @@ def render_message(m, idx):
                         st.rerun()
     else:
         with st.chat_message("assistant", avatar=AVATAR):
-            md_raw(m["content"])
-            c1,c2,c3,c4,c5,c6 = st.columns([1,1,1,1,2,1])
-            with c6:
-                render_voice_button(idx)
+            st.markdown(m["content"])
+            c1,c2,c3,c4,c5 = st.columns([1,1,1,1,2])
             with c1:
                 if st.button("📋", key=f"copy_{idx}", help="Copier"):
                     components.html(f"<script>navigator.clipboard.writeText({json.dumps(m['content'])});</script>", height=0)
@@ -667,7 +665,6 @@ def render_message(m, idx):
                 if st.button("📝 Word", key=f"word_{idx}"):
                     st.session_state[f"export_word_{idx}"] = True
                     st.rerun()
-            render_voice_player(m["content"], idx)
             if st.session_state.get(f"export_pdf_{idx}"):
                 try:
                     from fpdf import FPDF
@@ -710,7 +707,6 @@ def generate_reply():
         db_error(e)
         mid = None
     st.session_state.messages.append({"id": mid, "role": "assistant", "content": text})
-    queue_autoplay(text)
     st.session_state.convs = None
     quota_consume("chat")
     return True
@@ -872,9 +868,7 @@ def page_dev_lab():
         except Exception:
             pass
         model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-        SYSTEM_DEV = ("Tu es un expert Python/Streamlit. On te donne un CODE et une CONSIGNE. "
-            "Applique uniquement la consigne sans casser le reste, conserve toutes les fonctionnalités existantes, "
-            "et renvoie le fichier COMPLET modifié dans un unique bloc ```python ... ```.")
+        SYSTEM_DEV = """Tu es l'architecte de Bea. Tu modifies sans rien casser, sans rien oublier. Retourne le code complet modifié dans ```python."""
         with st.spinner(f"Groq {model_id} modifie + applique..."):
             try:
                 raw = "".join(stream_groq([{"role":"system","content":SYSTEM_DEV},{"role":"user","content": f"CODE:\n{code_cible}\n\nCONSIGNE: {consigne}"}], 8000, model_override=model_id))
@@ -903,26 +897,57 @@ def page_dev_lab():
     if st.button("← Retour portail", key="back_portal", use_container_width=True):
         st.session_state.page = "dev_portal"
         st.rerun()
-    if st.button("🌐 Site fonctionnel", key="restored_key_1", use_container_width=True):
+    if st.button("🌐 Site fonctionnel", key="to_prod_from_lab", use_container_width=True):
         st.session_state.dev_mode = "prod"
         st.session_state.page = "chat"
         st.rerun()
 
 def page_vitrine():
-    render_landing_nav()
+    nav_a, nav_b, nav_spacer, nav_c = st.columns([1, 1.35, 4.8, 1])
+    with nav_a:
+        if st.button("Offres", key="landing_offers", use_container_width=True):
+            st.session_state.landing_tab = "offres"
+            st.rerun()
+    with nav_b:
+        if st.button("BehaviorLab AI", key="landing_about", use_container_width=True):
+            st.session_state.landing_tab = "about"
+            st.rerun()
+    with nav_c:
+        st.selectbox("Langues", ["Français", "English"], key="landing_language", label_visibility="collapsed")
     if LOGO:
         _, c, _ = st.columns([1, 0.3, 1])
         with c:
-            st.image(LOGO, width=80)
+            st.image(LOGO, width=96)
     st.markdown('<div class="claude-title">Bea</div><div class="claude-sub">BehaviorLab AI</div>', unsafe_allow_html=True)
     landing_tab = st.session_state.get("landing_tab", "connexion")
     if landing_tab == "about":
-        st.markdown('<div class="desc-main"><strong>BehaviorLab AI</strong> développe des intelligences artificielles pensées pour transformer les idées en progrès concrets. Nos outils combinent compréhension du comportement, aide à la décision et accompagnement pratique pour vous aider à avancer avec plus de clarté, de régularité et d\'impact.</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="landing-copy">
+            <h2>Une intelligence artificielle pensée pour votre progression</h2>
+            <p><strong>BehaviorLab AI</strong> développe des intelligences artificielles dédiées à votre réussite. Notre conviction est simple : les blocages qui vous freinent — procrastination, doute, désorganisation, difficulté à décider — ne relèvent pas d'un manque de volonté, mais de mécanismes comportementaux identifiables et sur lesquels on peut agir.</p>
+            <p>Nous combinons la science du comportement, l'analyse fine des situations et un accompagnement concret pour transformer une intention en progrès visible. Bea lit ce qui se passe derrière une décision, repère les patterns qui se répètent et propose des leviers adaptés à votre contexte — pas des conseils génériques.</p>
+            <p>Que vous soyez entrepreneur, indépendant, créateur de contenu, étudiant ou salarié, Bea vous aide à voir clair dans vos blocages, à reprendre des décisions que vous repoussez, à construire des routines qui tiennent dans le temps et à transformer vos idées en actions concrètes. Chaque échange vise une prochaine étape utile, mesurable et suffisamment simple pour être appliquée dès aujourd'hui.</p>
+            <p>Au-delà de la conversation, BehaviorLab AI construit des outils dédiés : un éditeur de code, un studio créateur pour vos contenus vidéo, un générateur d'applications web et un système de mémoire qui apprend de vos échanges pour mieux vous accompagner au fil du temps.</p>
+        </div>
+        """, unsafe_allow_html=True)
     elif landing_tab == "offres":
-        st.markdown('<div class="desc-main">Choisissez l\'accompagnement adapté à votre besoin, puis revenez à l\'onglet de connexion pour commencer.</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="landing-copy">
+            <h2>Choisissez le niveau d'accompagnement qui vous convient</h2>
+            <p>Commencez avec les fonctions essentielles de Bea pour clarifier vos blocages, organiser vos idées et construire des plans d'action concrets. Vous gardez une expérience simple, utile et directement orientée vers votre prochaine étape.</p>
+            <p>Lorsque vos besoins grandissent, les offres supérieures ajoutent la personnalisation, les analyses spécialisées, l'accompagnement scolaire, les outils de création de contenu, l'édition de code et la génération d'applications web. Chaque formule vous permet d'avancer avec les bons outils, sans complexité inutile.</p>
+        </div>
+        """, unsafe_allow_html=True)
         render_offers()
     else:
-        st.markdown('<div class="desc-main">Bea transforme une idée floue ou un blocage en prochaines étapes concrètes. Elle vous aide à comprendre ce qui ralentit votre projet, à choisir une direction et à passer à l\'action avec un plan clair.</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="landing-copy">
+            <h2>Clarifiez vos idées. Comprenez vos blocages. Avancez.</h2>
+            <p>Bea vous accompagne lorsque vous savez que vous devez avancer, mais que le prochain pas reste flou. Elle transforme votre situation en une lecture claire, des options réalistes et un plan d'action que vous pouvez commencer dès maintenant.</p>
+            <p>Elle vous aide à identifier ce qui vous ralentit vraiment : une priorité mal définie, une décision repoussée, une routine difficile à tenir ou une idée qui reste au stade de projet. Ses réponses sont conçues pour être concrètes, lisibles et adaptées à votre réalité.</p>
+            <p>Que vous développiez une activité, prépariez un contenu, organisiez un projet ou cherchiez une meilleure routine, l'objectif reste le même : vous aider à passer de la réflexion à une progression régulière, étape après étape.</p>
+        </div>
+        """, unsafe_allow_html=True)
     _, col, _ = st.columns([0.5, 1.6, 0.5])
     with col:
         with st.container(border=True):
@@ -1036,7 +1061,7 @@ def page_vitrine():
                     except Exception:
                         pass
                     st.success("Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé.")
-    st.markdown("<div style='height:36px;'></div>")
+
 
 STUDIO_SECTIONS = [
     ("composer", "🎨 Composer", "Canvas central, modèles, photos et formats sociaux", "abo"),
@@ -1093,8 +1118,6 @@ def render_sidebar():
             return f"{x['used']}/{x['limit']}" if x else "?"
         st.markdown(f'<div class="limit-badge">{PLAN_LABEL[st.session_state.plan]} · Chat {fmt(q.get("chat"))} · Code {fmt(q.get("code"))} · {st.session_state.model_choice}</div>', unsafe_allow_html=True)
         st.selectbox("Modèle", ["rapide","puissant"], key="model_choice", help="Rapide = réponse instantanée, Puissant = raisonnement plus profond")
-        render_language_selector("sidebar")
-        render_voice_settings()
         nom_perso = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
         if nom_perso:
             st.markdown(f'<div style="font-size:12px; color:#c4b5fd; margin-top:-4px; margin-bottom:6px;">👤 {html.escape(nom_perso)}</div>', unsafe_allow_html=True)
@@ -1181,7 +1204,7 @@ def render_sidebar():
         if nom:
             st.markdown(f'<div style="font-size:14px; font-weight:700; margin-top:10px;">{html.escape(nom)}</div>', unsafe_allow_html=True)
         st.caption(st.session_state.user.email or "")
-        if st.button("🚪 Déconnexion", key="restored_key_3", use_container_width=True):
+        if st.button("🚪 Déconnexion", key="nav_logout", use_container_width=True):
             try:
                 sb().auth.sign_out()
             except Exception:
@@ -1264,9 +1287,9 @@ PROMPT_OFFER_RECOMMENDATIONS = {
     },
 }
 
-SCHOOL_COUNTRIES = ["France", "Belgique", "Suisse", "Canada (Québec)", "Luxembourg", "Maroc", "Algérie", "Tunisie", "Sénégal", "Côte d'Ivoire", "Cameroun", "Autre"]
-STUDY_COUNTRIES = ["France", "Belgique", "Suisse", "Canada", "Luxembourg", "Maroc", "Algérie", "Tunisie", "Sénégal", "Côte d'Ivoire", "Cameroun", "Royaume-Uni", "États-Unis", "Espagne", "Allemagne", "Italie", "Autre"]
-STUDY_LEVELS = ["Primaire", "Collège - 6e", "Collège - 5e", "Collège - 4e", "Collège - 3e", "Lycée - Seconde", "Lycée - Première", "Lycée - Terminale", "BTS / BUT", "Licence", "Master", "Doctorat", "Formation professionnelle", "Autre"]
+SCHOOL_COUNTRIES = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
+STUDY_COUNTRIES = ["France", "Belgique", "Suisse", "Canada", "Maroc", "Sénégal", "Côte d'Ivoire", "Cameroun", "Tunisie", "Algérie"]
+STUDY_LEVELS = ["Collège - 6e", "Collège - 5e", "Collège - 4e", "Collège - 3e", "Lycée - Seconde", "Lycée - Première", "Lycée - Terminale"]
 
 
 def recommend_use_case(goal, custom_goal):
@@ -1441,7 +1464,7 @@ def page_chat():
                     st.session_state.regen_flag = True
                     st.rerun()
         with c2:
-            if st.button("▶️ Continuer", key="restored_key_4", use_container_width=True):
+            if st.button("▶️ Continuer", key="continue_btn", use_container_width=True):
                 if st.session_state.messages and st.session_state.messages[-1]["role"]=="assistant":
                     cont = st.session_state.messages[-1]["content"][-500:] + "\n\n[Continue exactement où tu t'es arrêté, sans répéter]"
                     st.session_state.messages.append({"role":"user","content": cont})
@@ -1947,7 +1970,7 @@ def page_studio():
             st.info("Aucun média importé pour le moment.")
 
     elif menu == "sous_titres":
-        LANGS = {"Détection automatique": None, "Français": "fr", "English": "en", "Español": "es", "Deutsch": "de", "Italiano": "it", "Português": "pt", "العربية": "ar", "中文": "zh", "日本語": "ja", "हिन्दी": "hi", "Русский": "ru", "Nederlands": "nl", "Türkçe": "tr", "Polski": "pl", "한국어": "ko", "ไทย": "th"}
+        LANGS = {"Détection automatique": None, "Français": "fr", "English": "en"}
         if st.session_state.plan not in ("pro", "abo"):
             studio_step_card(1, "Sous-titres automatiques", "Transcription par IA au format SRT et VTT, prêts à importer dans ton logiciel de montage.")
             st.warning("🔒 Cette fonction est incluse dans Bea Pro et Bea Ultra.")
@@ -2049,7 +2072,7 @@ def page_studio():
 
     elif menu == "filtres":
         studio_step_card(1, "Filtres couleur", "Ajuste le rendu couleur de ta vidéo : contraste, saturation, teinte.")
-        st.slider("Contraste", 0.5, 2.0, 1.0, key="restored_key_5")
+        st.slider("Contraste", 0.5, 2.0, 1.0, key="filt_contrast")
 
     elif menu == "ajustement":
         studio_step_card(1, "Ajustement", "Recadre, pivote ou change la vitesse de ta vidéo.")
@@ -2057,7 +2080,7 @@ def page_studio():
 
     elif menu == "autocollants":
         studio_step_card(1, "Autocollants", "Ajoute des emojis ou des images par-dessus ta vidéo.")
-        st.file_uploader("Image autocollant (PNG recommandé)", type=["png","jpg","webp"], key="restored_key_6")
+        st.file_uploader("Image autocollant (PNG recommandé)", type=["png","jpg","webp"], key="sticker_up")
 
     elif menu == "modeles":
         studio_step_card(1, "Formats prédéfinis", "Choisis un format selon la plateforme de destination.")
@@ -2172,5 +2195,3 @@ render_sidebar()
     "projets": page_projets, "perso": page_perso, "compte": page_compte, "memoire": page_memoire,
     "dev_portal": page_dev_portal, "dev_lab": page_dev_lab,
 }.get(st.session_state.page, page_chat)()
-
-flush_translations()
