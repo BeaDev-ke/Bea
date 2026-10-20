@@ -236,7 +236,10 @@ div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!impor
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
 div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
 div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
-div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:104px!important;}}
+div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; display:flex!important; align-items:center!important; padding:6px 10px 6px 8px!important; gap:8px!important;}}
+div[data-testid="stChatInput"] > div:nth-child(1){{flex:0 0 36px!important; order:1!important;}}
+div[data-testid="stChatInput"] > div:nth-child(2){{flex:1!important; order:2!important;}}
+#mic-point-vert{{position:relative!important; right:auto!important; bottom:auto!important; width:38px!important; height:38px!important; order:3!important; flex-shrink:0!important; z-index:1!important;}}
 div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
 div[data-testid="stBottom"]{{background:transparent!important; position:relative!important;}}
 div[data-testid="stBottom"]>div{{background:transparent!important;}}
