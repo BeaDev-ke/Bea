@@ -162,53 +162,53 @@ for k, v in {
 if "code_area" not in st.session_state:
     st.session_state["code_area"] = DEFAULT_CODE
 
-GRAD = "linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
-BORDER, BG, CARD, TEXT = "#7c3aed", "#0f0a1e", "#1a1535", "#f5f3ff"
+GRAD = "linear-gradient(135deg, #27272a 0%, #3f3f46 100%)"
+BORDER, BG, CARD, TEXT = "#27272a", "#121214", "#18181b", "#f5f3ff"
 st.markdown(f"""
 <style>
 .stApp{{background:{BG}!important;}}
-[data-testid="stSidebar"]{{background:#0d0d14!important; border-right:3px solid {BORDER}!important;}}
-[data-testid="stSidebar"] *{{color:#e2d6ff!important;}}
+[data-testid="stSidebar"]{{background:#121214!important; border-right:1px solid {BORDER}!important;}}
+[data-testid="stSidebar"] *{{color:#e4e4e7!important;}}
 header[data-testid="stHeader"]{{background:transparent!important;}}
 .block-container{{max-width:1150px!important; padding-top:2.8rem!important; padding-bottom:7rem!important;}}
 #MainMenu,footer{{visibility:hidden;}}
-div[data-testid="stButton"]>button{{background:#15112a!important; color:#e8e0ff!important; border:2px solid {BORDER}!important; border-radius:12px!important; font-weight:600!important; font-size:13px!important; min-height:44px!important;}}
-div[data-testid="stButton"]>button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 10px rgba(124,58,237,0.4)!important;}}
-div[data-testid="stLinkButton"]>a{{background:{GRAD}!important; color:white!important; border-radius:12px!important; font-weight:700!important; border:2px solid {BORDER}!important; padding:12px!important;}}
-div[data-testid="stChatMessage"]{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:16px!important; padding:14px!important;}}
+div[data-testid="stButton"]>button{{background:#212121!important; color:#f4f4f5!important; border:1px solid #383838!important; border-radius:12px!important; font-weight:600!important; font-size:13px!important; min-height:44px!important;}}
+div[data-testid="stButton"]>button:hover{{background:#2a2a2e!important; border-color:#52525b!important;}}
+div[data-testid="stLinkButton"]>a{{background:#27272a!important; color:white!important; border-radius:12px!important; font-weight:700!important; border:1px solid #3f3f46!important; padding:12px!important;}}
+div[data-testid="stChatMessage"]{{background:{CARD}!important; border:1px solid {BORDER}!important; border-radius:16px!important; padding:14px!important;}}
 div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!important; line-height:1.6!important;}}
-div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
+div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1e1e20!important; border:1px solid #383838!important; border-radius:12px!important;}}
 div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
 div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
-div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:104px!important;}}
+div[data-testid="stChatInput"]{{background:#212121!important; border:1px solid #383838!important; border-radius:26px!important; padding-right:96px!important;}}
 div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
 div[data-testid="stBottom"]{{background:transparent!important; position:relative!important;}}
 div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .claude-title{{font-size:34px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0;}}
-.claude-sub{{font-size:12px; color:#d8ccff!important; text-align:center; font-weight:700; letter-spacing:0.8px; margin-bottom:16px;}}
-.desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
-.landing-copy{{max-width:820px; margin:18px auto 34px auto; padding:24px 30px; background:rgba(26,21,53,.72); border:1px solid rgba(124,58,237,.65); border-radius:18px; text-align:center;}}
+.claude-sub{{font-size:12px; color:#a1a1aa!important; text-align:center; font-weight:600; letter-spacing:0.8px; margin-bottom:16px;}}
+.desc-main{{font-size:14px; color:#a1a1aa; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
+.landing-copy{{max-width:820px; margin:18px auto 34px auto; padding:24px 30px; background:#18181b; border:1px solid #27272a; border-radius:18px; text-align:center;}}
 .landing-copy h2{{color:{TEXT}; font-size:23px; margin:0 0 14px 0; line-height:1.25;}}
-.landing-copy p{{color:#d8d1eb; font-size:15px; line-height:1.75; margin:10px 0;}}
-.landing-copy strong{{color:#93c5fd;}}
+.landing-copy p{{color:#d4d4d8; font-size:15px; line-height:1.75; margin:10px 0;}}
+.landing-copy strong{{color:#ffffff;}}
 @media (max-width:700px){{.landing-copy{{padding:20px 18px;}} .landing-copy h2{{font-size:20px;}} .landing-copy p{{font-size:14px;}}}}
-.limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
-.soon{{font-size:12px; color:#8a7ab8;}}
-#mic-point-vert{{position:absolute!important; right:50px!important; bottom:6px!important; z-index:9999!important; width:38px!important; height:38px!important; margin:0!important; padding:0!important;}}
-#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:38px!important; min-width:38px!important; height:38px!important; margin:0!important; padding:0!important;}}
+.limit-badge{{background:#18181b; border:1px solid #27272a; border-radius:8px; padding:6px 10px; font-size:11px; color:#a1a1aa; margin-bottom:10px;}}
+.soon{{font-size:12px; color:#71717a;}}
+#mic-point-vert{{position:absolute!important; right:50px!important; bottom:6px!important; z-index:9999!important; width:36px!important; height:36px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:36px!important; min-width:36px!important; height:36px!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important; margin:0!important; padding:0!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] label{{display:none!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:38px!important; height:38px!important; min-height:38px!important; padding:0!important; margin:0!important; display:flex!important; align-items:center!important; justify-content:center!important; box-shadow:0 2px 6px rgba(0,0,0,0.3)!important;}}
-#mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 14px rgba(124,58,237,0.55)!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button{{background:#212121!important; border:1px solid #383838!important; border-radius:50%!important; width:36px!important; height:36px!important; min-height:36px!important; padding:0!important; margin:0!important; display:flex!important; align-items:center!important; justify-content:center!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#2a2a2e!important; border-color:#52525b!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] svg{{width:18px!important; height:18px!important;}}
 #mic-point-vert div[data-testid="stAudioInput"] [data-baseweb="file-uploader"]{{background:transparent!important; border:none!important;}}
-.studio-step{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:14px!important; padding:18px!important; margin-bottom:14px!important;}}
+.studio-step{{background:{CARD}!important; border:1px solid {BORDER}!important; border-radius:14px!important; padding:18px!important; margin-bottom:14px!important;}}
 .studio-step h4{{color:{TEXT}!important; margin:0 0 6px 0!important; font-size:17px!important;}}
-.studio-step p{{color:#c4b5fd!important; font-size:13px!important; margin:0 0 12px 0!important; line-height:1.5!important;}}
+.studio-step p{{color:#a1a1aa!important; font-size:13px!important; margin:0 0 12px 0!important; line-height:1.5!important;}}
 .studio-nav-btn>button{{text-align:left!important; padding:10px 14px!important;}}
-.studio-badge{{display:inline-block; background:#2a1a4a; color:#c4b5fd; border:1px solid {BORDER}; border-radius:6px; padding:2px 8px; font-size:10px; font-weight:700; margin-left:6px;}}
-.studio-badge-free{{background:#3a2a1a; color:#fbbf24; border-color:#f59e0b;}}
-.studio-badge-pro{{background:#1a2a3a; color:#60a5fa; border-color:#3b82f6;}}
+.studio-badge{{display:inline-block; background:#27272a; color:#e4e4e7; border:1px solid #3f3f46; border-radius:6px; padding:2px 8px; font-size:10px; font-weight:700; margin-left:6px;}}
+.studio-badge-free{{background:#27272a; color:#e4e4e7; border-color:#3f3f46;}}
+.studio-badge-pro{{background:#27272a; color:#e4e4e7; border-color:#3f3f46;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1193,13 +1193,16 @@ RÈGLES D'OR :
         st.markdown("""
         #### 📖 Guide des Niveaux de Modification
 
-        Le Labo Dev IA structure les modifications en **5 Niveaux de granularité** pour garantir une précision chirurgicale et zéro crash :
+        Le Labo Dev IA structure les modifications en **8 Niveaux et Sous-Niveaux chirurgicaux** pour garantir zéro régression :
 
-        - **🎨 Niveau 1 — Cosmétique & UI (Zéro risque)** : Idéal pour modifier les couleurs, boutons, textes de la vitrine, cartes d'accroche. Ne touche aucune logique applicative.
-        - **🧩 Niveau 2 — Page ou Fonction (Chirurgical)** : Modifie une fonction isolée (`page_chat`, `page_studio`, etc.) sans jamais toucher aux autres parties de l'appli.
-        - **🧠 Niveau 3 — Moteur Comportemental (Cerveau)** : Pour modifier la manière dont Bea répond, analyser les biais cognitifs, le format des 5 étapes, les relances.
-        - **⚡ Niveau 4 — Nouveaux Modules** : Pour ajouter une nouvelle page, un nouvel outil vidéo ou un nouveau profil d'utilisateur.
-        - **🏛️ Niveau 5 — Architecture Globale** : Pour des refontes transversales avec validation de syntaxe Python intégrale.
+        - **🎨 Niveau 1 — Cosmétique, Design System & UI** : Tokens de couleur sombres, typographie, micro-copies et responsive.
+        - **🧩 Niveau 2 — Page ou Fonction Isolée** : Chat, studio créateur, éditeur de code, onboarding en 4 étapes.
+        - **🧠 Niveau 3 — Moteur Comportemental & Psychologie IA** : Modèle de Fogg (B=MAP), 12 biais cognitifs, protocole des 5 étapes d'action.
+        - **💾 Niveau 4 — Mémoire Contextuelle (RAG) & Profils** : Mémoire sémantique durable, graphe d'habitudes, streak momentum.
+        - **🤖 Niveau 5 — Multi-Agents Autonomes** : Agent Analyste, Agent Critique de prompt, Agent Bâtisseur, Agent Stratège.
+        - **🌐 Niveau 6 — Bâtisseur de Sites Web & Apps Ultra** : Templates réactifs, formulaires, audit de conversion (96/100), export HTML/CSS.
+        - **🌍 Niveau 7 — Moteur Multilingue (15 Langues IA)** : Français, Anglais, Espagnol, Allemand, Portugais, Italien, Néerlandais, Arabe, Chinois, Japonais, Coréen, Russe, Hindi, Turc, Wolof.
+        - **🏛️ Niveau 8 — Architecture Globale & Sécurité AST** : Validation stricte ast.parse(code), bouclier anti-jailbreak et rollbacks infinis.
         """)
 
     st.divider()
@@ -1215,17 +1218,31 @@ RÈGLES D'OR :
             st.rerun()
 
 def page_vitrine():
-    nav_spacer, nav_a, nav_b, nav_c = st.columns([4.2, 1.2, 1.8, 1.2])
-    with nav_a:
-        if st.button("Offres", key="landing_offers", use_container_width=True):
+    ALL_LANGUAGES = [
+        "Français 🇫🇷", "English 🇬🇧", "Español 🇪🇸", "Deutsch 🇩🇪", "Português 🇧🇷",
+        "Italiano 🇮🇹", "Nederlands 🇳🇱", "العربية 🇸🇦", "中文 🇨🇳", "日本語 🇯🇵",
+        "한국어 🇰🇷", "Русский 🇷🇺", "हिन्दी 🇮🇳", "Türkçe 🇹🇷", "Wolof 🇸🇳"
+    ]
+    # SIDEBAR VISITEUR : BOUTONS OFFRES ET BEHAVIORLAB AI À GAUCHE
+    with st.sidebar:
+        if LOGO:
+            st.image(LOGO, width=64)
+        st.markdown('<div style="font-size:18px; font-weight:800; color:#f5f3ff;">Bea</div><div style="font-size:11px; font-weight:600; color:#a1a1aa; margin-bottom:14px;">BehaviorLab AI</div>', unsafe_allow_html=True)
+        st.caption("Navigation Visiteur")
+        if st.button("💬 Accueil & Connexion", key="v_nav_home", use_container_width=True):
+            st.session_state.landing_tab = "connexion"
+            st.rerun()
+        if st.button("💎 Offres & Tarifs", key="v_nav_offers", use_container_width=True):
             st.session_state.landing_tab = "offres"
             st.rerun()
-    with nav_b:
-        if st.button("BehaviorLab AI", key="landing_about", use_container_width=True):
+        if st.button("🧠 BehaviorLab AI (Vision)", key="v_nav_about", use_container_width=True):
             st.session_state.landing_tab = "about"
             st.rerun()
-    with nav_c:
-        st.selectbox("Langues", ["Français", "English"], key="landing_language", label_visibility="collapsed")
+        st.divider()
+        st.markdown('<div style="font-size:11px; font-weight:700; color:#a1a1aa; margin-bottom:4px;">🌍 Langues des Modèles IA</div>', unsafe_allow_html=True)
+        st.selectbox("Langue", ALL_LANGUAGES, key="landing_language", label_visibility="collapsed")
+        st.caption("15 langues majeures intégrées (GPT OSS, Llama 3.3, Whisper).")
+
     if LOGO:
         _, c, _ = st.columns([1, 0.3, 1])
         with c:
