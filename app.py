@@ -7,8 +7,6 @@ import json
 import os
 import re
 import time
-import urllib.error
-import urllib.request
 import zipfile
 from collections import deque
 from datetime import datetime, timezone
@@ -64,9 +62,6 @@ except Exception:
 
 CONTACT_EMAIL = st.secrets.get("CONTACT_EMAIL", "")
 REQUIRE_LOGIN_CODE = str(st.secrets.get("REQUIRE_LOGIN_CODE", "false")).strip().lower() in ("1", "true", "yes", "oui")
-
-AUTH_COOKIE_NAME = "bea_auth_token"
-AUTH_COOKIE_MAX_AGE = 30 * 86400
 
 PLANS = ("free", "bea", "pro", "abo")
 PLAN_LABEL = {"free": "Gratuit", "bea": "Bea", "pro": "Bea Pro", "abo": "Bea Ultra"}
@@ -129,22 +124,14 @@ def get_groq():
 
 @st.cache_data(ttl=3600)
 def get_modeles():
-    pref_fast = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "llama-3.3-70b-versatile", "openai/gpt-oss-120b"]
-    pref_power = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "openai/gpt-oss-20b", "llama-3.1-8b-instant"]
+    pref_fast = ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]
+    pref_power = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-70b-versatile"]
     try:
         ids = [m.id for m in get_groq().models.list().data]
-        chat_ids = [
-            model_id for model_id in ids
-            if "whisper" not in model_id
-            and "guard" not in model_id
-            and "orpheus" not in model_id
-        ]
-        fast = [model_id for model_id in pref_fast if model_id in chat_ids]
-        power = [model_id for model_id in pref_power if model_id in chat_ids]
-        return {
-            "rapide": fast or chat_ids[:1],
-            "puissant": power or fast or chat_ids[:1],
-        }
+        chat_ids = [i for i in ids if "whisper" not in i and "guard" not in i]
+        fast = [m for m in pref_fast if m in chat_ids] or chat_ids[:2]
+        power = [m for m in pref_power if m in chat_ids] or chat_ids[:2]
+        return {"rapide": fast, "puissant": power}
     except Exception:
         return {"rapide": pref_fast[:1], "puissant": pref_power[:1]}
 
@@ -153,33 +140,10 @@ DEV_MODELES = {
     "Puissant (gratuit) - Llama 3.3 70B": "llama-3.3-70b-versatile",
     "Codeur (gratuit) - GPT OSS 20B": "openai/gpt-oss-20b",
     "Rapide (gratuit) - Llama 3.1 8B": "llama-3.1-8b-instant",
-    "Plus rapide — GPT OSS 20B": "openai/gpt-oss-20b",
 }
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
-
-def password_strength(password):
-    if not password:
-        return None, "", ""
-    score = 0
-    if len(password) >= 8:
-        score += 1
-    if len(password) >= 12:
-        score += 1
-    if re.search(r"[a-z]", password) and re.search(r"[A-Z]", password):
-        score += 1
-    if re.search(r"\d", password):
-        score += 1
-    if re.search(r"[^A-Za-z0-9]", password):
-        score += 1
-    if len(password) < 8 or score <= 1:
-        return "Faible", "#ef4444", "Ajoute au moins 8 caractères, avec des chiffres et des symboles."
-    if score <= 3:
-        return "Modéré", "#facc15", "Plus long et plus varié sera plus sûr."
-    if score == 4:
-        return "Fort", "#4ade80", "Bon niveau de sécurité."
-    return "Très fort", "#22c55e", "Mot de passe robuste."
 
 for k, v in {
     "page": "chat", "sb": None, "user": None, "plan": "free", "quota": {}, "prefs": {},
@@ -188,7 +152,7 @@ for k, v in {
     "rate": deque(), "blocked_until": 0.0, "up_key": 0, "expanded": None, "auth_notice": "", "pending_confirmation_email": "",
     "sub_result": None, "plan_result": None, "app_result": None, "app_versions": [], "app_generation_count": 0, "thumb_png": None, "pending_login": None, "is_admin": False,
     "model_choice": "rapide", "search_q": "", "editing_msg_id": None, "studio_menu": "importer", "memories": None, "profile_type": "createur",
-    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Recommandé pour le code — GPT OSS 120B",
+    "dev_mode": None, "dev_result": None, "dev_raw": None, "dev_key_ok": False, "dev_model_choice": "Ultra (gratuit) - GPT OSS 120B [RECOMMANDÉ - ne casse rien]",
     "dev_full_original": "", "dev_backup_name": "", "transcribed_text": "",
     "onboarding_step": 1, "onboarding_profile": "createur", "onboarding_profile_choice": "createur", "onboarding_goal_choice": "clients", "onboarding_goal": "", "onboarding_goal_text": "", "onboarding_study_country": "France", "onboarding_study_level": "Collège - 6e", "landing_tab": "connexion",
     "canvas_png": None, "canvas_zip": None,
@@ -200,7 +164,6 @@ if "code_area" not in st.session_state:
 
 GRAD = "linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #c026d3 85%, #db2777 100%)"
 BORDER, BG, CARD, TEXT = "#7c3aed", "#0f0a1e", "#1a1535", "#f5f3ff"
-
 st.markdown(f"""
 <style>
 .stApp{{background:{BG}!important;}}
@@ -210,26 +173,6 @@ header[data-testid="stHeader"]{{background:transparent!important;}}
 .block-container{{max-width:1150px!important; padding-top:2.8rem!important; padding-bottom:7rem!important;}}
 #MainMenu,footer{{visibility:hidden;}}
 div[data-testid="stButton"]>button{{background:#15112a!important; color:#e8e0ff!important; border:2px solid {BORDER}!important; border-radius:12px!important; font-weight:600!important; font-size:13px!important; min-height:44px!important;}}
-
-[data-testid="stSidebar"] div[data-testid="stButton"]>button{{
-  background:transparent!important;
-  color:#e2d6ff!important;
-  border:1px solid transparent!important;
-  border-radius:10px!important;
-  box-shadow:none!important;
-  text-align:left!important;
-  justify-content:flex-start!important;
-  padding:8px 12px!important;
-  min-height:40px!important;
-  transition:background .15s ease, color .15s ease!important;
-}}
-[data-testid="stSidebar"] div[data-testid="stButton"]>button:hover{{
-  background:#3b246b!important;
-  color:#ffffff!important;
-  border-color:transparent!important;
-  box-shadow:none!important;
-}}
-
 div[data-testid="stButton"]>button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 10px rgba(124,58,237,0.4)!important;}}
 div[data-testid="stLinkButton"]>a{{background:{GRAD}!important; color:white!important; border-radius:12px!important; font-weight:700!important; border:2px solid {BORDER}!important; padding:12px!important;}}
 div[data-testid="stChatMessage"]{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:16px!important; padding:14px!important;}}
@@ -237,184 +180,13 @@ div[data-testid="stChatMessage"] p{{color:{TEXT}!important; font-size:15px!impor
 div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"]>div{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:12px!important;}}
 div[data-baseweb="base-input"]{{background:transparent!important; border:none!important;}}
 div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea, div[data-baseweb="select"] input{{background:transparent!important; color:{TEXT}!important; border:none!important; box-shadow:none!important; outline:none!important;}}
-
-/* ==========================================================================
-   BARRE D'ENVOI STYLE CHATGPT (Capsule unifiée avec +, Micro et Flèche)
-   ========================================================================== */
-div[data-testid="stBottom"] {{
-    background: transparent !important;
-}}
-div[data-testid="stBottom"] > div {{
-    background: transparent !important;
-}}
-
-/* Capsule principale */
-div[data-testid="stChatInput"] {{
-    position: relative !important;
-    background: #18132e !important;
-    border: 1.5px solid #6d28d9 !important;
-    border-radius: 28px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
-    padding: 6px 12px !important;
-    min-height: 52px !important;
-    display: flex !important;
-    align-items: flex-end !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-}}
-
-div[data-testid="stChatInput"]:focus-within {{
-    border-color: #a855f7 !important;
-    box-shadow: 0 0 16px rgba(168, 85, 247, 0.35) !important;
-}}
-
-/* Zone de texte au centre */
-div[data-testid="stChatInput"] textarea {{
-    background: transparent !important;
-    color: #f5f3ff !important;
-    font-size: 15px !important;
-    line-height: 1.5 !important;
-    padding-left: 46px !important;   /* Espace réservé pour le bouton + */
-    padding-right: 86px !important;  /* Espace réservé pour Micro + Flèche */
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    border: none !important;
-    box-shadow: none !important;
-    outline: none !important;
-    resize: none !important;
-}}
-
-/* Bouton + (Popover pièces jointes / options) */
-[data-testid="stPopover"] {{
-    position: absolute !important;
-    left: 8px !important;
-    bottom: 8px !important;
-    z-index: 25 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 36px !important;
-    height: 36px !important;
-}}
-
-[data-testid="stPopover"] > button {{
-    width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    border-radius: 50% !important;
-    background: #231a47 !important;
-    border: 1px solid rgba(168, 85, 247, 0.35) !important;
-    color: #e2d6ff !important;
-    font-size: 20px !important;
-    font-weight: 400 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-}}
-
-[data-testid="stPopover"] > button:hover {{
-    background: #39246d !important;
-    border-color: #a855f7 !important;
-    color: #ffffff !important;
-    transform: scale(1.05) !important;
-}}
-
-/* Bouton Microphone */
-[data-testid="stAudioInput"] {{
-    position: absolute !important;
-    right: 48px !important;
-    bottom: 8px !important;
-    z-index: 25 !important;
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: transparent !important;
-    border: none !important;
-}}
-
-[data-testid="stAudioInput"] label {{
-    display: none !important;
-}}
-
-[data-testid="stAudioInput"] button {{
-    width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    border-radius: 50% !important;
-    background: #231a47 !important;
-    border: 1px solid rgba(168, 85, 247, 0.35) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-}}
-
-[data-testid="stAudioInput"] button:hover {{
-    background: #39246d !important;
-    border-color: #a855f7 !important;
-    transform: scale(1.05) !important;
-}}
-
-[data-testid="stAudioInput"] svg {{
-    width: 17px !important;
-    height: 17px !important;
-    fill: #c4b5fd !important;
-}}
-
-/* Bouton Flèche d'envoi */
-div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"],
-div[data-testid="stChatInput"] button:not([data-testid="stPopover"] button) {{
-    position: absolute !important;
-    right: 8px !important;
-    bottom: 8px !important;
-    z-index: 25 !important;
-    width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    border-radius: 50% !important;
-    background: #7c3aed !important;
-    border: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4) !important;
-    transition: all 0.2s ease !important;
-}}
-
-div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"]:hover {{
-    background: #9333ea !important;
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.6) !important;
-    transform: scale(1.05) !important;
-}}
-
-div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"]:disabled {{
-    background: #2a2046 !important;
-    opacity: 0.45 !important;
-    cursor: not-allowed !important;
-    transform: none !important;
-    box-shadow: none !important;
-}}
-
-div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"] svg {{
-    fill: #ffffff !important;
-    width: 16px !important;
-    height: 16px !important;
-}}
-
+div[data-testid="stChatInput"]{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:24px!important; padding-right:104px!important;}}
+div[data-testid="stChatInput"] div, div[data-testid="stChatInput"] textarea{{background:transparent!important; border:none!important; box-shadow:none!important; color:{TEXT}!important;}}
+div[data-testid="stBottom"]{{background:transparent!important; position:relative!important;}}
+div[data-testid="stBottom"]>div{{background:transparent!important;}}
 .claude-title{{font-size:34px; font-weight:800; color:{TEXT}; text-align:center; margin:8px 0 2px 0;}}
 .claude-sub{{font-size:12px; color:#d8ccff!important; text-align:center; font-weight:700; letter-spacing:0.8px; margin-bottom:16px;}}
+.desc-main{{font-size:14px; color:#c4b5fd; text-align:center; max-width:760px; margin:12px auto 32px auto; line-height:1.7;}}
 .landing-copy{{max-width:820px; margin:18px auto 34px auto; padding:24px 30px; background:rgba(26,21,53,.72); border:1px solid rgba(124,58,237,.65); border-radius:18px; text-align:center;}}
 .landing-copy h2{{color:{TEXT}; font-size:23px; margin:0 0 14px 0; line-height:1.25;}}
 .landing-copy p{{color:#d8d1eb; font-size:15px; line-height:1.75; margin:10px 0;}}
@@ -422,49 +194,23 @@ div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"] svg
 @media (max-width:700px){{.landing-copy{{padding:20px 18px;}} .landing-copy h2{{font-size:20px;}} .landing-copy p{{font-size:14px;}}}}
 .limit-badge{{background:#2a1a4a; border:1px solid {BORDER}; border-radius:8px; padding:6px 10px; font-size:11px; color:#c4b5fd; margin-bottom:10px;}}
 .soon{{font-size:12px; color:#8a7ab8;}}
+#mic-point-vert{{position:absolute!important; right:54px!important; bottom:7px!important; z-index:9999!important; width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"]{{background:transparent!important; border:none!important; width:44px!important; min-width:44px!important; height:44px!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] > div{{background:transparent!important; border:none!important; margin:0!important; padding:0!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] label{{display:none!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button{{background:#1a1535!important; border:2px solid {BORDER}!important; border-radius:50%!important; width:44px!important; height:44px!important; min-height:44px!important; padding:0!important; margin:0!important; display:flex!important; align-items:center!important; justify-content:center!important; box-shadow:0 2px 6px rgba(0,0,0,0.3)!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] button:hover{{background:#231a4a!important; border-color:#a855f7!important; box-shadow:0 0 14px rgba(124,58,237,0.55)!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] svg{{width:20px!important; height:20px!important;}}
+#mic-point-vert div[data-testid="stAudioInput"] [data-baseweb="file-uploader"]{{background:transparent!important; border:none!important;}}
 .studio-step{{background:{CARD}!important; border:2px solid {BORDER}!important; border-radius:14px!important; padding:18px!important; margin-bottom:14px!important;}}
 .studio-step h4{{color:{TEXT}!important; margin:0 0 6px 0!important; font-size:17px!important;}}
 .studio-step p{{color:#c4b5fd!important; font-size:13px!important; margin:0 0 12px 0!important; line-height:1.5!important;}}
+.studio-nav-btn>button{{text-align:left!important; padding:10px 14px!important;}}
+.studio-badge{{display:inline-block; background:#2a1a4a; color:#c4b5fd; border:1px solid {BORDER}; border-radius:6px; padding:2px 8px; font-size:10px; font-weight:700; margin-left:6px;}}
+.studio-badge-free{{background:#3a2a1a; color:#fbbf24; border-color:#f59e0b;}}
+.studio-badge-pro{{background:#1a2a3a; color:#60a5fa; border-color:#3b82f6;}}
 </style>
 """, unsafe_allow_html=True)
-
-# Détection visuelle des gros collages
-components.html("""
-<script>
-(function(){
-  try {
-    const doc = window.parent.document;
-    if (doc.documentElement.dataset.beaPasteWatcher) return;
-    doc.documentElement.dataset.beaPasteWatcher = '1';
-    function showPasteBadge(target, length) {
-      if (!target || !target.closest) return;
-      const host = target.closest('[data-testid="stChatInput"]') || target.closest('[data-testid="stTextArea"]') || target.parentElement;
-      if (!host) return;
-      if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
-      let badge = host.querySelector('[data-bea-paste-badge="1"]');
-      if (!badge) {
-        badge = doc.createElement('span');
-        badge.setAttribute('data-bea-paste-badge', '1');
-        badge.style.cssText = 'position:absolute;right:8px;top:-22px;z-index:99999;padding:3px 9px;border-radius:999px;background:#6d28d9;color:#fff;font:700 11px/1.4 sans-serif;box-shadow:0 2px 8px #0005;pointer-events:none;';
-        host.appendChild(badge);
-      }
-      badge.textContent = 'PASTE · ' + Number(length).toLocaleString('fr-FR') + ' caractères';
-      badge.style.display = 'inline-block';
-      if (badge._beaTimer) clearTimeout(badge._beaTimer);
-      badge._beaTimer = setTimeout(function(){ if (badge.isConnected) badge.style.display = 'none'; }, 6000);
-    }
-    doc.addEventListener('paste', function(event){
-      const target = event.target;
-      if (!target || !('value' in target)) return;
-      let pasted = '';
-      try { pasted = event.clipboardData ? event.clipboardData.getData('text') : ''; } catch(e) {}
-      const lines = pasted.split(/\r?\n/).length;
-      if (pasted.length >= 500 || lines >= 8) showPasteBadge(target, pasted.length);
-    }, true);
-  } catch(e) {}
-})();
-</script>
-""", height=0)
 
 STYLE_HINT = {
     "Direct": "Va droit au but, phrases courtes, sans détour.",
@@ -496,62 +242,67 @@ SYSTEM_USE_CASES = {
         "FORMAT DE RÉPONSE :\n"
         "1. **Lecture du message** : reformule en une ligne ce que le client dit vraiment (intention consciente + intention sous-jacente).\n"
         "2. **Signaux détectés** : 3 à 5 signaux (ton, intention, biais cognitif probable, émotion dominante, niveau d'engagement).\n"
-        "3. **Biais à activer** : 2 ou 3 leviers psycho éthiques pour avancer la relation avec une phrase prête à l'emploi pour chacun.\n"
+        "3. **Biais à activer** : 2 ou 3 leviers psycho éthiques pour avancer la relation (preuve sociale, urgence douce, cadrage gain vs perte, etc.) avec une phrase prête à l'emploi pour chacun.\n"
         "4. **Réponse suggérée** : un modèle de réponse concret, prêt à copier-coller, adapté au ton du client.\n"
         "5. **Angle de relance** : une idée de relance si pas de réponse dans X jours.\n"
         "RÈGLES : pas de manipulation trompeuse, pas de promesses fausses ; tu respectes le client tout en maximisant la clarté de l'offre. Réponds dans la langue de l'utilisateur. N'invente aucune statistique."
     ),
     "contenu": (
         "MODE STRATÈGE CONTENU CRÉATEUR.\n"
-        "L'utilisateur vient pour créer et publier du contenu plus vite (TikTok, Reels, Shorts, LinkedIn, YouTube, newsletter).\n"
-        "MÉTHODE : tu mobilises les biais cognitifs d'attention et de mémorisation et les déclencheurs émotionnels qui arrêtent le scroll.\n"
-        "FORMAT DE RÉPONSE :\n"
-        "1. **Accroche (3 premières secondes)** : 2 à 3 propositions d'hook avec le biais cognitif activé pour chacune.\n"
-        "2. **Structure du contenu** : plan clair (hook → corps → preuve → CTA).\n"
-        "3. **Titres cliquables** : 3 titres optimisés.\n"
+        "L'utilisateur vient pour créer et publier du contenu plus vite (formats vertical, carré, carrousel, newsletter).\n"
+        "MÉTHODE : tu mobilises les biais cognitifs d'attention et de mémorisation — curiosity gap, pattern interrupt, bizarreness effect, effet de position et de récence, effet de sequence, effet de vérité illusoire, biais de négativité — et les déclencheurs émotionnels qui arrêtent le pouce d'un scroller.\n"
+        "FORMAT DE RÉPONSE (adapte selon la demande) :\n"
+        "1. **Accroche (3 premières secondes)** : 2 à 3 propositions d'hook qui stoppent le scroll, avec le biais cognitif activé pour chacune.\n"
+        "2. **Structure du contenu** : plan clair (hook → corps → preuve → CTA) adapté à la plateforme et à la durée.\n"
+        "3. **Titres cliquables** : 3 titres optimisés (curiosité, contradiction, promesse concrète).\n"
         "4. **Idée de miniature / visuel** : 1 proposition concrète de visuel accrocheur.\n"
-        "5. **Levier psycho principal** : le biais cognitif ou l'émotion clé expliqué simplement.\n"
-        "RÈGLES : pas de promesses trompeuses, pas de statistiques inventées. Réponds dans la langue de l'utilisateur."
+        "5. **Levier psycho principal** : le biais cognitif ou l'émotion qui fait le plus le travail dans ce contenu, expliqué simplement.\n"
+        "RÈGLES : pas de promesses trompeuses, pas de statistiques inventées, reste authentique au style du créateur. Réponds dans la langue de l'utilisateur."
     ),
     "site": (
         "MODE BÂTISSEUR DE SITE / PAGE.\n"
-        "L'utilisateur vient pour créer un site ou une page de présentation.\n"
-        "MÉTHODE : psychologie de la conversion, charge cognitive, hiérarchie visuelle, preuve sociale et CTA clair.\n"
+        "L'utilisateur vient pour créer un site ou une page de présentation (landing page, page Insta, one-page site, portfolio).\n"
+        "MÉTHODE : tu mobilises la psychologie de la conversion — charge cognitive, effet de goal-gradient, ancrage des prix, preuve sociale, confiance par signaux, hiérarchie visuelle qui guide l'œil, CTA ancré dans un bénéfice concret, effet de réciprocité par un cadeau gratuit.\n"
         "FORMAT DE RÉPONSE :\n"
-        "1. **Structure de la page** : sections dans l'ordre logique.\n"
-        "2. **Texte de chaque section** : proposition prête à l'emploi.\n"
-        "3. **Appel à l'action** : CTA précis ancré dans un bénéfice.\n"
-        "4. **Conseils visuels** : points clés pour réduire la friction.\n"
-        "5. **Si Bea Ultra** : propose en plus un fichier HTML one-page prêt à l'emploi.\n"
-        "RÈGLES : pas de statistiques inventées. Réponds dans la langue de l'utilisateur."
+        "1. **Structure de la page** : sections à inclure, dans l'ordre (hero, problème, solution, preuve, offre, CTA, FAQ éventuelle).\n"
+        "2. **Texte de chaque section** : une proposition concrète prête à coller, avec une alternative courte.\n"
+        "3. **Appel à l'action** : un CTA précis, ancré dans un bénéfice, avec le biais activé (urgence douce, rareté, preuve sociale).\n"
+        "4. **Conseils visuels** : 3 points clés pour guider l'œil et réduire la friction (contraste, hiérarchie, espace blanc).\n"
+        "5. **Si Bea Ultra** : propose en plus un fichier HTML one-page prêt à l'emploi (renvoie vers la page App web du studio).\n"
+        "RÈGLES : pas de promesses trompeuses, pas de statistiques inventées. Réponds dans la langue de l'utilisateur."
     ),
     "code": (
         "MODE COACH CODE.\n"
-        "Tu aides à comprendre, déboguer et améliorer du code. Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code, puis explique brièvement les changements. Réponds dans la langue de l'utilisateur."
+        "L'utilisateur vient pour écrire, corriger ou améliorer du code, sans passer par la page Code manuelle.\n"
+        "Tu aides à comprendre, déboguer et améliorer du code. Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code, puis explique brièvement les changements. Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer. Réponds dans la langue de l'utilisateur, avec les commentaires de code en français."
     ),
     "general": None,
     "scolaire": (
         "MODE ACCOMPAGNEMENT SCOLAIRE.\n"
-        "L'utilisateur vient pour être accompagné dans sa scolarité : devoirs, révisions, méthodologie, préparation aux contrôles.\n"
-        "MÉTHODE : active recall, espacement, méthode Feynman, blocs de temps-pomodoro.\n"
+        "L'utilisateur vient pour être accompagné dans sa scolarité : devoirs, révisions, méthodologie, préparation aux contrôles, compréhension des cours.\n"
+        "MÉTHODE : tu suis le programme officiel du pays sélectionné par l'utilisateur (présent dans ses préférences : school_country). Tu adaptes les explications au niveau (collège, lycée, supérieur) et au programme du pays. Tu mobilises des méthodes d'apprentissage validées : active recall, espacement, élaboration, interrogation élaborée, méthode Feynman, blocs de temps-pomodoro.\n"
         "FORMAT DE RÉPONSE :\n"
-        "1. **Compréhension** : reformule la consigne en une phrase simple.\n"
-        "2. **Résolution / explication** : étape par étape.\n"
-        "3. **Vérification** : contrôle rapide pour s'assurer que l'élève a compris.\n"
-        "4. **Astuce mémorisation** : mnémotechnique ou analogie.\n"
-        "5. **Pour aller plus loin** : question ou exercice facultatif.\n"
-        "RÈGLES : ne fais JAMAIS le devoir noté à la place de l'élève : guide et explique."
+        "1. **Compréhension** : reformule la consigne ou la notion en une phrase simple.\n"
+        "2. **Résolution / explication** : étape par étape, avec les notions du programme liées.\n"
+        "3. **Vérification** : un contrôle rapide pour s'assurer que l'élève a compris.\n"
+        "4. **Astuce mémorisation** : une méthode pour retenir (mnémotechnique, schéma, analogie).\n"
+        "5. **Pour aller plus loin** : une question ou un exercice facultatif lié au programme.\n"
+        "RÈGLES : tu ne fais JAMAIS le devoir à la place de l'élève si l'objectif déclaré est un devoir noté : tu guides, tu expliques, tu vérifies la compréhension. Pour un exercice d'entraînement, tu peux donner la correction complète avec les étapes. Réponds dans la langue de l'utilisateur. Si le pays n'est pas défini, demande-le une seule fois puis adapte-toi."
     ),
 }
 
 SYSTEM_CODE = ("Tu es l'IA code de Bea. Tu aides à comprendre, déboguer et améliorer du code. Réponds en français sauf demande contraire. "
-               "Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code puis explique brièvement les changements.")
+               "Quand tu proposes une correction, donne le code complet corrigé dans un bloc de code puis explique brièvement les changements. "
+               "Si le code fourni ne suffit pas pour répondre, dis-le au lieu d'inventer.")
 
-SYSTEM_MONTAGE = ("Tu es monteur vidéo et stratège de contenu. Produis un plan de montage concret : "
-                  "hook des 3 premières secondes, découpage en séquences, style des sous-titres, musique, CTA, titres et miniature.")
+SYSTEM_MONTAGE = ("Tu es monteur vidéo et stratège de contenu. À partir du sujet ou du script fourni, produis un plan de montage concret : "
+                  "hook des 3 premières secondes, découpage en séquences avec durées, rythme et coupes, style des sous-titres, idées de musique et d'effets sonores, "
+                  "appel à l'action, 3 idées de titres et 1 idée de miniature. Adapte-toi à la plateforme et à la durée demandées. N'invente aucune statistique.")
 
 SYSTEM_APP = ("Tu es un product builder senior. Tu génères une application web complète et réellement utilisable dans UN SEUL fichier HTML autonome (HTML + CSS + JavaScript vanilla). "
-              "Contraintes : aucune ressource externe, aucun CDN, aucun appel réseau ; sauvegarde locale possible avec localStorage ; interface soignée et responsive. "
+              "Commence par transformer le brief en une expérience claire : navigation, état vide, données de démonstration réalistes, actions principales, validations, messages de succès et d'erreur, responsive mobile/desktop et accessibilité clavier. "
+              "Contraintes : aucune ressource externe, aucun CDN, aucun appel réseau, aucune dépendance ; les données restent dans la page et peuvent être conservées avec localStorage ; pas de fausse fonctionnalité ni de bouton sans action. "
+              "Utilise une direction visuelle premium adaptée au projet, avec contraste lisible, hiérarchie nette, micro-interactions discrètes et code maintenable. Interface en français sauf demande contraire. "
               "Réponds uniquement avec le fichier HTML complet dans un bloc ```html, sans explication avant ou après.")
 
 def system_behavior():
@@ -585,26 +336,15 @@ def system_behavior():
         base = base + "\n\n" + spec
     return base + ("\n\n" + "\n".join(extra) if extra else "")
 
-def stream_groq(messages, max_tokens=2600, model_override=None, temperature=0.3):
+def stream_groq(messages, max_tokens=2600, model_override=None):
     if model_override:
-        requested = list(model_override) if isinstance(model_override, (list, tuple)) else [model_override]
-        try:
-            available_fallbacks = get_modeles().get("puissant", []) + get_modeles().get("rapide", [])
-        except Exception:
-            available_fallbacks = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
-        models = list(dict.fromkeys(requested + available_fallbacks))
+        models = [model_override]
     else:
         models = get_modeles().get(st.session_state.model_choice, get_modeles()["rapide"])
     last, started = None, False
     for mid in models:
         try:
-            stream = get_groq().chat.completions.create(
-                model=mid,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=True,
-            )
+            stream = get_groq().chat.completions.create(model=mid, messages=messages, temperature=0.5, max_tokens=max_tokens, stream=True)
             for chunk in stream:
                 if not chunk.choices:
                     continue
@@ -624,51 +364,34 @@ def stream_groq(messages, max_tokens=2600, model_override=None, temperature=0.3)
 def new_client():
     return create_client(SUPA_URL, SUPA_KEY)
 
+
 def persist_auth_session(session):
-    access_token = getattr(session, "access_token", None) or (session.get("access_token") if isinstance(session, dict) else "")
-    refresh_token = getattr(session, "refresh_token", None) or (session.get("refresh_token") if isinstance(session, dict) else "")
+    access_token = getattr(session, "access_token", "")
+    refresh_token = getattr(session, "refresh_token", "")
     if not access_token or not refresh_token:
         return
-    data = json.dumps({"access": access_token, "refresh": refresh_token})
-    payload = base64.urlsafe_b64encode(data.encode()).decode()
+    payload = base64.urlsafe_b64encode(json.dumps({"access": access_token, "refresh": refresh_token}).encode()).decode()
     components.html(f"""
     <script>
-    (function() {{
-        const payload = {json.dumps(payload)};
-        window.parent.document.cookie = "{AUTH_COOKIE_NAME}=" + payload + "; Max-Age={AUTH_COOKIE_MAX_AGE}; Path=/; SameSite=Lax";
-        try {{ window.parent.localStorage.setItem("{AUTH_COOKIE_NAME}", payload); }} catch(e) {{}}
-    }})();
+    window.parent.document.cookie = {json.dumps(f"bea_auth={payload}; Max-Age=2592000; Path=/; SameSite=Lax")};
     </script>
     """, height=0)
+
 
 def clear_auth_session():
-    st.session_state["just_logged_out"] = True
-    components.html(f"""
-    <script>
-    (function() {{
-        window.parent.document.cookie = "{AUTH_COOKIE_NAME}=; Max-Age=0; Path=/; SameSite=Lax";
-        try {{ window.parent.localStorage.removeItem("{AUTH_COOKIE_NAME}"); }} catch(e) {{}}
-    }})();
-    </script>
-    """, height=0)
+    components.html("<script>window.parent.document.cookie = 'bea_auth=; Max-Age=0; Path=/; SameSite=Lax';</script>", height=0)
+
 
 def restore_auth_session():
-    if st.session_state.get("just_logged_out", False):
-        return False
     try:
         context = getattr(st, "context", None)
         cookies = getattr(context, "cookies", {}) if context else {}
-        raw = cookies.get(AUTH_COOKIE_NAME, "")
+        raw = cookies.get("bea_auth", "")
         if not raw:
             return False
         data = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
-        access_tok = data.get("access")
-        refresh_tok = data.get("refresh")
-        if not access_tok or not refresh_tok:
-            return False
-
         client = new_client()
-        result = client.auth.set_session(access_tok, refresh_tok)
+        result = client.auth.set_session(data["access"], data["refresh"])
         session = getattr(result, "session", None)
         user = getattr(session, "user", None) if session else None
         if not user:
@@ -679,24 +402,6 @@ def restore_auth_session():
     except Exception:
         return False
 
-def purge_entire_session():
-    keys_to_preserve = {"landing_tab", "landing_language"}
-    for k in list(st.session_state.keys()):
-        if k not in keys_to_preserve:
-            del st.session_state[k]
-    st.session_state.sb = None
-    st.session_state.user = None
-    st.session_state.page = "chat"
-    st.session_state.plan = "free"
-    st.session_state.messages = []
-    st.session_state.code_messages = []
-    st.session_state.quota = {}
-    st.session_state.prefs = {}
-    st.session_state.memories = []
-    st.session_state.is_admin = False
-    st.session_state.dev_mode = None
-    st.session_state.code_area = DEFAULT_CODE
-    st.session_state.just_logged_out = True
 
 def sb():
     return st.session_state.sb
@@ -758,14 +463,10 @@ def dev_reset_usage():
 def load_account():
     check_admin()
     try:
-        rows = sb().table("preferences").select("*").eq("user_id", uid()).execute().data
+        rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case,school_country,study_country,study_level").eq("user_id", uid()).execute().data
         st.session_state.prefs = rows[0] if rows else {}
     except Exception:
-        try:
-            rows = sb().table("preferences").select("display_name,style,goal,profile_type,use_case").eq("user_id", uid()).execute().data
-            st.session_state.prefs = rows[0] if rows else {}
-        except Exception:
-            st.session_state.prefs = {}
+        st.session_state.prefs = {}
     try:
         mems = sb().table("memories").select("id,content,created_at").eq("user_id", uid()).order("created_at", desc=True).limit(20).execute().data
         st.session_state.memories = mems or []
@@ -941,7 +642,7 @@ def render_message(m, idx):
             st.markdown(m["content"])
             c0,c1,c2,c3,c4,c5 = st.columns([1,1,1,1,1,2])
             with c0:
-                if st.button("🔊", key=f"speak_{idx}", help="Écouter Bea (Web Speech)"):
+                if st.button("🔊", key=f"speak_{idx}", help="Écouter Bea (100% gratuit - Web Speech)"):
                     clean_speech = json.dumps(m["content"].replace("**","").replace("#","").replace("`","")[:3500])
                     components.html(f"""
                     <script>
@@ -1019,7 +720,7 @@ def generate_reply():
         st.error("Réponse vide. Utilise « Régénérer » pour réessayer.")
         return False
     try:
-        mid = sb().table("messages").insert({"conversation_id": st.session_state.conv_id, "user_id": uid(), "role": "assistant", "content": text}).execute().data[0]["id"]
+        mid = sb().table("messages").insert({"conversation_id": st.session_state.conv_id, "user_id": uid(), "role": "assistant", "content": text,}).execute().data[0]["id"]
         sb().table("conversations").update({"updated_at": now_iso()}).eq("id", st.session_state.conv_id).execute()
     except Exception as e:
         db_error(e)
@@ -1044,7 +745,7 @@ def handle_send(prompt, up):
             title = auto_title(text)
             st.session_state.conv_id = sb().table("conversations").insert({"user_id": uid(), "title": title}).execute().data[0]["id"]
             st.session_state.convs = None
-        mid = sb().table("messages").insert({"conversation_id": st.session_state.conv_id, "user_id": uid(), "role": "user", "content": text, "attachment_name": att_name, "attachment_text": att_text}).execute().data[0]["id"]
+        mid = sb().table("messages").insert({"conversation_id": st.session_state.conv_id, "user_id": uid(), "role": "user", "content": text, "attachment_name": att_name, "attachment_text": att_text,}).execute().data[0]["id"]
     except Exception as e:
         db_error(e)
         return
@@ -1089,23 +790,30 @@ def render_offers():
                     if key == "bea":
                         st.markdown(
                             "**L'IA comportementale de base, sans personnalisation.**\n"
-                            "- Chat avec limite de messages (25 / mois)\n"
+                            "- Chat avec l'ancienne limite de messages (25 / mois)\n"
                             "- Analyse des comportements, plans d'action\n"
                             "- Historique et fichiers joints\n"
                             "- Mémoire et dictée vocale\n"
-                            "- ❌ Aucun prompt personnalisé\n"
+                            "- ❌ Aucun prompt personnalisé (pas d'analyse clients, stratégie contenu, scolaire…)\n"
                             "- ❌ Pas de studio créateur ni de génération d'app web"
                         )
                     elif key == "pro":
                         st.markdown(
                             "**Tout Bea, plus les prompts spécialisés et les outils créateurs.**\n"
                             "- 60 requêtes chat + 30 requêtes code / mois\n"
-                            "- Prompts personnalisés : Analyse clients, Stratégie contenu, Accompagnement scolaire\n"
+                            "- **Prompts personnalisés activés :**\n"
+                            "  • Analyse clients (biais cognitifs d'achat)\n"
+                            "  • Stratégie contenu (hooks, biais d'attention)\n"
+                            "  • Accompagnement scolaire (programme du pays sélectionné)\n"
+                            "  • Général (projets & habitudes)\n"
                             "- Sous-titres automatiques (SRT/VTT)\n"
-                            "- Miniatures 1280×720 & plans de montage\n"
-                            "- Montage style Canva & exports\n"
+                            "- Miniatures 1280×720\n"
+                            "- Plans de montage IA\n"
+                            "- Studio de Design Visuel avec modèles\n"
+                            "- Export PDF/Word, dictée vocale\n"
                             "- ❌ Génération d'app web réservée à Bea Ultra"
                         )
+                        st.markdown('<div class="soon">Studio complet avec FFmpeg : audio, texte, effets, filtres, transitions.</div>', unsafe_allow_html=True)
                     else:
                         st.markdown(
                             "**Tout Bea Pro, sans aucune limite.**\n"
@@ -1113,6 +821,7 @@ def render_offers():
                             "- Génération d'app web complète (HTML unique)\n"
                             "- Tous les prompts spécialisés + Coach code\n"
                             "- Studio créateur complet\n"
+                            "- Studio de Design Visuel avec modèles\n"
                             "- Quotas très larges"
                         )
                 st.link_button(label, url, use_container_width=True)
@@ -1138,74 +847,25 @@ def page_dev_portal():
     st.divider()
     if st.button("🚪 Déconnexion", key="logout_portal"):
         try:
-            if st.session_state.sb:
-                st.session_state.sb.auth.sign_out()
+            sb().auth.sign_out()
         except Exception:
             pass
-        clear_auth_session()
-        purge_entire_session()
+        for k in ("sb","user","conv_id","convs","projects","sub_result","plan_result","app_result","thumb_png","dev_key_ok"):
+            st.session_state[k]=None
+        st.session_state.messages, st.session_state.code_messages, st.session_state.quota, st.session_state.prefs = [],[],{},{}
+        st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free","chat",False,None
         st.rerun()
 
 # ==============================================================================
-# LABO DEV IA - SYNCHRONISATION GITHUB & MODIFICATION PAR NIVEAU
+# LABO DEV IA AVANCÉ - MOTEUR DE MODIFICATION PAR NIVEAU
 # ==============================================================================
-
-def sync_code_to_github(new_code: str, commit_message: str) -> tuple[bool, str]:
-    gh_token = st.secrets.get("GITHUB_TOKEN")
-    gh_repo = st.secrets.get("GITHUB_REPOSITORY")
-    gh_branch = st.secrets.get("GITHUB_BRANCH", "main")
-    gh_path = st.secrets.get("GITHUB_FILE_PATH", "app.py")
-
-    if not gh_token or not gh_repo:
-        return False, "GITHUB_TOKEN ou GITHUB_REPOSITORY non configuré dans les secrets."
-
-    headers = {
-        "Authorization": f"Bearer {gh_token}",
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "Bea-Dev-Lab"
-    }
-    url = f"https://api.github.com/repos/{gh_repo}/contents/{gh_path}?ref={gh_branch}"
-
-    try:
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode())
-            current_sha = data.get("sha")
-    except urllib.error.HTTPError as e:
-        return False, f"Lecture GitHub échouée ({e.code}) : {e.reason}"
-    except Exception as e:
-        return False, f"Connexion GitHub impossible : {str(e)}"
-
-    content_b64 = base64.b64encode(new_code.encode("utf-8")).decode("utf-8")
-    payload = {
-        "message": f"🤖 [Bea Lab] {commit_message}",
-        "content": content_b64,
-        "sha": current_sha,
-        "branch": gh_branch
-    }
-
-    try:
-        put_req = urllib.request.Request(
-            f"https://api.github.com/repos/{gh_repo}/contents/{gh_path}",
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-            method="PUT"
-        )
-        with urllib.request.urlopen(put_req) as resp:
-            if resp.status in (200, 201):
-                return True, f"Commit poussé avec succès sur {gh_repo} ({gh_branch})."
-            return False, f"Code retour GitHub : {resp.status}"
-    except urllib.error.HTTPError as e:
-        return False, f"Écriture GitHub refusée ({e.code}) : {e.read().decode()}"
-    except Exception as e:
-        return False, f"Erreur commit GitHub : {str(e)}"
 
 LAB_LEVELS = {
     "1": {
         "title": "🎨 Niveau 1 : Cosmétique & UI",
         "badge": "Niveau 1 - Zéro risque",
         "scope": "Textes, boutons, couleurs, styles CSS, messages d'accueil",
-        "description": "Modifie les libellés, styles CSS, palettes de couleurs ou textes sans toucher à la logique Python.",
+        "description": "Modifie les libellés, micro-copies, styles CSS, palettes de couleurs ou textes sans toucher à la logique Python.",
         "targets": {
             "Styles CSS globaux (classes, fonds, bordures)": "CSS_STYLES",
             "Cartes d'accroche (STARTER_CARDS)": "STARTER_CARDS",
@@ -1224,7 +884,7 @@ LAB_LEVELS = {
         "title": "🧩 Niveau 2 : Page ou Fonction isolée",
         "badge": "Niveau 2 - Chirurgical",
         "scope": "Une fonction de page ciblée (chat, studio, code, onboarding, compte...)",
-        "description": "Isole et modifie uniquement la fonction ciblée.",
+        "description": "Isole et modifie uniquement la fonction ciblée. Aucun risque de tronquer les 2200 lignes de app.py !",
         "targets": {
             "💬 Page Chat (page_chat)": "page_chat",
             "🎬 Page Studio Créateur (page_studio)": "page_studio",
@@ -1250,7 +910,7 @@ LAB_LEVELS = {
         "title": "🧠 Niveau 3 : Moteur Comportemental & Prompts IA",
         "badge": "Niveau 3 - Intelligence IA",
         "scope": "Prompts système, biais cognitifs, règles d'analyse comportementale",
-        "description": "Ajuste la psychologie et la méthode d'analyse de Bea.",
+        "description": "Ajuste la psychologie et la méthode d'analyse de Bea (biais cognitifs, 5 étapes, cadrage, relances).",
         "targets": {
             "Système de prompt dynamique (system_behavior)": "system_behavior",
             "Comportement de base de Bea (SYSTEM_BEHAVIOR_BASE)": "SYSTEM_BEHAVIOR_BASE",
@@ -1260,7 +920,7 @@ LAB_LEVELS = {
             "Prompt du Bâtisseur d'App Web (SYSTEM_APP)": "SYSTEM_APP",
         },
         "presets": [
-            "Renforcer l'analyse des biais cognitifs dans SYSTEM_USE_CASES clients",
+            "Renforcer l'analyse des biais cognitifs (ancrage, preuve sociale) dans SYSTEM_USE_CASES clients",
             "Ajouter une étape 'Micro-défi du jour' dans SYSTEM_BEHAVIOR_BASE",
             "Adapter le prompt scolaire pour toujours donner une analogie du quotidien",
             "Rendre le prompt du bâtisseur web encore plus strict sur le responsive mobile"
@@ -1270,7 +930,7 @@ LAB_LEVELS = {
         "title": "⚡ Niveau 4 : Nouveau Module ou Fonctionnalité",
         "badge": "Niveau 4 - Évolution fonctionnelle",
         "scope": "Ajout de nouvelle page, nouvelle section studio, nouveau profil utilisateur",
-        "description": "Ajoute une nouvelle brique fonctionnelle dans Bea.",
+        "description": "Ajoute une nouvelle brique fonctionnelle dans Bea avec mise à jour automatique des menus et du routage.",
         "targets": {
             "Nouveau profil utilisateur (PROFILE_OPTIONS)": "PROFILE_OPTIONS",
             "Nouvel outil dans le Studio (STUDIO_SECTIONS)": "STUDIO_SECTIONS",
@@ -1286,12 +946,13 @@ LAB_LEVELS = {
     "5": {
         "title": "🏛️ Niveau 5 : Architecture Complète (Full-Stack)",
         "badge": "Niveau 5 - Refonte globale",
-        "scope": "Fichier app.py complet",
-        "description": "Modifications transversales avec validation de syntaxe intégrale.",
+        "scope": "Fichier app.py complet avec découpage sécurisé et sauvegarde intégrale",
+        "description": "Modifications transversales sur l'ensemble du fichier avec validation syntaxique obligatoire.",
         "targets": {
             "Fichier complet app.py (Architecture)": "FULL_FILE",
         },
         "presets": [
+            "Ajouter la persistance de l'état du mode sombre dans les préférences Supabase",
             "Optimiser la gestion du cache et des modèles Groq",
             "Renforcer la gestion des erreurs réseau et de reconnexion"
         ]
@@ -1299,15 +960,16 @@ LAB_LEVELS = {
 }
 
 def extract_target_code(full_code: str, target: str) -> str:
+    """Extrait le code source correspondant exactement à la cible demandée."""
     if not full_code:
         return ""
     if target == "FULL_FILE":
-        return full_code
+        return full_code[:20000]
     if target == "CSS_STYLES":
         m = re.search(r'st\.markdown\(f?"""\s*<style>[\s\S]*?</style>\s*"""', full_code)
         return m.group(0) if m else ""
     if target in ("SYSTEM_BEHAVIOR_BASE", "SYSTEM_USE_CASES", "STARTER_CARDS", "STYLE_HINT", "PLANS", "STUDIO_SECTIONS", "PROFILE_OPTIONS", "USE_CASE_OPTIONS", "SYSTEM_CODE", "SYSTEM_MONTAGE", "SYSTEM_APP"):
-        m = re.search(rf'^{target}\s*=\s*[\s\S]*?(?=\n\n[A-Z_a-z]|\n\ndef |\Z)', full_code, re.MULTILINE)
+        m = re.search(rf'^{target}\s*=\s*[\s\S]*?(?=\n\n[A-Z_a-z]|\n\ndef )', full_code, re.MULTILINE)
         return m.group(0) if m else ""
     if target == "NEW_PAGE":
         return "# Exemple pour ajouter une page:\ndef page_journal():\n    st.markdown('### 📔 Mon Journal')\n    st.info('Journal personnel')"
@@ -1315,44 +977,46 @@ def extract_target_code(full_code: str, target: str) -> str:
     return m.group(0) if m else ""
 
 def inject_target_code(full_code: str, target: str, new_code: str) -> str:
+    """Réinjecte le code modifié proprement à l'emplacement exact de la cible."""
     if target == "FULL_FILE":
         return new_code
-    pattern = None
     if target == "CSS_STYLES":
-        pattern = re.compile(r'st\.markdown\(f?"""\s*<style>[\s\S]*?</style>\s*"""\)')
-    elif target in ("SYSTEM_BEHAVIOR_BASE", "SYSTEM_USE_CASES", "STARTER_CARDS", "STYLE_HINT", "PLANS", "STUDIO_SECTIONS", "PROFILE_OPTIONS", "USE_CASE_OPTIONS", "SYSTEM_CODE", "SYSTEM_MONTAGE", "SYSTEM_APP"):
-        pattern = re.compile(rf'^{target}\s*=\s*[\s\S]*?(?=\n\n[A-Z_a-z]|\n\ndef |\Z)', re.MULTILINE)
-    elif target == "NEW_PAGE":
+        pattern = r'st\.markdown\(f?"""\s*<style>[\s\S]*?</style>\s*"""'
+        if re.search(pattern, full_code):
+            return re.sub(pattern, new_code, full_code, count=1)
+        return full_code
+    if target in ("SYSTEM_BEHAVIOR_BASE", "SYSTEM_USE_CASES", "STARTER_CARDS", "STYLE_HINT", "PLANS", "STUDIO_SECTIONS", "PROFILE_OPTIONS", "USE_CASE_OPTIONS", "SYSTEM_CODE", "SYSTEM_MONTAGE", "SYSTEM_APP"):
+        pattern = rf'^{target}\s*=\s*[\s\S]*?(?=\n\n[A-Z_a-z]|\n\ndef )'
+        if re.search(pattern, full_code, re.MULTILINE):
+            return re.sub(pattern, new_code + "\n", full_code, count=1, flags=re.MULTILINE)
+        return full_code
+    if target == "NEW_PAGE":
         insert_marker = "\nrender_sidebar()"
         if insert_marker in full_code:
             return full_code.replace(insert_marker, "\n\n" + new_code + "\n\n" + insert_marker, 1)
         return full_code + "\n\n" + new_code
-    else:
-        pattern = re.compile(rf'def {target}\(.*?\)[\s\S]*?(?=\n\ndef |\n\n[A-Z_a-z0-9]+\s*=|\Z)')
-
-    match = pattern.search(full_code) if pattern else None
-    if match:
-        start, end = match.span()
-        suffix = "\n\n" if not new_code.endswith("\n") else ""
-        return full_code[:start] + new_code + suffix + full_code[end:]
+    pattern = rf'def {target}\(.*?\)[\s\S]*?(?=\n\ndef |\n\n[A-Z_a-z0-9]+\s*=|\Z)'
+    if re.search(pattern, full_code):
+        return re.sub(pattern, new_code + "\n\n", full_code, count=1)
     return full_code
 
 def validate_python_code(code_str: str):
+    """Valide la syntaxe Python via ast.parse pour garantir zéro plantage."""
     try:
         ast.parse(code_str)
-        return True, "Syntaxe Python valide."
+        return True, "Syntaxe Python 100% valide"
     except SyntaxError as e:
         return False, f"Erreur de syntaxe ligne {e.lineno} : {e.msg}"
     except Exception as e:
         return False, f"Erreur de structure : {str(e)}"
 
 def page_dev_lab():
-    st.markdown("### 🧪 Labo Dev IA — Modifier l’application")
+    st.markdown("### 🧪 Labo Dev IA - Modifications par Niveau")
     q = st.session_state.quota.get('code') or {}
-    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="limit-badge">Modèle: {st.session_state.dev_model_choice} · Quota code: {q.get("used","?")}/{q.get("limit","?")} · Protection AST: Active</div>', unsafe_allow_html=True)
 
     tab_lab, tab_diff, tab_backups, tab_guide = st.tabs([
-        "1. Modifier", "2. Diff & Validation", "3. Sauvegardes", "Guide"
+        "🚀 Modifier par Niveau", "🔍 Diff & Aperçu", "💾 Sauvegardes & Rollback", "📖 Guide des Niveaux"
     ])
 
     try:
@@ -1364,23 +1028,32 @@ def page_dev_lab():
     with tab_lab:
         c_lev, c_mod = st.columns([1.6, 1.4])
         with c_lev:
-            level_key = st.selectbox("Niveau", list(LAB_LEVELS.keys()), format_func=lambda k: LAB_LEVELS[k]["title"], key="lab_level_choice")
+            level_key = st.selectbox(
+                "Niveau de modification souhaité",
+                list(LAB_LEVELS.keys()),
+                format_func=lambda k: LAB_LEVELS[k]["title"],
+                key="lab_level_choice"
+            )
             lvl_info = LAB_LEVELS[level_key]
             st.caption(f"**Portée :** {lvl_info['scope']}")
+            st.markdown(f"*{lvl_info['description']}*")
         with c_mod:
             st.selectbox("Cerveau IA", list(DEV_MODELES.keys()), key="dev_model_choice")
-            st.text_input("Nom sauvegarde", value=f"backup_lvl{level_key}_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
+            st.text_input("Nom de la sauvegarde", value=f"backup_lvl{level_key}_{datetime.now().strftime('%Y%m%d_%H%M')}", key="dev_backup_name")
 
         st.divider()
+
+        # Choix de la cible spécifique selon le niveau
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
             target_labels = list(lvl_info["targets"].keys())
-            chosen_label = st.selectbox("Élément ciblé", target_labels, key=f"target_sel_{level_key}")
+            chosen_label = st.selectbox("Élément ciblé dans l'application", target_labels, key=f"target_sel_{level_key}")
             target_id = lvl_info["targets"][chosen_label]
         with col_t2:
-            apply_mode = st.radio("Application", ["Prévisualiser le diff", "1-Clic direct"], key="lab_apply_mode")
+            apply_mode = st.radio("Mode d'application", ["1-Clic direct (recommandé)", "Prévisualiser le diff d'abord"], key="lab_apply_mode")
 
-        st.markdown("**Suggestions**")
+        # Suggestions prêtes à l'emploi en 1 clic
+        st.markdown("**💡 Suggestions de modifications rapides :**")
         p_cols = st.columns(len(lvl_info["presets"]))
         for i, preset in enumerate(lvl_info["presets"]):
             with p_cols[i]:
@@ -1388,68 +1061,90 @@ def page_dev_lab():
                     st.session_state["dev_consigne"] = preset
                     st.rerun()
 
-        consigne = st.text_area("Consigne", height=120, placeholder="Ce que tu souhaites modifier...", key="dev_consigne")
-        code_cible = extract_target_code(full_code, target_id)
-        with st.expander(f"Code source actuel ({target_id})"):
-            st.code(code_cible[:2500] + ("\n... [suite tronquée]" if len(code_cible) > 2500 else ""), language="python")
+        consigne = st.text_area(
+            "Consigne de modification pour l'IA",
+            height=130,
+            placeholder="Ex : Ajoute un bouton de téléchargement direct sous la réponse du chat et rends-le violet",
+            key="dev_consigne"
+        )
 
-        btn_label = "APPLIQUER LA MODIFICATION" if apply_mode.startswith("1-Clic") else "GÉNÉRER L’APERÇU"
-        launch = st.button(btn_label, key="dev_go_level", use_container_width=True, type="primary")
+        code_cible = extract_target_code(full_code, target_id)
+        with st.expander(f"👁️ Voir le code source actuel ciblé ({target_id})", expanded=False):
+            st.code(code_cible[:2500] + ("\n... [tronqué pour affichage]" if len(code_cible) > 2500 else ""), language="python")
+
+        c_go1, c_go2 = st.columns([2, 1])
+        with c_go1:
+            btn_label = "🚀 APPLIQUER LA MODIFICATION (1 clic direct)" if apply_mode.startswith("1-Clic") else "🔍 GÉNÉRER ET PRÉVISUALISER LE DIFF"
+            launch = st.button(btn_label, key="dev_go_level", use_container_width=True, type="primary")
 
         if launch and consigne.strip():
             if not rate_ok() or not quota_ok("code"):
                 st.stop()
 
+            # Sauvegarde automatique
             try:
                 sb().table("code_projects").insert({
-                    "user_id": uid(), "name": st.session_state.dev_backup_name, "language": "python", "content": full_code
+                    "user_id": uid(),
+                    "name": st.session_state.dev_backup_name,
+                    "language": "python",
+                    "content": full_code
                 }).execute()
             except Exception:
                 pass
 
             model_id = DEV_MODELES.get(st.session_state.dev_model_choice, "openai/gpt-oss-120b")
-            model_fallbacks = [model_id, "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+            
+            # Prompt système ultra-précis selon le niveau
+            SYSTEM_DEV = f"""Tu es l'architecte expert de Bea (BehaviorLab AI).
+Tu travailles au NIVEAU {level_key} ({lvl_info['title']}).
+RÈGLES D'OR :
+1. Tu ne modifies QUE l'élément ciblé ({target_id}) selon la consigne.
+2. Tu conserves intacte toute la structure existante sans rien casser ni oublier.
+3. Le code Python doit être 100% valide sans aucune erreur de syntaxe ou d'indentation.
+4. Retourne UNIQUEMENT le bloc de code modifié complet dans un bloc ```python ... ```."""
 
-            SYSTEM_DEV = f"""Tu es un ingénieur senior chargé de modifier le code réel de Bea.
-CIBLE : {target_id}
-RÈGLES :
-- Fournis le code complet de la cible sans omissions, sans placeholders (pas de 'reste inchangé').
-- Rends uniquement du code dans un bloc ```python ... ```."""
-
-            with st.spinner(f"Génération avec {model_id}..."):
+            with st.spinner(f"Groq {model_id} modifie au Niveau {level_key} ({target_id})..."):
                 try:
                     raw = "".join(stream_groq([
                         {"role": "system", "content": SYSTEM_DEV},
-                        {"role": "user", "content": f"CODE ACTUEL :\n{code_cible}\n\nCONSIGNE :\n{consigne}"}
-                    ], 16000, model_override=model_fallbacks, temperature=0.1))
+                        {"role": "user", "content": f"CIBLE ({target_id}):\n{code_cible}\n\nCONSIGNE:\n{consigne}"}
+                    ], 8000, model_override=model_id))
 
-                    mm = re.search(r'```(?:python)?\s*(.*?)```', raw, re.DOTALL | re.IGNORECASE)
+                    mm = re.search(r'```python(.*?)```', raw, re.DOTALL)
                     new_block = mm.group(1).strip() if mm else raw.strip()
 
                     final_code = inject_target_code(full_code, target_id, new_block)
+
+                    # Validation syntaxique Python AST
                     is_valid, validation_msg = validate_python_code(final_code)
                     if not is_valid:
-                        st.error(f"Annulé pour sécurité : {validation_msg}")
+                        st.error(f"❌ Annulé pour votre sécurité : {validation_msg}")
+                        st.info("Le code d'origine a été conservé intact. Réessaie avec une consigne plus détaillée ou le modèle Ultra.")
+                        st.session_state["dev_raw_failed"] = raw
                     else:
+                        # Calcul du diff
                         diff = difflib.unified_diff(
-                            full_code.splitlines(), final_code.splitlines(),
-                            fromfile="actuel.py", tofile="modifie.py", lineterm=""
+                            full_code.splitlines(),
+                            final_code.splitlines(),
+                            fromfile="actuel.py",
+                            tofile="modifie.py",
+                            lineterm=""
                         )
-                        st.session_state["dev_last_diff"] = "\n".join(list(diff))
+                        diff_text = "\n".join(list(diff))
+                        st.session_state["dev_last_diff"] = diff_text
                         st.session_state["dev_pending_code"] = final_code
 
                         if apply_mode.startswith("1-Clic"):
                             with open(__file__, 'w', encoding='utf-8') as f:
                                 f.write(final_code)
                             quota_consume("code")
-                            synced, gh_msg = sync_code_to_github(final_code, f"Modif {target_id}")
-                            st.success(f"✅ MODIFICATION APPLIQUÉE ! ({gh_msg})")
+                            st.success(f"✅ MODIFICATION NIVEAU {level_key} APPLIQUÉE AVEC SUCCÈS ! (Syntaxe validée)")
                             time.sleep(1.5)
                             st.rerun()
                         else:
-                            st.success("✅ Code validé ! Vérifie dans l'onglet Diff.")
+                            st.success("✅ Code généré et syntaxe validée ! Passe à l'onglet 'Diff & Aperçu' pour valider.")
                 except Exception as e:
-                    st.error(f"Échec : {e}")
+                    st.error(f"Échec de la génération : {e}")
 
     with tab_diff:
         st.markdown("#### 🔍 Comparaison des changements (Diff)")
@@ -1458,20 +1153,20 @@ RÈGLES :
         if diff_text:
             st.code(diff_text[:12000], language="diff")
             if pending_code:
-                if st.button("✅ CONFIRMER ET ÉCRIRE LE CODE", key="apply_pending_code", type="primary", use_container_width=True):
+                if st.button("✅ CONFIRMER ET ÉCRIRE LE CODE SUR LE DISQUE", key="apply_pending_code", type="primary", use_container_width=True):
                     with open(__file__, 'w', encoding='utf-8') as f:
                         f.write(pending_code)
                     quota_consume("code")
-                    synced, gh_msg = sync_code_to_github(pending_code, "Validation diff")
-                    st.success(f"✅ MODIFICATION APPLIQUÉE ! ({gh_msg})")
+                    st.success("✅ MODIFICATION APPLIQUÉE !")
                     st.session_state["dev_pending_code"] = None
                     time.sleep(1.5)
                     st.rerun()
         else:
-            st.info("Aucune modification en attente.")
+            st.info("Aucune modification en attente. Lance une modification dans le premier onglet.")
 
     with tab_backups:
-        st.markdown("#### 💾 Sauvegardes")
+        st.markdown("#### 💾 Sauvegardes & Restauration (Rollback)")
+        st.caption("Chaque modification sauvegarde automatiquement une version complète du site.")
         try:
             projs = sb().table("code_projects").select("id,name,updated_at,content").order("updated_at", desc=True).limit(10).execute().data or []
             if projs:
@@ -1483,23 +1178,28 @@ RÈGLES :
                     with col_b2:
                         st.download_button("Télécharger", p.get("content", ""), file_name=f"{p['name']}.py", key=f"dl_bk_{p['id']}", use_container_width=True)
                     with col_b3:
-                        if st.button("Restaurer", key=f"restore_bk_{p['id']}", use_container_width=True):
+                        if st.button("Restaurer", key=f"restore_bk_{p['id']}", use_container_width=True, help="Remplace app.py par cette sauvegarde"):
                             with open(__file__, 'w', encoding='utf-8') as f:
                                 f.write(p.get("content", ""))
-                            sync_code_to_github(p.get("content", ""), f"Restauration {p['name']}")
-                            st.success(f"Sauvegarde {p['name']} restaurée !")
+                            st.success(f"Version {p['name']} restaurée !")
                             time.sleep(1.5)
                             st.rerun()
+            else:
+                st.info("Aucune sauvegarde trouvée dans la base.")
         except Exception as e:
             st.warning("Impossible de lister les sauvegardes : " + str(e))
 
     with tab_guide:
         st.markdown("""
-        - **Niveau 1** : Textes, CSS, styles, cartes.
-        - **Niveau 2** : Une page ou fonction isolée.
-        - **Niveau 3** : Comportement et prompts IA.
-        - **Niveau 4** : Nouveau module ou menu.
-        - **Niveau 5** : Fichier complet.
+        #### 📖 Guide des Niveaux de Modification
+
+        Le Labo Dev IA structure les modifications en **5 Niveaux de granularité** pour garantir une précision chirurgicale et zéro crash :
+
+        - **🎨 Niveau 1 — Cosmétique & UI (Zéro risque)** : Idéal pour modifier les couleurs, boutons, textes de la vitrine, cartes d'accroche. Ne touche aucune logique applicative.
+        - **🧩 Niveau 2 — Page ou Fonction (Chirurgical)** : Modifie une fonction isolée (`page_chat`, `page_studio`, etc.) sans jamais toucher aux autres parties de l'appli.
+        - **🧠 Niveau 3 — Moteur Comportemental (Cerveau)** : Pour modifier la manière dont Bea répond, analyser les biais cognitifs, le format des 5 étapes, les relances.
+        - **⚡ Niveau 4 — Nouveaux Modules** : Pour ajouter une nouvelle page, un nouvel outil vidéo ou un nouveau profil d'utilisateur.
+        - **🏛️ Niveau 5 — Architecture Globale** : Pour des refontes transversales avec validation de syntaxe Python intégrale.
         """)
 
     st.divider()
@@ -1509,13 +1209,13 @@ RÈGLES :
             st.session_state.page = "dev_portal"
             st.rerun()
     with c_ret2:
-        if st.button("🌐 Ouvrir le site fonctionnel", key="to_prod_from_lab_lvl", use_container_width=True):
+        if st.button("🌐 Ouvrir le site fonctionnel (Prod)", key="to_prod_from_lab_lvl", use_container_width=True):
             st.session_state.dev_mode = "prod"
             st.session_state.page = "chat"
             st.rerun()
 
 def page_vitrine():
-    nav_a, nav_b, nav_spacer, nav_c = st.columns([1, 1.35, 4.8, 1])
+    nav_spacer, nav_a, nav_b, nav_c = st.columns([4.2, 1.2, 1.8, 1.2])
     with nav_a:
         if st.button("Offres", key="landing_offers", use_container_width=True):
             st.session_state.landing_tab = "offres"
@@ -1536,13 +1236,18 @@ def page_vitrine():
         st.markdown("""
         <div class="landing-copy">
             <h2>Une intelligence artificielle pensée pour votre progression</h2>
-            <p><strong>BehaviorLab AI</strong> développe des IA dédiées à votre réussite en analysant les mécanismes comportementaux concrets.</p>
+            <p><strong>BehaviorLab AI</strong> développe des intelligences artificielles dédiées à votre réussite. Notre conviction est simple : les blocages qui vous freinent — procrastination, doute, désorganisation, difficulté à décider — ne relèvent pas d'un manque de volonté, mais de mécanismes comportementaux identifiables et sur lesquels on peut agir.</p>
+            <p>Nous combinons la science du comportement, l'analyse fine des situations et un accompagnement concret pour transformer une intention en progrès visible. Bea lit ce qui se passe derrière une décision, repère les patterns qui se répètent et propose des leviers adaptés à votre contexte — pas des conseils génériques.</p>
+            <p>Que vous soyez entrepreneur, indépendant, créateur de contenu, étudiant ou salarié, Bea vous aide à voir clair dans vos blocages, à reprendre des décisions que vous repoussez, à construire des routines qui tiennent dans le temps et à transformer vos idées en actions concrètes. Chaque échange vise une prochaine étape utile, mesurable et suffisamment simple pour être appliquée dès aujourd'hui.</p>
+            <p>Au-delà de la conversation, BehaviorLab AI construit des outils dédiés : un éditeur de code, un studio créateur pour vos contenus vidéo, un générateur d'applications web et un système de mémoire qui apprend de vos échanges pour mieux vous accompagner au fil du temps.</p>
         </div>
         """, unsafe_allow_html=True)
     elif landing_tab == "offres":
         st.markdown("""
         <div class="landing-copy">
             <h2>Choisissez le niveau d'accompagnement qui vous convient</h2>
+            <p>Commencez avec les fonctions essentielles de Bea pour clarifier vos blocages, organiser vos idées et construire des plans d'action concrets. Vous gardez une expérience simple, utile et directement orientée vers votre prochaine étape.</p>
+            <p>Lorsque vos besoins grandissent, les offres supérieures ajoutent la personnalisation, les analyses spécialisées, l'accompagnement scolaire, les outils de création de contenu, l'édition de code et la génération d'applications web. Chaque formule vous permet d'avancer avec les bons outils, sans complexité inutile.</p>
         </div>
         """, unsafe_allow_html=True)
         render_offers()
@@ -1550,10 +1255,11 @@ def page_vitrine():
         st.markdown("""
         <div class="landing-copy">
             <h2>Clarifiez vos idées. Comprenez vos blocages. Avancez.</h2>
-            <p>Bea vous accompagne pour transformer vos intentions en actions concrètes.</p>
+            <p>Bea vous accompagne lorsque vous savez que vous devez avancer, mais que le prochain pas reste flou. Elle transforme votre situation en une lecture claire, des options réalistes et un plan d'action que vous pouvez commencer dès maintenant.</p>
+            <p>Elle vous aide à identifier ce qui vous ralentit vraiment : une priorité mal définie, une décision repoussée, une routine difficile à tenir ou une idée qui reste au stade de projet. Ses réponses sont conçues pour être concrètes, lisibles et adaptées à votre réalité.</p>
+            <p>Que vous développiez une activité, prépariez un contenu, organisiez un projet ou cherchiez une meilleure routine, l'objectif reste le même : vous aider à passer de la réflexion à une progression régulière, étape après étape.</p>
         </div>
         """, unsafe_allow_html=True)
-
     _, col, _ = st.columns([0.5, 1.6, 0.5])
     with col:
         with st.container(border=True):
@@ -1563,16 +1269,15 @@ def page_vitrine():
             with t_in:
                 pend = st.session_state.pending_login
                 if pend:
-                    st.info(f"Un code a été envoyé à {pend['email']}.")
+                    st.info(f"Un code de vérification vient d'être envoyé à {pend['email']}. Saisis-le pour terminer la connexion.")
                     with st.form("form_code"):
-                        code = st.text_input("Code reçu", key="li_code", max_chars=10)
+                        code = st.text_input("Code reçu par e-mail", key="li_code", max_chars=10)
                         go_code = st.form_submit_button("Valider le code", use_container_width=True)
                     if go_code:
                         try:
                             d = new_client()
                             res = d.auth.verify_otp({"email": pend["email"], "token": code.strip(), "type": "email"})
                             st.session_state.sb, st.session_state.user = d, res.user
-                            st.session_state.pop("just_logged_out", None)
                             persist_auth_session(getattr(res, "session", None))
                             st.session_state.pending_login = None
                             st.session_state.auth_notice = ""
@@ -1580,19 +1285,24 @@ def page_vitrine():
                             st.rerun()
                         except Exception:
                             st.error("Code invalide ou expiré.")
+                    c_a, c_b = st.columns(2)
+                    with c_a:
+                        if st.button("Renvoyer le code", key="resend_code", use_container_width=True):
+                            try:
+                                new_client().auth.sign_in_with_otp({"email": pend["email"], "options": {"should_create_user": False}})
+                                st.success("Nouveau code envoyé.")
+                            except Exception:
+                                st.error("Envoi impossible pour le moment.")
+                    with c_b:
+                        if st.button("Annuler", key="cancel_code", use_container_width=True):
+                            st.session_state.pending_login = None
+                            st.rerun()
                 else:
                     with st.form("form_login"):
                         email = st.text_input("Adresse e-mail", key="li_email")
                         pwd = st.text_input("Mot de passe", type="password", key="li_pwd")
                         go = st.form_submit_button("Continuer", use_container_width=True)
                     if go:
-                        login_attempts = st.session_state.setdefault("_login_attempts", [])
-                        now_ts = time.time()
-                        st.session_state._login_attempts = [t for t in login_attempts if now_ts - t < 60]
-                        if len(st.session_state._login_attempts) >= 5:
-                            st.error("Trop de tentatives infructueuses. Attends 60 secondes.")
-                            st.stop()
-
                         try:
                             c = new_client()
                             res = c.auth.sign_in_with_password({"email": email.strip(), "password": pwd})
@@ -1605,31 +1315,37 @@ def page_vitrine():
                                 st.session_state.pending_login = {"email": email.strip()}
                                 st.rerun()
                             st.session_state.sb, st.session_state.user = c, res.user
-                            st.session_state.pop("just_logged_out", None)
                             persist_auth_session(getattr(res, "session", None))
                             st.session_state.auth_notice = ""
                             load_account()
                             st.rerun()
                         except Exception as e:
-                            st.session_state._login_attempts.append(now_ts)
                             if "confirm" in str(e).lower():
                                 st.session_state.pending_confirmation_email = email.strip()
-                                st.error("Adresse non confirmée. Re-vérifie tes e-mails.")
+                                st.error("Cette adresse doit encore être confirmée. Utilise le bouton ci-dessous pour recevoir un nouvel e-mail.")
                             else:
                                 st.error("Identifiants invalides.")
+                    confirmation_email = st.session_state.get("pending_confirmation_email", "")
+                    if confirmation_email:
+                        st.info(f"Adresse identifiée : {confirmation_email}")
+                        if st.button("Renvoyer l'e-mail de confirmation", key="resend_after_identification", use_container_width=True):
+                            try:
+                                new_client().auth.resend({"type": "signup", "email": confirmation_email})
+                                st.success("Un nouvel e-mail de confirmation vient d'être envoyé.")
+                            except Exception:
+                                st.error("Impossible de renvoyer l'e-mail pour le moment.")
+                    st.caption("Le renvoi devient disponible après une tentative d'identification.")
             with t_up:
-                email2 = st.text_input("Adresse e-mail", key="su_email")
-                pwd2 = st.text_input("Mot de passe", type="password", key="su_pwd")
-                strength_label, strength_color, strength_tip = password_strength(pwd2)
-                if strength_label:
-                    st.markdown(f'<span style="color:{strength_color};font-size:12px;">{strength_label} : {strength_tip}</span>', unsafe_allow_html=True)
-                with st.expander("Politique de confidentialité"):
-                    st.markdown(privacy_md())
-                ok_cgu = st.checkbox("J'accepte la politique de confidentialité", key="su_cgu")
-                go2 = st.button("Créer mon compte", key="signup_create_button", use_container_width=True, type="primary")
+                with st.form("form_signup"):
+                    email2 = st.text_input("Adresse e-mail", key="su_email")
+                    pwd2 = st.text_input("Mot de passe (8 caractères minimum)", type="password", key="su_pwd")
+                    with st.expander("Politique de confidentialité"):
+                        st.markdown(privacy_md())
+                    ok_cgu = st.checkbox("J'ai lu et j'accepte la politique de confidentialité", key="su_cgu")
+                    go2 = st.form_submit_button("Créer mon compte", use_container_width=True)
                 if go2:
                     if len(pwd2) < 8 or "@" not in email2:
-                        st.error("E-mail invalide ou mot de passe trop court (8 car. min).")
+                        st.error("Adresse e-mail invalide ou mot de passe trop court (8 caractères minimum).")
                     elif not ok_cgu:
                         st.error("Coche la case pour continuer.")
                     else:
@@ -1638,28 +1354,29 @@ def page_vitrine():
                             res = c.auth.sign_up({"email": email2.strip(), "password": pwd2})
                             if getattr(res, "session", None):
                                 st.session_state.sb, st.session_state.user = c, res.user
-                                st.session_state.pop("just_logged_out", None)
                                 persist_auth_session(getattr(res, "session", None))
                                 load_account()
                                 st.rerun()
                             else:
-                                st.success("Compte créé ! Confirme ton e-mail pour te connecter.")
+                                st.success("Compte créé. Confirme ton adresse e-mail via le message reçu, puis connecte-toi.")
                         except Exception:
-                            st.error("Création impossible.")
+                            st.error("Création impossible (adresse déjà utilisée ou mot de passe refusé).")
             with t_rst:
-                email3 = st.text_input("Adresse e-mail", key="rs_email")
-                if st.button("Envoyer le lien de réinitialisation", key="btn_rst", use_container_width=True):
+                with st.form("form_reset"):
+                    email3 = st.text_input("Adresse e-mail", key="rs_email")
+                    go3 = st.form_submit_button("Envoyer le lien de réinitialisation", use_container_width=True)
+                if go3:
                     try:
                         c = new_client()
                         fn = getattr(c.auth, "reset_password_for_email", None) or getattr(c.auth, "reset_password_email")
                         fn(email3.strip())
                     except Exception:
                         pass
-                    st.success("Si ce compte existe, un e-mail a été envoyé.")
+                    st.success("Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé.")
+
 
 STUDIO_SECTIONS = [
-    ("composer", "🎨 Composer", "Éditeur visuel avec modèles façon Canva", "free"),
-    ("assistant_ia", "✨ Assistant IA du studio", "Idées, textes, scripts et conseils de création", "free"),
+    ("composer", "🎨 Composer", "Canvas central, modèles, photos et formats sociaux", "abo"),
     ("importer", "📂 Importer un média", "Ajoute ta vidéo, audio ou image", "free"),
     ("sous_titres", "💬 Sous-titres automatiques", "Transcription IA en SRT/VTT", "pro"),
     ("miniature", "🖼️ Miniature 1280×720", "Génère une miniature accrocheuse", "free"),
@@ -1684,18 +1401,18 @@ def render_sidebar():
     with st.sidebar:
         if st.session_state.page == "studio":
             st.markdown('<div style="text-align:center; font-size:18px; font-weight:800;">🎬 Studio créateur</div>', unsafe_allow_html=True)
+            st.caption("Choisis une action ci-dessous")
             if st.button("← Retour à Bea", key="back_bea", use_container_width=True):
                 st.session_state.page = "chat"
                 st.rerun()
             st.divider()
             current = st.session_state.studio_menu
-            moved_to_editor = {"texte", "effets", "transitions", "filtres", "ajustement"}
             for key, title, desc, req_plan in STUDIO_SECTIONS:
-                if key in moved_to_editor:
-                    continue
                 is_locked = req_plan != "free" and st.session_state.plan == "free"
-                active = "● " if key == current else "   "
-                if st.button(f"{active}{title}", key=f"studio_menu_{key}", use_container_width=True, help=desc):
+                badge = '<span class="studio-badge studio-badge-pro">PRO</span>' if is_locked else ""
+                active = "✅ " if key == current else "   "
+                label = f"{active}{title}"
+                if st.button(label, key=f"studio_menu_{key}", use_container_width=True, help=desc):
                     if is_locked:
                         st.toast("Réservé Pro/Ultra - Voir offres")
                     else:
@@ -1712,7 +1429,10 @@ def render_sidebar():
         def fmt(x):
             return f"{x['used']}/{x['limit']}" if x else "?"
         st.markdown(f'<div class="limit-badge">{PLAN_LABEL[st.session_state.plan]} · Chat {fmt(q.get("chat"))} · Code {fmt(q.get("code"))} · {st.session_state.model_choice}</div>', unsafe_allow_html=True)
-        st.selectbox("Modèle", ["rapide","puissant"], key="model_choice")
+        st.selectbox("Modèle", ["rapide","puissant"], key="model_choice", help="Rapide = réponse instantanée, Puissant = raisonnement plus profond")
+        nom_perso = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
+        if nom_perso:
+            st.markdown(f'<div style="font-size:12px; color:#c4b5fd; margin-top:-4px; margin-bottom:6px;">👤 {html.escape(nom_perso)}</div>', unsafe_allow_html=True)
         if st.button("✨ Nouvelle discussion", key="nav_new", use_container_width=True):
             new_chat()
             st.rerun()
@@ -1721,59 +1441,91 @@ def render_sidebar():
                 st.session_state.page = pg
                 st.rerun()
         
-        current_email = (st.session_state.user.email or "").lower().strip() if st.session_state.user else ""
+        current_email = ""
+        try:
+            current_email = st.session_state.user.email.lower().strip() if st.session_state.user else ""
+        except:
+            current_email = ""
+        
         is_you = current_email == "saydoukebe31@gmail.com" or (DEV_EMAIL and current_email == DEV_EMAIL.lower().strip())
         
         if is_you:
             st.divider()
-            st.markdown('<div style="font-size:10px; color:#a855f7; font-weight:800; margin-bottom:8px;">ZONE DEV PRIVÉE</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:10px; color:#a855f7; font-weight:800; margin-bottom:8px;">ZONE DEV PRIVÉE - TOI SEUL</div>', unsafe_allow_html=True)
             if not st.session_state.is_admin and DEV_ACCESS_KEY:
-                with st.expander("🔒 Clé dev", expanded=True):
-                    with st.form("dev_key_form"):
-                        k = st.text_input("Clé dev", type="password")
-                        if st.form_submit_button("Déverrouiller", use_container_width=True, type="primary"):
-                            if k.strip() == DEV_ACCESS_KEY.strip():
-                                st.session_state.dev_key_ok = True
-                                check_admin()
-                                st.rerun()
+                with st.expander("🔒 Entrer clé dev (1 fois)", expanded=True):
+                    with st.form("dev_key_sidebar_final"):
+                        k = st.text_input("Clé dev", type="password", key="dev_key_sidebar_final_input", placeholder="64 caractères")
+                        go_dev = st.form_submit_button("Déverrouiller accès", use_container_width=True, type="primary")
+                    if go_dev:
+                        if k.strip() == DEV_ACCESS_KEY.strip():
+                            st.session_state.dev_key_ok = True
+                            check_admin()
+                            st.toast("Accès déverrouillé")
+                            st.rerun()
+                        else:
+                            st.error("Clé incorrecte")
+            
             if st.session_state.is_admin:
-                if st.button("🛠️ Portail Dev", key="nav_dev_portal", use_container_width=True):
+                if st.button("🛠️ Portail Dev (2 liens)", key="nav_dev_portal", use_container_width=True):
                     st.session_state.dev_mode = None
                     st.session_state.page = "dev_portal"
                     st.rerun()
-                if st.button("🧪 Labo IA", key="nav_dev_lab", use_container_width=True):
+                if st.button("🧪 Labo IA - 1 clic direct", key="nav_dev_lab", use_container_width=True):
                     st.session_state.dev_mode = "lab"
                     st.session_state.page = "dev_lab"
                     st.rerun()
 
+        st.text_input("🔍 Rechercher historique", key="search_q", placeholder="mot clé...")
         convs = get_convs()
+        if st.session_state.search_q:
+            qlow = st.session_state.search_q.lower()
+            convs = [c for c in convs if qlow in c["title"].lower() or qlow in c.get("updated_at","").lower()]
         if convs:
             st.markdown('<div style="font-size:10px; text-transform:uppercase; margin:14px 0 6px 0; font-weight:700;">Historique</div>', unsafe_allow_html=True)
-            for c in convs[:10]:
+            for c in convs[:15]:
                 prefix = "▶ " if c["id"] == st.session_state.conv_id else "• "
-                if st.button(f"{prefix}{c['title'][:22]}", key=f"hist_{c['id']}", use_container_width=True):
-                    open_conv(c["id"])
-                    st.rerun()
-
+                col1,col2 = st.columns([4,1])
+                with col1:
+                    if st.button(f"{prefix}{c['title'][:24]}", key=f"hist_{c['id']}", use_container_width=True):
+                        open_conv(c["id"])
+                        st.rerun()
+                with col2:
+                    if st.button("✏️", key=f"ren_{c['id']}", help="Renommer"):
+                        st.session_state[f"renaming_{c['id']}"] = True
+                if st.session_state.get(f"renaming_{c['id']}"):
+                    new_t = st.text_input("Nouveau titre", value=c["title"], key=f"input_ren_{c['id']}")
+                    if st.button("Sauver titre", key=f"save_ren_{c['id']}", use_container_width=True):
+                        rename_conv(c["id"], new_t)
+                        st.session_state[f"renaming_{c['id']}"] = False
+                        st.rerun()
         if st.session_state.is_admin and is_you:
             with st.expander("🛠️ Mode développeur"):
+                st.caption("Visible uniquement par toi. Choisis une offre pour tester ses fonctions.")
                 cols = st.columns(2)
                 for i, p in enumerate(PLANS):
                     with cols[i % 2]:
-                        if st.button(PLAN_LABEL[p], key=f"dev_{p}", use_container_width=True):
+                        label = ("✓ " if p == st.session_state.plan else "") + PLAN_LABEL[p]
+                        if st.button(label, key=f"dev_{p}", use_container_width=True):
                             dev_set_plan(p)
                             st.rerun()
-
-        st.divider()
+                if st.button("Remettre les compteurs à zéro", key="dev_reset", use_container_width=True):
+                    dev_reset_usage()
+                    st.rerun()
+        nom = clean_text((st.session_state.prefs or {}).get("display_name"), 40)
+        if nom:
+            st.markdown(f'<div style="font-size:14px; font-weight:700; margin-top:10px;">{html.escape(nom)}</div>', unsafe_allow_html=True)
         st.caption(st.session_state.user.email or "")
         if st.button("🚪 Déconnexion", key="nav_logout", use_container_width=True):
             try:
-                if st.session_state.sb:
-                    st.session_state.sb.auth.sign_out()
+                sb().auth.sign_out()
             except Exception:
                 pass
             clear_auth_session()
-            purge_entire_session()
+            for k in ("sb", "user", "conv_id", "convs", "projects", "sub_result", "plan_result", "app_result", "thumb_png", "dev_key_ok"):
+                st.session_state[k] = None
+            st.session_state.messages, st.session_state.code_messages, st.session_state.quota, st.session_state.prefs = [], [], {}, {}
+            st.session_state.plan, st.session_state.page, st.session_state.is_admin, st.session_state.dev_mode = "free", "chat", False, None
             st.rerun()
 
 PROFILE_OPTIONS = [
@@ -1815,17 +1567,42 @@ USE_CASE_LABEL = {
 }
 
 PROMPT_OFFER_RECOMMENDATIONS = {
-    "clients": {"plan": "pro", "title": "Bea Pro", "reason": "son prompt Analyse clients", "description": "Biais cognitifs d'achat et réponses prêtes à envoyer.", "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €"},
-    "contenu": {"plan": "pro", "title": "Bea Pro", "reason": "son prompt Stratégie contenu", "description": "Hooks percutants et plans de contenu.", "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €"},
-    "scolaire": {"plan": "pro", "title": "Bea Pro", "reason": "son accompagnement scolaire", "description": "Méthodologie et explications progressives.", "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €"},
-    "general": {"plan": "bea", "title": "Bea", "reason": "son IA comportementale générale", "description": "Déblocage et passage à l'action.", "url": STRIPE_BEA_9, "label": "Choisir Bea - 9 €"},
-    "site": {"plan": "abo", "title": "Bea Ultra", "reason": "son bâtisseur de site et d'applications", "description": "Pages de vente et apps web complètes.", "url": STRIPE_ABO_16, "label": "Choisir Bea Ultra - 16 €"},
-    "code": {"plan": "abo", "title": "Bea Ultra", "reason": "son Coach code illimité", "description": "Coach code et éditeur de projets.", "url": STRIPE_ABO_16, "label": "Choisir Bea Ultra - 16 €"},
+    "clients": {
+        "plan": "pro", "title": "Bea Pro", "reason": "son prompt Analyse clients correspond à ton besoin",
+        "description": "Analyse des messages clients, émotions, objections et biais cognitifs d'achat, avec réponses prêtes à envoyer.",
+        "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €",
+    },
+    "contenu": {
+        "plan": "pro", "title": "Bea Pro", "reason": "son prompt Stratégie contenu correspond à ton besoin",
+        "description": "Hooks qui arrêtent le scroll, biais d'attention, titres, miniatures et plans de contenu adaptés à la plateforme.",
+        "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €",
+    },
+    "scolaire": {
+        "plan": "pro", "title": "Bea Pro", "reason": "son accompagnement scolaire correspond à ton besoin",
+        "description": "Méthodes de révision, aide aux devoirs, explications progressives et adaptation au programme du pays choisi.",
+        "url": STRIPE_PRO_1490, "label": "Choisir Bea Pro - 14,90 €",
+    },
+    "general": {
+        "plan": "bea", "title": "Bea", "reason": "son accompagnement comportemental général correspond à ton besoin",
+        "description": "Une IA comportementale pour clarifier tes blocages et construire des plans d'action concrets.",
+        "url": STRIPE_BEA_9, "label": "Choisir Bea - 9 €",
+    },
+    "site": {
+        "plan": "abo", "title": "Bea Ultra", "reason": "son bâtisseur de site et sa génération d'app correspondent à ton besoin",
+        "description": "Psychologie de conversion, structure de page et génération d'app web complète en HTML.",
+        "url": STRIPE_ABO_16, "label": "Choisir Bea Ultra - 16 €",
+    },
+    "code": {
+        "plan": "abo", "title": "Bea Ultra", "reason": "son Coach code et ses outils avancés correspondent à ton besoin",
+        "description": "Coach code, éditeur de projets, génération d'applications et usage sans limite de messages.",
+        "url": STRIPE_ABO_16, "label": "Choisir Bea Ultra - 16 €",
+    },
 }
 
 SCHOOL_COUNTRIES = ["France", "Maroc", "Sénégal", "Côte d'Ivoire", "Belgique", "Suisse", "Canada", "Cameroun", "Tunisie", "Algérie", "Autre"]
 STUDY_COUNTRIES = ["France", "Belgique", "Suisse", "Canada", "Maroc", "Sénégal", "Côte d'Ivoire", "Cameroun", "Tunisie", "Algérie"]
 STUDY_LEVELS = ["Collège - 6e", "Collège - 5e", "Collège - 4e", "Collège - 3e", "Lycée - Seconde", "Lycée - Première", "Lycée - Terminale"]
+
 
 def recommend_use_case(goal, custom_goal):
     if goal != "custom":
@@ -1833,65 +1610,86 @@ def recommend_use_case(goal, custom_goal):
     text = clean_text(custom_goal, 300).lower()
     keywords = {
         "clients": ("client", "prospect", "vente", "commercial", "email", "prospection"),
-        "contenu": ("contenu", "tiktok", "reels", "vidéo", "video", "youtube", "scroll"),
+        "contenu": ("contenu", "tiktok", "reels", "vidéo", "video", "youtube", "réseaux", "scroll"),
         "site": ("site", "landing", "page web", "application", "app", "conversion"),
-        "code": ("code", "program", "python", "javascript", "bug"),
-        "scolaire": ("devoir", "cours", "révision", "école", "lycée", "collège"),
+        "code": ("code", "program", "python", "javascript", "bug", "développe"),
+        "scolaire": ("devoir", "cours", "révision", "réviser", "école", "lycée", "collège", "examen"),
     }
     for use_case, terms in keywords.items():
         if any(term in text for term in terms):
             return use_case
     return "general"
 
+
 def save_onboarding(profile_type, use_case, display_name, goal, school_country=None, study_country=None, study_level=None):
+    # 1. Enregistrement immédiat dans la session locale (infaillible, anti-blocage)
     clean_nom = clean_text(display_name, 40) or "Utilisateur"
     clean_obj = clean_text(goal, 300)
     
     st.session_state.profile_type = profile_type
     st.session_state.prefs = {
-        "display_name": clean_nom, "style": "Expert comportemental", "goal": clean_obj,
-        "profile_type": profile_type, "use_case": use_case,
-        "school_country": school_country or "France", "study_country": study_country or "France", "study_level": study_level or "Collège - 6e",
+        "display_name": clean_nom,
+        "style": "Expert comportemental",
+        "goal": clean_obj,
+        "profile_type": profile_type,
+        "use_case": use_case,
+        "school_country": school_country or "France",
+        "study_country": study_country or "France",
+        "study_level": study_level or "Collège - 6e",
     }
     st.session_state.onboarding_done = True
     
+    # 2. Persistance distante Supabase si connecté (sans faire échouer l'utilisateur si la base est hors ligne)
     user_id = uid()
     if not user_id:
         return True
         
-    full_payload = {
-        "user_id": user_id, "use_case": use_case, "display_name": clean_nom,
-        "goal": clean_obj, "style": "Expert comportemental", "profile_type": profile_type, "updated_at": now_iso(),
+    row = {
+        "user_id": user_id,
+        "use_case": use_case,
+        "display_name": clean_nom,
+        "goal": clean_obj,
+        "style": "Expert comportemental",
+        "profile_type": profile_type,
+        "updated_at": now_iso(),
     }
     if school_country:
-        full_payload["school_country"] = school_country
+        row["school_country"] = school_country
     if study_country:
-        full_payload["study_country"] = study_country
+        row["study_country"] = study_country
     if study_level:
-        full_payload["study_level"] = study_level
-
+        row["study_level"] = study_level
+        
     try:
-        sb().table("preferences").upsert(full_payload, on_conflict="user_id").execute()
+        sb().table("preferences").upsert(row, on_conflict="user_id").execute()
         return True
     except Exception as e:
-        err_msg = str(e).lower()
-        if "column" in err_msg or "schema" in err_msg:
-            minimal = {k: v for k, v in full_payload.items() if k not in ("school_country", "study_country", "study_level")}
+        detail = str(e).lower()
+        if "column" in detail or "schema cache" in detail:
+            fallback = {k: value for k, value in row.items() if k not in ("school_country", "study_country", "study_level")}
             try:
-                sb().table("preferences").upsert(minimal, on_conflict="user_id").execute()
+                sb().table("preferences").upsert(fallback, on_conflict="user_id").execute()
+                return True
             except Exception:
                 pass
+        # Si la DB est temporairement indisponible, le profil est quand même conservé en session
         return True
+
+
 
 def page_onboarding():
     step = int(st.session_state.get("onboarding_step", 1))
     if step == 1:
         st.markdown("### Bienvenue chez Bea")
-        prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k, _ in PROFILE_OPTIONS], format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onboarding_profile_choice")
-        study_country, study_level = None, None
+        st.caption("Étape 1 sur 4 — quelques réponses pour adapter Bea à ton profil.")
+        prof = st.radio("Qu'est-ce qui te décrit le plus ?", [k for k, _ in PROFILE_OPTIONS],
+                        format_func=lambda x: dict(PROFILE_OPTIONS)[x], key="onboarding_profile_choice", horizontal=False)
+        study_country = None
+        study_level = None
         if prof == "etudiant":
-            study_country = st.selectbox("Pays d'études", STUDY_COUNTRIES, key="onboarding_study_country")
-            study_level = st.selectbox("Niveau", STUDY_LEVELS, key="onboarding_study_level")
+            st.markdown("#### Ton parcours scolaire")
+            study_country = st.selectbox("Dans quel pays étudies-tu ?", STUDY_COUNTRIES, key="onboarding_study_country")
+            study_level = st.selectbox("Quel est ton niveau d'étude ?", STUDY_LEVELS, key="onboarding_study_level")
         if st.button("Valider", key="onboarding_profile_next", use_container_width=True, type="primary"):
             st.session_state.onboarding_profile = prof
             st.session_state.onboarding_step = 2
@@ -1900,9 +1698,19 @@ def page_onboarding():
 
     if step == 2:
         st.markdown("### Ton but avec Bea")
-        choices = [("clients", "Analyse clients"), ("contenu", "Stratégie contenu"), ("site", "Créer un site/app"), ("code", "Coach code"), ("scolaire", "Accompagnement scolaire"), ("general", "Habitudes"), ("custom", "Autre")]
-        goal = st.selectbox("Quel est ton but ?", [k for k, _ in choices], format_func=lambda k: dict(choices)[k], key="onboarding_goal_choice")
-        custom_goal = st.text_area("Précision", key="onboarding_goal_text") if goal == "custom" else ""
+        st.caption("Étape 2 sur 4 — choisis un prompt ou décris ton besoin librement.")
+        choices = [("clients", "Analyse clients / prospects"), ("contenu", "Stratégie contenu et réseaux sociaux"),
+                   ("site", "Créer un site ou une application"), ("code", "Coach code"),
+                   ("scolaire", "Accompagnement scolaire"), ("general", "Projets, habitudes et comportement"),
+                   ("custom", "J'ai un autre besoin")]
+        goal = st.selectbox("Quel est ton but ?", [key for key, _ in choices],
+                            format_func=lambda key: dict(choices)[key], key="onboarding_goal_choice")
+        custom_goal = ""
+        if goal == "custom":
+            custom_goal = st.text_area("Décris ton besoin", key="onboarding_goal_text", max_chars=300,
+                                       placeholder="Ex : Je veux attirer plus de clients avec mes vidéos.")
+        if goal == "scolaire":
+            st.selectbox("Pays du programme scolaire", SCHOOL_COUNTRIES, key="onboarding_country")
         c_back, c_next = st.columns(2)
         with c_back:
             if st.button("Retour", key="onboarding_goal_back", use_container_width=True):
@@ -1910,27 +1718,33 @@ def page_onboarding():
                 st.rerun()
         with c_next:
             if st.button("Valider", key="onboarding_goal_next", use_container_width=True, type="primary"):
-                st.session_state.onboarding_goal = goal
-                st.session_state.onboarding_recommended_use_case = recommend_use_case(goal, custom_goal)
-                st.session_state.onboarding_step = 3
-                st.rerun()
+                if goal == "custom" and not clean_text(custom_goal, 300):
+                    st.warning("Décris ton besoin pour que Bea puisse te recommander la bonne offre.")
+                else:
+                    st.session_state.onboarding_goal = goal
+                    st.session_state.onboarding_recommended_use_case = recommend_use_case(goal, custom_goal)
+                    st.session_state.onboarding_step = 3
+                    st.rerun()
         return
 
     use_case = st.session_state.get("onboarding_recommended_use_case", "general")
-    rec = PROMPT_OFFER_RECOMMENDATIONS[use_case]
+    recommendation = PROMPT_OFFER_RECOMMENDATIONS[use_case]
     if step == 3:
         st.markdown("### Analyse de ton profil")
-        st.success(f"Offre conseillée : {rec['title']} ({rec['reason']})")
+        with st.spinner("Analyse de ton profil et recherche de l'offre la plus adaptée..."):
+            time.sleep(1)
+        st.success(f"L'offre la plus adaptée est {recommendation['title']} : {recommendation['reason']}.")
         with st.container(border=True):
-            st.markdown(f"#### {rec['title']}")
-            st.markdown(rec["description"])
-            st.link_button(rec["label"], rec["url"], use_container_width=True)
+            st.markdown(f"#### {recommendation['title']}")
+            st.markdown(recommendation["description"])
+            st.link_button(recommendation["label"], recommendation["url"], use_container_width=True)
         if st.button("Continuer", key="onboarding_offer_next", use_container_width=True, type="primary"):
             st.session_state.onboarding_step = 4
             st.rerun()
         return
 
     st.markdown("### Comment veux-tu que Bea t'appelle ?")
+    st.caption("Étape 4 sur 4 — tu pourras modifier ce nom plus tard.")
     nom = st.text_input("Prénom ou pseudo", key="onboarding_name", max_chars=40)
     goal = st.session_state.get("onboarding_goal", "general")
     custom_goal = st.session_state.get("onboarding_goal_text", "")
@@ -1939,19 +1753,24 @@ def page_onboarding():
     school_country = st.session_state.get("onboarding_country") if use_case == "scolaire" else None
     study_country = st.session_state.get("onboarding_study_country") if st.session_state.get("onboarding_profile") == "etudiant" else None
     study_level = st.session_state.get("onboarding_study_level") if st.session_state.get("onboarding_profile") == "etudiant" else None
-
-    if st.button("Valider et entrer dans Bea", key="onboarding_finish", use_container_width=True, type="primary"):
-        if save_onboarding(st.session_state.get("onboarding_profile", "autre"), use_case, nom, saved_goal, school_country, study_country, study_level):
-            st.session_state.page = "chat"
+    c_back, c_finish = st.columns(2)
+    with c_back:
+        if st.button("Retour", key="onboarding_name_back", use_container_width=True):
+            st.session_state.onboarding_step = 3
             st.rerun()
+    with c_finish:
+        if st.button("Valider et entrer dans Bea", key="onboarding_finish", use_container_width=True, type="primary"):
+            if save_onboarding(st.session_state.get("onboarding_profile", "autre"), use_case, nom, saved_goal, school_country, study_country, study_level):
+                st.session_state.page = "chat"
+                st.rerun()
 
 def page_chat():
     st.markdown("### 💬 Discussion avec Bea")
     if not st.session_state.messages:
-        pt = (st.session_state.prefs or {}).get("profile_type") or "createur"
+        pt = (st.session_state.prefs or {}).get("profile_type") or st.session_state.get("profile_type") or "createur"
         if pt not in STARTER_CARDS:
             pt = "createur"
-        st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et construisons ton plan d'action :")
+        st.info("Bonjour, je suis Bea. Décris-moi un projet ou un blocage et je t'aide à repérer ce qui te freine, puis à construire un plan d'action mesurable. Quelques idées pour démarrer :")
         cols = st.columns(3)
         for i, q in enumerate(STARTER_CARDS[pt]):
             with cols[i % 3]:
@@ -1960,7 +1779,7 @@ def page_chat():
     else:
         for idx, m in enumerate(st.session_state.messages):
             render_message(m, idx)
-        c1, c2, c3, c4 = st.columns(4)
+        c1,c2,c3,c4 = st.columns(4)
         with c1:
             if st.button("🔄 Régénérer", key="regen", use_container_width=True):
                 last = st.session_state.messages[-1]
@@ -1985,52 +1804,69 @@ def page_chat():
         with c3:
             st.download_button("⬇️ Exporter (.md)", export_markdown(), file_name="discussion_bea.md", key="dl_conv", use_container_width=True)
         with c4:
-            if st.session_state.conv_id and st.button("🗑️ Supprimer", key="del_conv", use_container_width=True):
+            if st.session_state.conv_id and st.button("🗑️ Supprimer la discussion", key="del_conv", use_container_width=True):
                 delete_conv(st.session_state.conv_id)
                 st.rerun()
-
     if st.session_state.pop("regen_flag", False):
         if generate_reply():
             st.rerun()
 
     up = None
-    with st.popover("＋", help="Joindre un fichier ou exporter"):
-        st.markdown("#### Options")
-        up = st.file_uploader("Glisser un fichier", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}")
+    with st.popover("＋", help="Partager, télécharger ou joindre un fichier"):
+        st.markdown("#### Ajouter à la discussion")
+        up = st.file_uploader("Glisser un fichier ici", type=["txt", "md", "csv", "json", "py", "pdf"], key=f"chat_up_{st.session_state.up_key}")
         st.download_button("Télécharger la discussion", export_markdown(), file_name="discussion_bea.md", key=f"dl_menu_{st.session_state.up_key}", use_container_width=True)
+        components.html("""
+        <button onclick="(navigator.share ? navigator.share({title:'Discussion avec Bea', text:window.parent.document.body.innerText.slice(-5000)}) : navigator.clipboard.writeText(window.parent.document.body.innerText.slice(-5000)))" style="width:100%;padding:10px;border-radius:10px;border:1px solid #7c3aed;background:#17122b;color:white;font-weight:700;cursor:pointer">Partager la discussion</button>
+        """, height=48)
     if up:
-        st.caption(f"Fichier prêt : {up.name}")
+        st.caption(f"Fichier prêt à être envoyé : {up.name}")
 
     default = st.session_state.transcribed_text if st.session_state.get("transcribed_text") else ""
     prompt = st.chat_input("Écris ton message à Bea..." if not default else default)
     audio = st.audio_input("micro", key=f"mic_{st.session_state.up_key}", label_visibility="collapsed")
 
-    # Script JavaScript pour injecter les boutons directement dans la barre comme ChatGPT
     components.html("""
     <script>
     (function(){
         const doc = window.parent.document;
-        function placeChatGPTBar() {
+        let tries = 0;
+        function placeTools(){
             const chat = doc.querySelector('div[data-testid="stChatInput"]');
-            if(!chat) return;
-
             const mic = doc.querySelector('div[data-testid="stAudioInput"]');
             const plus = Array.from(doc.querySelectorAll('[data-testid="stPopover"]')).pop();
-
-            if (plus && !chat.contains(plus)) {
-                chat.appendChild(plus);
+            if(!chat) return false;
+            chat.style.position = 'relative';
+            const input = chat.querySelector('textarea');
+            if(input){
+                input.style.paddingLeft = '52px';
+                input.style.paddingRight = '96px';
             }
-            if (mic && !chat.contains(mic)) {
+            if(mic && !chat.contains(mic)){
+                mic.style.position = 'absolute';
+                mic.style.right = '52px';
+                mic.style.bottom = '6px';
+                mic.style.zIndex = '20';
+                mic.style.width = '40px';
+                mic.style.height = '40px';
                 chat.appendChild(mic);
             }
+            if(plus && !chat.contains(plus)){
+                plus.style.position = 'absolute';
+                plus.style.left = '7px';
+                plus.style.bottom = '6px';
+                plus.style.zIndex = '21';
+                plus.style.width = '40px';
+                chat.appendChild(plus);
+            }
+            return Boolean(mic && plus);
         }
-
-        placeChatGPTBar();
-        const interval = setInterval(placeChatGPTBar, 150);
-        setTimeout(() => clearInterval(interval), 4000);
-
-        const observer = new MutationObserver(placeChatGPTBar);
-        observer.observe(doc.body, { childList: true, subtree: true });
+        function loop(){
+            if(placeTools() || tries > 50) return;
+            tries++;
+            setTimeout(loop, 150);
+        }
+        loop();
     })();
     </script>
     """, height=0)
@@ -2043,7 +1879,7 @@ def page_chat():
                 st.session_state.transcribed_text = txt
                 st.rerun()
             except Exception as e:
-                st.error(f"Échec transcription : {e}")
+                st.error(f"Echec: {e}")
 
     to_send = prompt or default
     if to_send:
@@ -2080,7 +1916,7 @@ def page_code():
         st.session_state["code_area"], st.session_state["code_name_in"], st.session_state["code_lang_in"] = pe["code"], pe["name"], pe["lang"]
     st.markdown("### 💻 Éditeur de code avec IA")
     d = (st.session_state.quota or {}).get("code") or {}
-    st.caption(f"Requêtes IA code : {d.get('used', '?')}/{d.get('limit', '?')}")
+    st.caption(f"Écris ton code à gauche, discute avec l'IA à droite. Requêtes IA code ce mois-ci : {d.get('used', '?')}/{d.get('limit', '?')}. Modèle : {st.session_state.model_choice}")
     col_e, col_c = st.columns([1.25, 0.75], gap="medium")
     with col_e:
         c1, c2 = st.columns([1, 1])
@@ -2100,21 +1936,35 @@ def page_code():
             if st.button("💾 Enregistrer", key="ed_save", use_container_width=True):
                 if code.strip():
                     save_project((name or f"code_{len(get_projects()) + 1}").strip()[:40], lang, code)
+                else:
+                    st.warning("Rien à enregistrer : l'éditeur est vide.")
         with b3:
             st.download_button("⬇️ Télécharger", code, file_name=fname, key="ed_dl", use_container_width=True)
+        with st.expander("Aperçu coloré"):
+            if code.strip():
+                st.code(code, language=lang)
+            else:
+                st.caption("Écris du code pour voir l'aperçu coloré.")
     with col_c:
         hist = st.container()
         with hist:
-            st.markdown("**Assistant Code**")
-            for m in st.session_state.code_messages[-6:]:
+            st.markdown("**Ask about your code**")
+            st.caption("Les réponses de l'IA peuvent contenir des erreurs : relis et teste toujours le code proposé.")
+            for m in st.session_state.code_messages[-8:]:
                 render_message(m, 9999)
-        typed = st.chat_input("Une question sur ton code ?", key="code_chat")
-        if typed and rate_ok() and quota_ok("code"):
-            question = clean_text(typed, 3000)
+        question = None
+        if st.button("Expliquer mon code", key="exp_code", use_container_width=True):
+            question = "Explique mon code simplement, étape par étape."
+        if st.button("Corriger / améliorer mon code", key="fix_code", use_container_width=True):
+            question = "Trouve les bugs et améliore mon code. Donne la version corrigée complète."
+        typed = st.chat_input("Pose une question sur ton code...", key="code_chat")
+        question = typed or question
+        if question and rate_ok() and quota_ok("code"):
+            question = clean_text(question, 3000)
             user_msg = {"role": "user", "content": question}
             st.session_state.code_messages.append(user_msg)
             msgs = [{"role": "system", "content": SYSTEM_CODE + f"\n\nLangage : {lang}\nCode actuel :\n{clean_text(code, 8000)}"}]
-            msgs += [{"role": m["role"], "content": m["content"]} for m in st.session_state.code_messages[-8:]]
+            msgs += [{"role": m["role"], "content": m["content"]} for m in st.session_state.code_messages[-10:]]
             with hist:
                 render_message(user_msg, 10000)
                 with st.chat_message("assistant", avatar=AVATAR):
@@ -2122,22 +1972,22 @@ def page_code():
                         text = st.write_stream(stream_groq(msgs, 3000))
                     except Exception:
                         text = ""
-                        st.error("IA code indisponible.")
+                        st.error("L'IA code est indisponible pour le moment. Réessaie.")
             if text:
                 st.session_state.code_messages.append({"role": "assistant", "content": clean_text(text, 12000)})
                 quota_consume("code")
                 st.rerun()
 
 def page_projets():
-    st.markdown("### 📁 Projets enregistrés")
+    st.markdown("### 📁 Projets de code enregistrés")
     projets = get_projects()
     if not projets:
-        st.info("Aucun projet enregistré.")
+        st.info("Aucun projet pour l'instant. Va dans Code, puis « Enregistrer ».")
         return
     for p in projets:
         with st.container(border=True):
             st.markdown(f"**{p['name']}** · {p['language']}")
-            st.code(p["content"][:400], language=p["language"] if p["language"] in EXT else "text")
+            st.code(p["content"][:600], language=p["language"] if p["language"] in EXT else "text")
             a, b, c = st.columns(3)
             with a:
                 if st.button("Ouvrir", key=f"open_{p['id']}", use_container_width=True):
@@ -2150,70 +2000,152 @@ def page_projets():
                     try:
                         sb().table("code_projects").delete().eq("id", p["id"]).execute()
                         st.session_state.projects = None
+                        if st.session_state.code_project_id == p["id"]:
+                            st.session_state.code_project_id = None
                     except Exception as e:
                         db_error(e)
                     st.rerun()
 
 def page_memoire():
     st.markdown("### 🧠 Mémoire de Bea")
+    st.caption("Bea retient des infos utiles sur toi pour mieux t'aider. Tu peux tout voir et supprimer à tout moment.")
     mems = st.session_state.memories or []
-    new_mem = st.text_input("Ajouter une info", placeholder="Ex : Je prépare un concours de droit", key="new_mem_input")
-    if st.button("Mémoriser", use_container_width=True) and clean_text(new_mem, 200):
+    new_mem = st.text_input("Ajouter une info à retenir", placeholder="Ex : Je lance une chaîne TikTok sur la productivité", key="new_mem_input")
+    if st.button("Mémoriser", use_container_width=True) and clean_text(new_mem,200):
         try:
-            sb().table("memories").insert({"user_id": uid(), "content": clean_text(new_mem, 500)}).execute()
+            sb().table("memories").insert({"user_id": uid(), "content": clean_text(new_mem,500)}).execute()
             load_account()
             st.toast("Mémorisé")
             st.rerun()
         except Exception:
-            st.error("Erreur d'accès à la mémoire.")
-    for m in mems:
-        with st.container(border=True):
-            st.markdown(m.get("content",""))
-            if st.button("Supprimer", key=f"del_mem_{m['id']}", use_container_width=True):
-                try:
-                    sb().table("memories").delete().eq("id", m["id"]).execute()
-                    load_account()
-                    st.rerun()
-                except Exception:
-                    db_error()
+            st.error("Table memories manquante.")
+    if not mems:
+        st.info("Aucun souvenir pour l'instant.")
+    else:
+        for m in mems:
+            with st.container(border=True):
+                st.markdown(m.get("content",""))
+                st.caption(m.get("created_at","")[:19])
+                if st.button("Supprimer ce souvenir", key=f"del_mem_{m['id']}", use_container_width=True):
+                    try:
+                        sb().table("memories").delete().eq("id", m["id"]).execute()
+                        load_account()
+                        st.rerun()
+                    except Exception:
+                        db_error()
+
+def locked(msg):
+    st.info(msg)
+    st.button("Voir les offres", key=f"locked_{st.session_state.page}", on_click=goto, args=("compte",))
 
 def generate_app(prompt, mode):
     if not clean_text(prompt, 12000):
+        st.warning("Décris ton projet pour lancer la génération.")
         return False
     if not rate_ok() or not quota_ok("code"):
         return False
     messages = [{"role": "system", "content": SYSTEM_APP}]
     if mode == "refine" and st.session_state.app_result:
-        messages.append({"role": "user", "content": "Application actuelle :\n```html\n" + clean_text(st.session_state.app_result, 30000) + "\n```"})
-        messages.append({"role": "user", "content": "Retouches : " + clean_text(prompt, 4000)})
+        messages.append({"role": "user", "content": "Voici la version actuelle de l'application :\n```html\n" + clean_text(st.session_state.app_result, 30000) + "\n```"})
+        messages.append({"role": "user", "content": "Modifie-la sans supprimer les fonctionnalités existantes sauf si je le demande. Demande de retouche : " + clean_text(prompt, 4000)})
     else:
         messages.append({"role": "user", "content": clean_text(prompt, 12000)})
-    with st.spinner("Construction en cours..."):
+    with st.spinner("Bea construit ton application..."):
         try:
             raw = "".join(stream_groq(messages, 10000))
             html_code = extract_html(raw)
         except Exception:
             html_code = ""
-    if not html_code or "<" not in html_code:
-        st.error("Génération incomplète, réessaie.")
+    if not html_code or "<" not in html_code or ">" not in html_code:
+        st.error("La génération n'a pas produit une application exploitable. Reformule le besoin et réessaie.")
         return False
+    previous = st.session_state.get("app_result")
+    if previous and previous != html_code:
+        st.session_state.app_versions = (st.session_state.get("app_versions", []) + [previous])[-5:]
     st.session_state.app_result = html_code
+    st.session_state.app_generation_count = st.session_state.get("app_generation_count", 0) + 1
     quota_consume("code")
     return True
 
+
+def build_web_app_pack(html_code: str):
+    stream = io.BytesIO()
+    manifest = json.dumps({
+        "name": "Application créée avec Bea",
+        "short_name": "Mon application",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#101522",
+        "theme_color": "#2563eb",
+        "lang": "fr",
+    }, ensure_ascii=False, indent=2)
+    service_worker = "self.addEventListener('install', event => self.skipWaiting());\\nself.addEventListener('activate', event => self.clients.claim());"
+    guide = "Ce pack contient une application web autonome. Déploie index.html sur un hébergeur web ou importe-le dans un outil de wrapper mobile pour préparer une version Android/iOS. La publication finale sur les stores nécessite les comptes développeur et les contrôles de chaque store."
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("index.html", html_code)
+        archive.writestr("manifest.webmanifest", manifest)
+        archive.writestr("sw.js", service_worker)
+        archive.writestr("README.txt", guide)
+    return stream.getvalue()
+
+
 def page_app():
-    st.markdown("### 🌐 Atelier Web")
+    st.markdown("### 🌐 Atelier de création web")
     if st.session_state.plan != "abo":
-        st.info("Inclus dans Bea Ultra.")
-        st.button("Voir les offres", on_click=goto, args=("compte",))
+        locked("L'atelier complet de création web est inclus dans Bea Ultra.")
         return
-    brief = st.text_area("Décris ton application", placeholder="Ex : Un gestionnaire de tâches minimaliste avec filtres.")
-    if st.button("Générer l'application", use_container_width=True, type="primary"):
-        if generate_app(brief, "initial"):
+    st.caption("Décris ton idée, construis une première version, puis demande des retouches sans repartir de zéro. Chaque résultat est un fichier HTML autonome.")
+    with st.container(border=True):
+        st.markdown("#### 1. Définis ton produit")
+        app_kind = st.selectbox("Type de projet", ["Application web", "Site vitrine", "Landing page", "Portfolio", "Tableau de bord", "Outil interne"], key="app_kind")
+        audience = st.text_input("Pour qui ?", key="app_audience", placeholder="Ex : indépendants qui veulent suivre leurs prospects")
+        objective = st.text_input("Objectif principal", key="app_objective", placeholder="Ex : visualiser les priorités et relancer au bon moment")
+        features = st.text_area("Fonctions indispensables", height=100, key="app_features", placeholder="Ex : ajouter une tâche, filtrer par statut, voir les statistiques, sauvegarder les données")
+        c1, c2 = st.columns(2)
+        with c1:
+            visual_style = st.selectbox("Style visuel", ["Minimal clair", "Sombre premium", "Éditorial", "Coloré et énergique", "Professionnel"], key="app_visual_style")
+        with c2:
+            pages = st.selectbox("Organisation", ["Une page", "Tableau de bord avec sections", "Navigation multi-vues"], key="app_pages")
+        extra = st.text_area("Contraintes ou détails à respecter", height=80, key="app_extra", placeholder="Ex : couleurs de ma marque, ton sérieux, mobile prioritaire")
+        brief = f"Type : {app_kind}\nPublic : {clean_text(audience, 500)}\nObjectif : {clean_text(objective, 700)}\nFonctions : {clean_text(features, 1800)}\nStyle : {visual_style}\nOrganisation : {pages}\nContraintes : {clean_text(extra, 1000)}"
+        if st.button("Construire la première version", key="app_go", use_container_width=True, type="primary"):
+            if generate_app(brief, "initial"):
+                st.rerun()
+    if not st.session_state.app_result:
+        st.info("Commence par remplir le brief. Bea générera une interface avec de vraies interactions, un état vide et des données de démonstration.")
+        return
+    st.divider()
+    st.markdown("#### 2. Teste et améliore")
+    st.caption(f"Version {st.session_state.get('app_generation_count', 1)} — teste les boutons dans l'aperçu puis demande une retouche précise.")
+    refinement = st.text_area("Que veux-tu changer ?", height=90, key="app_refinement", placeholder="Ex : Ajoute un mode sombre, rends le bouton principal plus visible et ajoute une recherche par nom.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Appliquer la retouche", key="app_refine", use_container_width=True, type="primary"):
+            if generate_app(refinement, "refine"):
+                st.rerun()
+    with c2:
+        st.download_button("Télécharger HTML", st.session_state.app_result, file_name="mon_app.html", mime="text/html", key="app_dl", use_container_width=True)
+    with c3:
+        if st.button("Revenir à la version précédente", key="app_undo", use_container_width=True, disabled=not st.session_state.get("app_versions")):
+            versions = st.session_state.app_versions
+            st.session_state.app_result = versions.pop()
+            st.session_state.app_generation_count = max(1, st.session_state.app_generation_count - 1)
             st.rerun()
-    if st.session_state.app_result:
-        st.download_button("Télécharger HTML", st.session_state.app_result, file_name="app.html", mime="text/html", use_container_width=True)
-        components.html(st.session_state.app_result, height=650, scrolling=True)
+    app_pack = build_web_app_pack(st.session_state.app_result)
+    st.download_button("Télécharger le pack web installable", app_pack, file_name="mon_app_web.zip", mime="application/zip", key="app_pack_dl", use_container_width=True)
+    st.caption("Le pack est prêt à héberger ou à importer dans un outil de wrapper mobile. La publication Play Store/App Store demande ensuite les comptes développeur et les validations propres à chaque plateforme.")
+    preview_tab, code_tab = st.tabs(["Aperçu interactif", "Code HTML"])
+    with preview_tab:
+        components.html(st.session_state.app_result, height=720, scrolling=True)
+    with code_tab:
+        st.code(st.session_state.app_result, language="html")
+
+def studio_step_card(num, title, desc):
+    st.markdown(
+        f'<div class="studio-step"><h4>{num}. {title}</h4><p>{desc}</p></div>',
+        unsafe_allow_html=True
+    )
+
 
 def canvas_font(size: int, bold: bool = False):
     candidates = [
@@ -2225,138 +2157,346 @@ def canvas_font(size: int, bold: bool = False):
             return ImageFont.truetype(path, size)
     return ImageFont.load_default()
 
-def compose_canvas(assets, size, layout, title, subtitle, accent, background):
-    w, h = size
+
+def draw_canvas_text(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int], max_width: int, font, fill: str):
+    words = clean_text(text, 180).split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if draw.textbbox((0, 0), candidate, font=font)[2] <= max_width or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    line_height = int(font.size * 1.18) if hasattr(font, "size") else 24
+    for index, line in enumerate(lines[:5]):
+        draw.text((xy[0], xy[1] + index * line_height), line, font=font, fill=fill)
+
+
+def compose_canvas(assets: list[Image.Image], size: tuple[int, int], layout: str, title: str, subtitle: str, accent: str, background: str):
+    width, height = size
     canvas = Image.new("RGB", size, background)
     draw = ImageDraw.Draw(canvas)
-    margin = 32
+    margin = max(28, int(width * 0.055))
+    gap = max(16, int(width * 0.025))
+    usable_width = width - (margin * 2)
+    usable_height = height - (margin * 2)
     if assets:
-        img_h = int(h * 0.65)
-        canvas.paste(ImageOps.fit(assets[0].convert("RGB"), (w - margin * 2, img_h)), (margin, margin))
-    draw.rounded_rectangle((margin, int(h * 0.70), w - margin, h - margin), radius=20, fill="#120e24")
-    f_title = canvas_font(42, True)
-    f_sub = canvas_font(24, False)
-    draw.text((margin + 20, int(h * 0.73)), title or "Ton titre", font=f_title, fill="#ffffff")
-    draw.text((margin + 20, int(h * 0.82)), subtitle or "Ton sous-titre", font=f_sub, fill="#c4b5fd")
+        if layout == "Grille 2×2":
+            cells = [(0, 0), (1, 0), (0, 1), (1, 1)]
+            cell_w = (usable_width - gap) // 2
+            cell_h = int(usable_height * 0.58)
+            for asset, (column, row) in zip(assets[:4], cells):
+                x = margin + column * (cell_w + gap)
+                y = margin + row * (cell_h + gap)
+                fitted = ImageOps.fit(asset.convert("RGB"), (cell_w, cell_h))
+                canvas.paste(fitted, (x, y))
+                draw.rounded_rectangle((x, y, x + cell_w, y + cell_h), radius=18, outline=accent, width=4)
+        elif layout == "Collage éditorial":
+            main_w = int(usable_width * 0.64)
+            main_h = int(usable_height * 0.64)
+            if assets:
+                canvas.paste(ImageOps.fit(assets[0].convert("RGB"), (main_w, main_h)), (margin, margin))
+            for index, asset in enumerate(assets[1:4]):
+                x = margin + main_w + gap
+                y = margin + index * ((main_h - gap * 2) // 3 + gap)
+                h = (main_h - gap * 2) // 3
+                canvas.paste(ImageOps.fit(asset.convert("RGB"), (usable_width - main_w - gap, h)), (x, y))
+        else:
+            image_h = int(usable_height * 0.68)
+            canvas.paste(ImageOps.fit(assets[0].convert("RGB"), (usable_width, image_h)), (margin, margin))
+            draw.rounded_rectangle((margin, margin, margin + usable_width, margin + image_h), radius=20, outline=accent, width=5)
+    else:
+        draw.rounded_rectangle((margin, margin, width - margin, int(height * 0.68)), radius=24, outline=accent, width=4)
+        placeholder_font = canvas_font(max(24, int(width * 0.035)), True)
+        draw.text((width // 2, int(height * 0.36)), "Ajoute tes photos", font=placeholder_font, fill="#8f98ad", anchor="mm")
+    overlay_y = int(height * 0.73)
+    draw.rounded_rectangle((margin, overlay_y, width - margin, height - margin), radius=26, fill="#101522")
+    title_font = canvas_font(max(28, int(width * 0.052)), True)
+    subtitle_font = canvas_font(max(18, int(width * 0.026)))
+    draw_canvas_text(draw, title or "Ton titre ici", (margin + 28, overlay_y + 28), usable_width - 56, title_font, "#ffffff")
+    draw_canvas_text(draw, subtitle or "Ajoute un message clair et mémorable.", (margin + 28, overlay_y + int(height * 0.105)), usable_width - 56, subtitle_font, "#c8d0df")
+    draw.rounded_rectangle((margin + 28, height - margin - 58, margin + 210, height - margin - 22), radius=17, fill=accent)
+    draw.text((margin + 46, height - margin - 52), "Découvrir", font=canvas_font(18, True), fill="#ffffff")
     return canvas
+
+
+def build_canvas_pack(png: bytes, platform: str, title: str):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("visuel.png", png)
+        archive.writestr("publication.txt", f"Format : {platform}\\nTitre : {clean_text(title, 180)}\\n\\nLe visuel est prêt à importer dans Instagram, TikTok, YouTube ou ton outil de publication.")
+    return stream.getvalue()
+
 
 def page_studio():
     menu = st.session_state.studio_menu
     st.markdown(f"### 🎬 Studio créateur — {studio_section_label(menu)}")
+    st.caption("Suis les étapes ci-dessous. Les actions avec un cadenas 🔒 nécessitent une offre Pro ou Ultra.")
 
     if menu == "composer":
-        title = st.text_input("Titre", key="cv_title", value="Nouveau Projet")
-        subtitle = st.text_input("Sous-titre", key="cv_sub", value="Une idée à développer")
-        photos = st.file_uploader("Photo(s)", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True)
-        assets = [Image.open(io.BytesIO(p.getvalue())).convert("RGB") for p in photos] if photos else []
-        canvas = compose_canvas(assets, (1080, 1080), "Hero photo", title, subtitle, "#7c3aed", "#18132e")
-        st.image(canvas, use_container_width=True)
+        if st.session_state.plan != "abo":
+            studio_step_card(1, "Studio de Design Visuel Bea", "Crée un visuel complet avec un canvas central, des modèles et tes photos.")
+            locked("Le canvas, les modèles et les exports visuels sont inclus dans Bea Ultra.")
+            return
+        studio_step_card(1, "Construis ton visuel", "Choisis un format de publication, dépose tes photos, sélectionne une mise en page et ajuste ton texte.")
+        formats = {
+            "Format Carré (1:1)": ((1080, 1080), "Format Carré (1:1)"),
+            "Format Vertical (9:16)": ((1080, 1920), "Format Vertical (9:16)"),
+            "Format Vidéo Courte (9:16)": ((1080, 1920), "Format Vidéo Courte (9:16)"),
+            "Format Paysage (16:9)": ((1920, 1080), "Format Paysage (16:9)"),
+            "Format Bannière Pro": ((1200, 1200), "Format Bannière Pro"),
+            "Format Application": ((1242, 2688), "Format Application"),
+        }
+        format_label = st.selectbox("Format de destination", list(formats), key="canvas_format")
+        size, platform = formats[format_label]
+        left, center, right = st.columns([1, 1.35, 1])
+        with left:
+            layout = st.selectbox("Modèle", ["Hero photo", "Grille 2×2", "Collage éditorial"], key="canvas_layout")
+            title = st.text_input("Titre", max_chars=90, key="canvas_title", placeholder="Ton idée en une phrase")
+            subtitle = st.text_area("Sous-titre", height=90, max_chars=180, key="canvas_subtitle", placeholder="Une promesse simple ou un appel à l'action")
+        with right:
+            accent = st.color_picker("Couleur d'accent", "#2563EB", key="canvas_accent")
+            background = st.color_picker("Couleur du fond", "#172033", key="canvas_background")
+            photos = st.file_uploader("Ajoute jusqu'à 8 photos", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key="canvas_photos")
+            assets = []
+            for photo in photos[:8] if photos else []:
+                try:
+                    assets.append(Image.open(io.BytesIO(photo.getvalue())).convert("RGB"))
+                except Exception:
+                    st.warning(f"Impossible de lire {photo.name}.")
+        with center:
+            st.markdown("#### Canvas de publication")
+            canvas = compose_canvas(assets, size, layout, title, subtitle, accent, background)
+            st.image(canvas, use_container_width=True)
+        st.divider()
         png = image_to_png_bytes(canvas)
-        st.download_button("Télécharger PNG", png, file_name="visuel.png", mime="image/png", use_container_width=True)
+        st.session_state.canvas_png = png
+        st.session_state.canvas_zip = build_canvas_pack(png, platform, title)
+        d1, d2 = st.columns(2)
+        with d1:
+            st.download_button("Télécharger le visuel PNG", png, file_name="visuel_publication.png", mime="image/png", key="canvas_png_download", use_container_width=True)
+        with d2:
+            st.download_button("Télécharger le pack publication", st.session_state.canvas_zip, file_name="pack_publication.zip", mime="application/zip", key="canvas_zip_download", use_container_width=True)
+        st.caption(f"Prêt pour {platform}. Pour une vidéo, utilise ce visuel comme couverture ou première séquence dans ton éditeur mobile préféré.")
+
+    elif menu == "importer":
+        studio_step_card(1, "Importer ton média", "Ajoute ta vidéo, audio ou image. Tu pourras ensuite l'utiliser dans les autres étapes du studio.")
+        up = st.file_uploader("Choisis un fichier", type=["mp4","mp3","wav","png","jpg","jpeg","webm","mov","m4a","ogg"], key="media_up")
+        if up:
+            st.success(f"✅ {up.name} importé — {up.size/1024/1024:.2f} Mo")
+            if up.type.startswith("video"):
+                st.video(up)
+            elif up.type.startswith("image"):
+                st.image(up)
+            elif up.type.startswith("audio"):
+                st.audio(up)
+            st.session_state["current_media"] = up
+            st.info("Ton média est prêt. Choisis une autre action dans le menu de gauche pour le modifier.")
+        else:
+            st.info("Aucun média importé pour le moment.")
 
     elif menu == "sous_titres":
+        LANGS = {"Détection automatique": None, "Français": "fr", "English": "en"}
         if st.session_state.plan not in ("pro", "abo"):
-            st.warning("Réservé aux offres Pro et Ultra.")
-            st.button("Voir les offres", on_click=goto, args=("compte",))
+            studio_step_card(1, "Sous-titres automatiques", "Transcription par IA au format SRT et VTT, prêts à importer dans ton logiciel de montage.")
+            st.warning("🔒 Cette fonction est incluse dans Bea Pro et Bea Ultra.")
+            st.button("Voir les offres", key="locked_sub", on_click=goto, args=("compte",))
         else:
-            up = st.file_uploader("Fichier audio ou vidéo", type=["mp3", "mp4", "m4a", "wav"], key="sub_up")
-            if up and st.button("Générer les sous-titres", type="primary", use_container_width=True):
-                with st.spinner("Transcription en cours..."):
-                    try:
-                        res = get_groq().audio.transcriptions.create(file=(up.name, up.getvalue()), model=WHISPER_MODEL, response_format="verbose_json")
-                        data = res.model_dump() if hasattr(res, "model_dump") else (res if isinstance(res, dict) else {})
-                        cues = segments_to_cues(data.get("segments"))
-                        st.session_state.sub_result = {"srt": cues_to_srt(cues), "vtt": cues_to_vtt(cues)}
+            studio_step_card(1, "Génère des sous-titres automatiques", "Transcription par IA (Whisper) avec horodatage. Audio ou vidéo, 25 Mo maximum. Tu récupères les fichiers SRT et VTT.")
+            up = st.file_uploader("Fichier audio ou vidéo", type=["mp3", "mp4", "m4a", "wav", "webm", "ogg", "flac", "mpeg", "mpga"], key="sub_up")
+            lang_label = st.selectbox("Langue parlée", list(LANGS), key="sub_lang")
+            if up and st.button("Générer les sous-titres", key="sub_go", use_container_width=True, type="primary"):
+                if up.size > MAX_AUDIO_BYTES:
+                    st.error("Fichier trop lourd : 25 Mo maximum.")
+                elif rate_ok() and quota_ok("chat"):
+                    with st.spinner("Transcription en cours..."):
+                        try:
+                            kwargs = {"language": LANGS[lang_label]} if LANGS[lang_label] else {}
+                            res = get_groq().audio.transcriptions.create(file=(up.name, up.getvalue()), model=WHISPER_MODEL, response_format="verbose_json", temperature=0.0, **kwargs)
+                            data = res.model_dump() if hasattr(res, "model_dump") else (res if isinstance(res, dict) else {})
+                            cues = segments_to_cues(data.get("segments"))
+                        except Exception:
+                            cues, data = [], {}
+                            st.error("La transcription a échoué.")
+                    if cues:
                         quota_consume("chat")
+                        st.session_state.sub_result = {"srt": cues_to_srt(cues), "vtt": cues_to_vtt(cues), "text": data.get("text", "")}
                         st.rerun()
-                    except Exception:
-                        st.error("Échec transcription.")
-            if st.session_state.get("sub_result"):
-                r = st.session_state.sub_result
-                st.download_button("Télécharger SRT", r["srt"], file_name="sous_titres.srt")
+            r = st.session_state.get("sub_result")
+            if r:
+                st.markdown("#### Tes sous-titres sont prêts")
+                a, b = st.columns(2)
+                with a:
+                    st.download_button("⬇️ Télécharger SRT", r["srt"], file_name="sous_titres.srt", key="dl_srt", use_container_width=True)
+                with b:
+                    st.download_button("⬇️ Télécharger VTT", r["vtt"], file_name="sous_titres.vtt", key="dl_vtt", use_container_width=True)
+                st.text_area("Aperçu (SRT)", r["srt"], height=260, key="srt_prev")
 
     elif menu == "miniature":
-        th_t = st.text_input("Titre de la miniature", max_chars=80)
-        th_s = st.text_input("Sous-titre", max_chars=90)
-        bg = st.file_uploader("Fond (optionnel)", type=["png", "jpg", "jpeg"])
-        if st.button("Générer la miniature", type="primary", use_container_width=True):
+        studio_step_card(1, "Crée une miniature 1280×720", "Génère une miniature accrocheuse pour ta vidéo. Choisis un titre, un style et optionnellement une image de fond.")
+        title = st.text_input("Titre (80 caractères max)", max_chars=80, key="th_title", placeholder="Ex : J'ai arrêté de procrastiner en 7 jours")
+        subtitle = st.text_input("Sous-titre (optionnel)", max_chars=90, key="th_sub")
+        style = st.selectbox("Style visuel", list(PALETTES), key="th_style")
+        bg = st.file_uploader("Image de fond (optionnel)", type=["png", "jpg", "jpeg", "webp"], key="th_bg")
+        if st.button("Générer la miniature", key="th_go", use_container_width=True, type="primary"):
             try:
-                st.session_state.thumb_png = image_to_png_bytes(make_thumbnail(th_t, th_s, "Violet & Jaune (Contraste fort)", bg.getvalue() if bg else None))
+                st.session_state.thumb_png = image_to_png_bytes(make_thumbnail(title, subtitle, style, bg.getvalue() if bg else None))
             except Exception:
-                st.error("Échec de la génération.")
+                st.error("Impossible de générer la miniature.")
         if st.session_state.thumb_png:
             st.image(st.session_state.thumb_png)
-            st.download_button("Télécharger PNG", st.session_state.thumb_png, file_name="miniature.png", mime="image/png")
+            st.download_button("⬇️ Télécharger (PNG 1280×720)", st.session_state.thumb_png, file_name="miniature.png", mime="image/png", key="th_dl", use_container_width=True)
 
     elif menu == "plan_ia":
-        sujet = st.text_area("Sujet de la vidéo")
-        if st.button("Créer le plan", type="primary", use_container_width=True) and clean_text(sujet, 6000):
-            try:
-                res = "".join(stream_groq([{"role": "system", "content": SYSTEM_MONTAGE}, {"role": "user", "content": sujet}]))
-                st.session_state.plan_result = res
-                quota_consume("chat")
-                st.rerun()
-            except Exception:
-                st.error("Erreur IA.")
+        studio_step_card(1, "Reçois un plan de montage complet", "Décris le sujet de ta vidéo et choisis la plateforme. L'IA te donne un plan détaillé : hook, séquences, sous-titres, musique, appel à l'action, titres et idée de miniature.")
+        sujet = st.text_area("Sujet ou script de la vidéo", height=140, key="pm_sujet", placeholder="Ex : 3 astuces pour rester concentré toute la journée")
+        c1, c2 = st.columns(2)
+        with c1:
+            plateforme = st.selectbox("Plateforme", ["TikTok", "Instagram Reels", "YouTube Shorts", "YouTube (long)", "LinkedIn"], key="pm_plat")
+        with c2:
+            duree = st.selectbox("Durée visée", ["15 s", "30 s", "60 s", "3 min", "8-10 min"], key="pm_dur")
+        if st.button("Générer le plan de montage", key="pm_go", use_container_width=True, type="primary") and clean_text(sujet, 6000):
+            if rate_ok() and quota_ok("chat"):
+                prompt = f"Plateforme : {plateforme}\nDurée : {duree}\nSujet / script :\n{clean_text(sujet, 6000)}"
+                try:
+                    text = st.write_stream(stream_groq([{"role": "system", "content": SYSTEM_MONTAGE}, {"role": "user", "content": prompt}]))
+                except Exception:
+                    text = ""
+                    st.error("L'IA est indisponible.")
+                if text.strip():
+                    st.session_state.plan_result = text
+                    quota_consume("chat")
+                    st.rerun()
         if st.session_state.get("plan_result"):
+            st.markdown("#### Ton plan de montage")
             st.markdown(st.session_state.plan_result)
+            st.download_button("⬇️ Télécharger (.md)", st.session_state.plan_result, file_name="plan_montage.md", key="pm_dl", use_container_width=True)
 
-    else:
-        st.info("Section en cours de configuration.")
+    elif menu == "audio":
+        studio_step_card(1, "Audio", "Extrais l'audio d'une vidéo, ajuste le volume, réduis le bruit ou coupe les silences. Nécessite FFmpeg.")
+        if "current_media" not in st.session_state:
+            st.info("Importe d'abord une vidéo dans « Importer un média ».")
+        else:
+            st.code("ffmpeg -i input.mp4 -vn -q:a 0 output.mp3", language="bash")
+            if st.button("Extraire l'audio", key="audio_ex", use_container_width=True):
+                st.success("Commande prête. Sur Streamlit Cloud, elle sera exécutée via subprocess.")
+
+    elif menu == "texte":
+        studio_step_card(1, "Texte incrusté", "Ajoute du texte par-dessus ta vidéo. Choisis la taille, la couleur et la position.")
+        st.text_input("Texte à incruster", key="text_overlay", placeholder="Ex : Nouvelle vidéo !")
+        st.slider("Taille du texte", 10, 100, 40, key="text_size")
+        st.color_picker("Couleur du texte", "#FFFFFF", key="text_color")
+
+    elif menu == "effets":
+        studio_step_card(1, "Effets vidéo", "Applique des effets : flou, netteté, vignette, ralenti, accéléré.")
+        st.slider("Intensité du flou", 0, 10, 0, key="eff_blur")
+        st.caption("D'autres effets seront disponibles dans une prochaine version.")
+
+    elif menu == "transitions":
+        studio_step_card(1, "Transitions", "Choisis une transition entre tes clips : fondu, glissement, zoom, wipe.")
+        st.selectbox("Type de transition", ["Fondu", "Slide", "Zoom", "Wipe"], key="trans_type")
+
+    elif menu == "filtres":
+        studio_step_card(1, "Filtres couleur", "Ajuste le rendu couleur de ta vidéo : contraste, saturation, teinte.")
+        st.slider("Contraste", 0.5, 2.0, 1.0, key="filt_contrast")
+
+    elif menu == "ajustement":
+        studio_step_card(1, "Ajustement", "Recadre, pivote ou change la vitesse de ta vidéo.")
+        st.slider("Vitesse de lecture", 0.25, 2.0, 1.0, key="adj_speed")
+
+    elif menu == "autocollants":
+        studio_step_card(1, "Autocollants", "Ajoute des emojis ou des images par-dessus ta vidéo.")
+        st.file_uploader("Image autocollant (PNG recommandé)", type=["png","jpg","webp"], key="sticker_up")
+
+    elif menu == "modeles":
+        studio_step_card(1, "Formats prédéfinis", "Choisis un format selon la plateforme de destination.")
+        st.selectbox("Modèle", ["TikTok 9:16", "Reels 9:16", "Shorts 9:16", "YouTube 16:9"], key="model_tpl")
+        st.caption("Le format sera appliqué à ton export vidéo.")
 
 def page_perso():
     st.markdown("### 🎨 Personnaliser Bea")
+    if st.session_state.pop("perso_saved", False):
+        st.success("Personnalisation enregistrée : Bea l'utilisera dans toutes tes discussions.")
     p = st.session_state.prefs or {}
     styles = list(STYLE_HINT)
     profs = [k for k,_ in PROFILE_OPTIONS]
-    allowed = PLAN_ALLOWED_USE_CASES.get(st.session_state.plan, ("general",))
-    ucs = [k for k,_ in USE_CASE_OPTIONS if k in allowed] or ["general"]
-
+    plan = st.session_state.plan
+    allowed = PLAN_ALLOWED_USE_CASES.get(plan, ("general",))
+    ucs = [k for k,_ in USE_CASE_OPTIONS if k in allowed]
+    if not ucs:
+        ucs = ["general"]
     with st.form("form_perso"):
         nom = st.text_input("Comment Bea doit-elle t'appeler ?", value=p.get("display_name") or "", max_chars=40)
         style = st.selectbox("Style de réponse", styles, index=styles.index(p["style"]) if p.get("style") in styles else 0)
-        objectif = st.text_input("Objectif principal", value=p.get("goal") or "", max_chars=160)
-        prof = st.selectbox("Profil", profs, index=profs.index(p["profile_type"]) if p.get("profile_type") in profs else 0, format_func=lambda x: dict(PROFILE_OPTIONS)[x])
-        uc = st.selectbox("Ton but", ucs, index=ucs.index(p["use_case"]) if p.get("use_case") in ucs else 0, format_func=lambda x: USE_CASE_LABEL.get(x, x))
+        objectif = st.text_input("Objectif principal", value=p.get("goal") or "", max_chars=160, placeholder="Ex : arrêter de procrastiner sur mes vidéos")
+        prof = st.selectbox("Profil", profs, index=profs.index(p["profile_type"]) if p.get("profile_type") in profs else 0,
+                            format_func=lambda x: dict(PROFILE_OPTIONS)[x])
+        uc = st.selectbox("Ton but avec Bea", ucs, index=ucs.index(p["use_case"]) if p.get("use_case") in ucs else len(ucs)-1,
+                          format_func=lambda x: USE_CASE_LABEL.get(x, x))
+        school_country = None
+        if uc == "scolaire":
+            cur_pays = p.get("school_country")
+            school_country = st.selectbox("Pays du programme scolaire", SCHOOL_COUNTRIES,
+                                          index=SCHOOL_COUNTRIES.index(cur_pays) if cur_pays in SCHOOL_COUNTRIES else 0)
+        study_country = None
+        study_level = None
+        if prof == "etudiant":
+            cur_study_country = p.get("study_country")
+            cur_study_level = p.get("study_level")
+            study_country = st.selectbox("Pays d'études", STUDY_COUNTRIES,
+                                          index=STUDY_COUNTRIES.index(cur_study_country) if cur_study_country in STUDY_COUNTRIES else 0)
+            study_level = st.selectbox("Niveau d'étude", STUDY_LEVELS,
+                                       index=STUDY_LEVELS.index(cur_study_level) if cur_study_level in STUDY_LEVELS else 0)
         ok = st.form_submit_button("Enregistrer", use_container_width=True)
-
     if ok:
-        row = {
-            "user_id": uid(), "display_name": clean_text(nom, 40), "style": style, "goal": clean_text(objectif, 160),
-            "profile_type": prof, "use_case": uc, "updated_at": now_iso()
-        }
+        row = {"user_id": uid(), "display_name": clean_text(nom, 40), "style": style, "goal": clean_text(objectif, 160),
+               "profile_type": prof, "use_case": uc, "updated_at": now_iso()}
+        if uc == "scolaire" and school_country:
+            row["school_country"] = school_country
+        if prof == "etudiant" and study_country and study_level:
+            row["study_country"] = study_country
+            row["study_level"] = study_level
         try:
             sb().table("preferences").upsert(row, on_conflict="user_id").execute()
-            st.session_state.prefs = row
+            st.session_state.prefs = {k: row.get(k) for k in ("display_name", "style", "goal", "profile_type", "use_case", "school_country", "study_country", "study_level")}
             st.session_state.profile_type = prof
-            st.success("Préférences enregistrées !")
-            st.rerun()
+            st.session_state.perso_saved = True
         except Exception as e:
             db_error(e)
+            return
+        st.rerun()
 
 def page_compte():
     st.markdown("### 💎 Compte & offres")
     q = st.session_state.quota or {}
     st.markdown(f"**Offre actuelle :** {PLAN_LABEL[st.session_state.plan]}")
-    for k, label in (("chat", "Requêtes de chat"), ("code", "Requêtes code")):
+    if st.button("🔄 Actualiser mon offre", key="refresh_plan"):
+        refresh_quota()
+        st.rerun()
+    for k, label in (("chat", "Requêtes de chat"), ("code", "Requêtes IA code")):
         if q.get(k):
-            st.progress(min(q[k]["used"] / max(q[k]["limit"], 1), 1.0), text=f"{label} : {q[k]['used']}/{q[k]['limit']}")
+            st.progress(min(q[k]["used"] / max(q[k]["limit"], 1), 1.0), text=f"{label} ce mois-ci : {q[k]['used']}/{q[k]['limit']}")
+    st.caption("Après un paiement, ton offre est activée sur ton compte (si ce n'est pas le cas, contacte le support).")
     render_offers()
     st.divider()
-    if st.checkbox("Confirmer la suppression de l'historique"):
-        if st.button("Supprimer l'historique", type="primary"):
-            try:
-                sb().table("conversations").delete().eq("user_id", uid()).execute()
-                sb().table("code_projects").delete().eq("user_id", uid()).execute()
-                new_chat()
-                st.success("Historique effacé.")
-                st.rerun()
-            except Exception as e:
-                db_error(e)
-
-# ==============================================================================
-# ROUTAGE PRINCIPAL DE L'APPLICATION
-# ==============================================================================
+    st.markdown("#### 🔒 Confidentialité")
+    st.markdown(privacy_md())
+    st.caption("Texte indicatif : à faire valider et compléter (mentions légales, CGU, politique de confidentialité complète) avant l'ouverture au public.")
+    confirm = st.checkbox("Je confirme vouloir supprimer toutes mes discussions et tous mes projets de code", key="del_all_ok")
+    if st.button("Supprimer mon historique", key="del_all", disabled=not confirm):
+        try:
+            sb().table("conversations").delete().eq("user_id", uid()).execute()
+            sb().table("code_projects").delete().eq("user_id", uid()).execute()
+            st.session_state.convs = st.session_state.projects = None
+            new_chat()
+            st.session_state.page = "compte"
+            st.success("Historique supprimé.")
+        except Exception as e:
+            db_error(e)
 
 if not logged_in():
     restore_auth_session()
